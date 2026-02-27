@@ -1,175 +1,156 @@
-import { useState } from "react";
-import { cn } from "./ui/utils";
-import { 
-  LayoutDashboard, 
-  BarChart3, 
-  Settings, 
-  FileText, 
-  User,
-  Zap,
-  X
+﻿import {
+  LayoutDashboard,
+  BookOpen,
+  Award,
+  RefreshCcw,
+  GraduationCap,
+  Users,
+  BarChart3,
+  Settings,
+  X,
 } from "lucide-react";
+import { cn } from "./ui/utils";
 
-export function Sidebar({ currentPage, onPageChange }) {
-  const [isExpanded, setIsExpanded] = useState(false);
+const navigationItems = [
+  {
+    id: "dashboard",
+    name: "Tableau de bord",
+    subtitle: "Vue d'ensemble",
+    compactSubtitle: "Vue d'ensemble",
+    icon: LayoutDashboard,
+  },
+  {
+    id: "formation",
+    name: "Formation",
+    subtitle: "Gestion des formations",
+    compactSubtitle: "Formation",
+    icon: BookOpen,
+  },
+  {
+    id: "qualification",
+    name: "Qualification",
+    subtitle: "Suivi des qualifications",
+    compactSubtitle: "Qualification",
+    icon: Award,
+  },
+  {
+    id: "requalification",
+    name: "Requalification",
+    subtitle: "Gestion requalification",
+    compactSubtitle: "Requalif.",
+    icon: RefreshCcw,
+  },
+  {
+    id: "formateurs",
+    name: "Formateurs",
+    subtitle: "Liste des formateurs",
+    compactSubtitle: "Formateurs",
+    icon: GraduationCap,
+  },
+  {
+    id: "collaborateurs",
+    name: "Collaborateurs",
+    subtitle: "Gestion collaborateurs",
+    compactSubtitle: "Collaborateurs",
+    icon: Users,
+  },
+  {
+    id: "statistiques",
+    name: "Statistiques",
+    subtitle: "Analyses et rapports",
+    compactSubtitle: "Statistiques",
+    icon: BarChart3,
+  },
+  {
+    id: "parametres",
+    name: "Paramètres",
+    subtitle: "Configuration système",
+    compactSubtitle: "Paramètres",
+    icon: Settings,
+  },
+];
 
-  const handleNavigationClick = (pageId) => {
-    if (!isExpanded) {
-      setIsExpanded(true);
-      // Delay the page change to allow expansion animation
-      setTimeout(() => onPageChange(pageId), 150);
-    } else {
-      onPageChange(pageId);
-    }
-  };
-  
-  const navigationItems = [
-    { id: "dashboard", name: "Dashboard", icon: LayoutDashboard, description: "Overview & monitoring" },
-    { id: "analytics", name: "Analytics", icon: BarChart3, description: "Advanced analytics" },
-    { id: "configuration", name: "Configuration", icon: Settings, description: "System settings" },
-    { id: "reports", name: "Reports", icon: FileText, description: "Generate reports" },
-    { id: "settings", name: "Settings & Profile", icon: User, description: "User preferences" }
-  ];
-
+export function Sidebar({ currentPage, onPageChange, compact = false }) {
   return (
-    <div className="ml-6 my-6">
-      <div 
-        className={cn(
-          "flex flex-col h-[calc(100vh-3rem)] transition-all duration-300 ease-in-out rounded-3xl",
-          "bg-gradient-to-b from-sidebar via-sidebar to-sidebar-accent shadow-2xl border border-sidebar-border/20 overflow-hidden",
-          isExpanded ? "w-64" : "w-20"
-        )}
-      >
-        {/* Header with Logo */}
-        <div className="p-6 flex flex-col items-center relative">
-          {isExpanded && (
-            <button
-              onClick={() => setIsExpanded(false)}
-              className="absolute top-4 right-4 w-8 h-8 bg-sidebar-accent/50 hover:bg-sidebar-accent rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110"
-            >
-              <X className="w-4 h-4 text-sidebar-foreground" />
-            </button>
-          )}
-          
-          <div className="w-12 h-12 bg-gradient-to-br from-sidebar-primary to-sidebar-primary/80 rounded-full flex items-center justify-center shadow-lg">
-            <Zap className="w-6 h-6 text-sidebar-primary-foreground" />
-          </div>
-          {isExpanded && (
-            <div className="mt-3 text-center">
-              <h2 className="text-sidebar-foreground font-semibold text-base whitespace-nowrap">
-                EMS Control
-              </h2>
-              <p className="text-sidebar-foreground/70 text-xs whitespace-nowrap mt-1">
-                Energy Management
-              </p>
+    <aside
+      className={cn(
+        "leoni-sidebar",
+        compact ? "w-[86px] px-3 py-4" : "w-[280px] p-4",
+      )}
+    >
+      <div className="flex h-full flex-col">
+        {compact ? (
+          <div className="mb-4 flex justify-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-[22px] bg-[#7ae094] text-[#2b6d56] shadow-[0_8px_18px_rgba(122,224,148,0.35)]">
+              <GraduationCap className="h-6 w-6" />
             </div>
-          )}
-        </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 px-4 py-6">
-          <div className="space-y-4">
-            {navigationItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = currentPage === item.id;
-              
-              return (
-                <div key={item.id} className="relative group">
-                  <button
-                    onClick={() => handleNavigationClick(item.id)}
-                    className={cn(
-                      "transition-all duration-300 flex items-center relative overflow-hidden",
-                      "hover:scale-110 hover:shadow-lg",
-                      isExpanded 
-                        ? "w-full px-4 py-3 justify-start rounded-xl" 
-                        : "w-12 h-12 justify-center mx-auto rounded-full",
-                      isActive
-                        ? "bg-gradient-to-br from-sidebar-primary to-sidebar-primary/80 shadow-lg shadow-sidebar-primary/30 scale-105"
-                        : "bg-gradient-to-br from-sidebar-accent to-sidebar-accent/80 hover:from-sidebar-primary/80 hover:to-sidebar-primary/60"
-                    )}
-                  >
-                    <Icon className={cn(
-                      "transition-colors duration-300 flex-shrink-0",
-                      "w-5 h-5",
-                      isActive 
-                        ? "text-sidebar-primary-foreground" 
-                        : "text-sidebar-accent-foreground group-hover:text-sidebar-primary-foreground"
-                    )} />
-                    
-                    {isExpanded && (
-                      <div className="ml-3 overflow-hidden">
-                        <div className={cn(
-                          "font-medium text-sm whitespace-nowrap transition-colors duration-300",
-                          isActive 
-                            ? "text-sidebar-primary-foreground" 
-                            : "text-sidebar-accent-foreground group-hover:text-sidebar-primary-foreground"
-                        )}>
-                          {item.name}
-                        </div>
-                        {isActive && (
-                          <div className="text-xs text-sidebar-primary-foreground/70 mt-0.5 whitespace-nowrap">
-                            {item.description}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    
-                    {isActive && !isExpanded && (
-                      <>
-                        <div className="absolute inset-0 rounded-full bg-sidebar-primary opacity-20 animate-pulse" />
-                        <div className="absolute -right-2 top-1/2 -translate-y-1/2 w-1 h-6 bg-sidebar-primary rounded-l-full" />
-                      </>
-                    )}
-                    
-                    {isActive && isExpanded && (
-                      <div className="absolute right-2 top-1/2 -translate-y-1/2 w-2 h-2 bg-sidebar-primary-foreground rounded-full animate-pulse" />
-                    )}
-                  </button>
-
-                  {!isExpanded && (
-                    <div className="absolute left-full ml-4 px-3 py-2 bg-gradient-to-br from-sidebar-primary to-sidebar-primary/90 text-sidebar-primary-foreground rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none whitespace-nowrap z-50 shadow-lg transform translate-x-2 group-hover:translate-x-0">
-                      <div className="font-medium text-sm">{item.name}</div>
-                      <div className="text-xs opacity-75 mt-1">{item.description}</div>
-                      <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1 w-2 h-2 bg-sidebar-primary rotate-45" />
-                    </div>
-                  )}
-                </div>
-              );
-            })}
           </div>
+        ) : (
+          <div className="mb-6 flex flex-col items-center">
+            <div className="relative mb-4 w-full">
+              <button className="absolute right-0 top-0 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white/80">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-[#7ae094] text-[#2b6d56] shadow-[0_8px_18px_rgba(122,224,148,0.35)]">
+              <GraduationCap className="h-7 w-7" />
+            </div>
+            <p className="text-[31px] font-semibold tracking-[0.01em] text-[#f2f8f4]">LEONI</p>
+            <p className="mt-1 text-[13px] text-[#cde0d6]">Gestion de Formation</p>
+          </div>
+        )}
+
+        <nav className={cn("flex-1", compact ? "space-y-3" : "space-y-4")}>
+          {navigationItems.map((item) => {
+            const isActive = currentPage === item.id;
+            const Icon = item.icon;
+
+            return (
+              <button
+                key={item.id}
+                onClick={() => onPageChange(item.id)}
+                className={cn(
+                  "leoni-nav-item group relative w-full",
+                  compact
+                    ? "flex h-12 items-center justify-center rounded-full"
+                    : "flex min-h-[56px] items-center rounded-[16px] px-4",
+                  isActive ? "is-active" : "",
+                )}
+              >
+                <Icon className={cn(compact ? "h-5 w-5" : "h-5 w-5 shrink-0")} />
+
+                {!compact && (
+                  <div className="ml-4 text-left">
+                    <p className={cn("text-[16px] font-medium", isActive ? "text-[#1f5240]" : "text-[#f2f7f3]")}>{item.name}</p>
+                    <p className={cn("text-[13px]", isActive ? "text-[#356a57]" : "text-[#cde0d6]")}>{item.subtitle}</p>
+                  </div>
+                )}
+
+                {!compact && isActive && <span className="ml-auto h-3 w-3 rounded-full bg-[#356a57]/80" />}
+              </button>
+            );
+          })}
         </nav>
 
-        {/* User Profile Section */}
-        <div className="p-4 flex justify-center">
-          <div className="relative group">
-            <div 
-              className="w-12 h-12 bg-gradient-to-br from-sidebar-primary to-sidebar-primary/80 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-all duration-300 cursor-pointer"
-              onClick={() => setIsExpanded(!isExpanded)}
-            >
-              <span className="text-sidebar-primary-foreground font-semibold text-lg">LG</span>
+        {compact ? (
+          <div className="pt-4 flex justify-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#7ae094] text-[22px] font-semibold text-[#2b6d56]">
+              LG
             </div>
-            
-            {!isExpanded && (
-              <div className="absolute left-full ml-4 px-3 py-2 bg-gradient-to-br from-sidebar-primary to-sidebar-primary/90 text-sidebar-primary-foreground rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none whitespace-nowrap z-50 shadow-lg transform translate-x-2 group-hover:translate-x-0">
-                <div className="font-medium text-sm">Liam Gallagher</div>
-                <div className="text-xs opacity-75 mt-1">System Administrator</div>
-                <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1 w-2 h-2 bg-sidebar-primary rotate-45" />
-              </div>
-            )}
-            
-            {isExpanded && (
-              <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 text-center">
-                <div className="text-sidebar-foreground font-medium text-sm whitespace-nowrap">
-                  Liam Gallagher
-                </div>
-                <div className="text-sidebar-foreground/70 text-xs whitespace-nowrap">
-                  System Administrator
-                </div>
-              </div>
-            )}
           </div>
-        </div>
+        ) : (
+          <div className="pt-4 text-center">
+            <p className="text-[16px] font-medium text-[#f2f8f4]">Liam Gallagher</p>
+            <p className="text-[13px] text-[#cde0d6]">System Administrator</p>
+            <div className="mt-3 flex justify-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#7ae094] text-[22px] font-semibold text-[#2b6d56]">
+                LG
+              </div>
+            </div>
+          </div>
+        )}
       </div>
-    </div>
+    </aside>
   );
 }
+

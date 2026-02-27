@@ -1,14 +1,14 @@
 import { Badge } from "./ui/badge";
 import { Card } from "./ui/card";
-import { 
-  Users, 
-  UserPlus, 
-  UserMinus, 
-  GraduationCap, 
-  BookOpen, 
-  Clock,
+import {
+  Users,
+  UserPlus,
+  UserMinus,
+  GraduationCap,
+  BookOpen,
+  Clock3,
   TrendingUp,
-  TrendingDown
+  TrendingDown,
 } from "lucide-react";
 import { EntreesSortiesChart } from "./EntreesSortiesChart";
 import { FormateursDisponibiliteChart } from "./FormateursDisponibiliteChart";
@@ -17,145 +17,70 @@ import { QualificationStatusChart } from "./QualificationStatusChart";
 import { HeuresPresenceChart } from "./HeuresPresenceChart";
 import { AnalyseDefautsChart } from "./AnalyseDefautsChart";
 
-export function TrainingDashboard() {
-  // Mock data
-  const kpiData = {
-    totalCollaborateurs: 1248,
-    nouveauxCollaborateurs: 47,
-    sorties: 12,
-    formateursDisponibles: 24,
-    formationsEnCours: 18,
-    tauxQualification: 87.5,
-    tauxRequalification: 12.3,
-    tauxPresence: 94.2
-  };
-
-  const trends = {
-    collaborateurs: 3.2,
-    entrees: 8.5,
-    sorties: -2.1,
-    formateurs: 5.0,
-    formations: 12.0,
-    qualification: 2.5,
-    requalification: -1.2,
-    presence: 1.8
-  };
-
-  const KPICard = ({ title, value, icon: Icon, trend, suffix = "", iconColor = "text-primary", iconBg = "bg-primary/10" }) => (
-    <Card className="p-5 bg-white border-border/40 shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <p className="text-sm text-muted-foreground mb-1">{title}</p>
-          <div className="flex items-baseline gap-2">
-            <h3 className="text-3xl font-bold text-foreground">{value}{suffix}</h3>
-            {trend !== undefined && (
-              <div className={`flex items-center gap-1 text-xs font-medium ${trend >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {trend >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                {Math.abs(trend)}%
-              </div>
-            )}
-          </div>
-        </div>
-        <div className={`w-12 h-12 ${iconBg} rounded-xl flex items-center justify-center`}>
-          <Icon className={`w-6 h-6 ${iconColor}`} />
+const KPI = ({ title, value, icon: Icon, trend, suffix = "", iconColor, iconBg }) => (
+  <Card className="rounded-[20px] border border-[#dfe5e2] bg-white p-5 shadow-sm">
+    <div className="flex items-start justify-between gap-3">
+      <div>
+        <p className="text-[15px] text-[#5f6777]">{title}</p>
+        <div className="mt-1 flex items-baseline gap-3">
+          <h3 className="text-[42px] font-semibold leading-none text-[#191c20]">
+            {value}
+            {suffix}
+          </h3>
+          {typeof trend === "number" && (
+            <div className={`flex items-center gap-1 text-[14px] ${trend >= 0 ? "text-[#00a63e]" : "text-[#ea3737]"}`}>
+              {trend >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+              <span>{Math.abs(trend)}%</span>
+            </div>
+          )}
         </div>
       </div>
-    </Card>
-  );
+      <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${iconBg}`}>
+        <Icon className={`h-6 w-6 ${iconColor}`} />
+      </div>
+    </div>
+  </Card>
+);
 
+export function TrainingDashboard() {
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#f8faf9' }}>
-      <div className="p-6 space-y-6">
-        {/* Header Section */}
-        <div className="flex flex-col space-y-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-semibold text-foreground">Bonjour, Seef 👋</h1>
-              <p className="text-muted-foreground mt-1">
-                Système Intelligent de Gestion de Formation
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge className="bg-primary/10 text-primary border-primary/20 px-3 py-1.5">
-                <div className="w-2 h-2 bg-primary rounded-full mr-2 animate-pulse"></div>
-                Données mises à jour aujourd'hui
-              </Badge>
-            </div>
-          </div>
+    <div className="space-y-5 pb-6">
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-[40px] font-semibold leading-tight text-[#171a1f]">Bonjour, Seef</h1>
+          <p className="mt-1 text-[18px] text-[#5d6574]">Systeme Intelligent de Gestion de Formation</p>
         </div>
+        <Badge className="mt-2 rounded-xl border border-[#abd7be] bg-[#dff3e7] px-4 py-2 text-[14px] font-medium text-[#2f8b4d]">
+          <span className="mr-2 inline-block h-2.5 w-2.5 rounded-full bg-[#4bc06e]" />
+          Donnees mises a jour aujourd'hui
+        </Badge>
+      </div>
 
-        {/* KPI Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <KPICard
-            title="Total Collaborateurs"
-            value={kpiData.totalCollaborateurs}
-            icon={Users}
-            trend={trends.collaborateurs}
-            iconColor="text-blue-600"
-            iconBg="bg-blue-50"
-          />
-          <KPICard
-            title="Nouvelles Entrées"
-            value={kpiData.nouveauxCollaborateurs}
-            icon={UserPlus}
-            trend={trends.entrees}
-            iconColor="text-green-600"
-            iconBg="bg-green-50"
-          />
-          <KPICard
-            title="Sorties"
-            value={kpiData.sorties}
-            icon={UserMinus}
-            trend={trends.sorties}
-            iconColor="text-red-600"
-            iconBg="bg-red-50"
-          />
-          <KPICard
-            title="Formateurs Disponibles"
-            value={kpiData.formateursDisponibles}
-            icon={GraduationCap}
-            trend={trends.formateurs}
-            iconColor="text-purple-600"
-            iconBg="bg-purple-50"
-          />
-        </div>
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
+        <KPI title="Total Collaborateurs" value="1248" icon={Users} trend={3.2} iconColor="text-[#0f63f2]" iconBg="bg-[#e8f0ff]" />
+        <KPI title="Nouvelles Entrees" value="47" icon={UserPlus} trend={8.5} iconColor="text-[#06b64e]" iconBg="bg-[#e8f7ee]" />
+        <KPI title="Sorties" value="12" icon={UserMinus} trend={-2.1} iconColor="text-[#ea3737]" iconBg="bg-[#fdeeee]" />
+        <KPI title="Formateurs Disponibles" value="24" icon={GraduationCap} trend={5} iconColor="text-[#9029ff]" iconBg="bg-[#f3edff]" />
+      </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <KPICard
-            title="Formations en Cours"
-            value={kpiData.formationsEnCours}
-            icon={BookOpen}
-            trend={trends.formations}
-            iconColor="text-orange-600"
-            iconBg="bg-orange-50"
-          />
-          <KPICard
-            title="Taux de Présence"
-            value={kpiData.tauxPresence}
-            suffix="%"
-            icon={Clock}
-            trend={trends.presence}
-            iconColor="text-teal-600"
-            iconBg="bg-teal-50"
-          />
-        </div>
+      <div className="grid max-w-[52rem] grid-cols-1 gap-4 md:grid-cols-2">
+        <KPI title="Formations en Cours" value="18" icon={BookOpen} trend={12} iconColor="text-[#fc6200]" iconBg="bg-[#fff2e4]" />
+        <KPI title="Taux de Presence" value="94.2" suffix="%" icon={Clock3} trend={1.8} iconColor="text-[#009a8a]" iconBg="bg-[#e6f4f3]" />
+      </div>
 
-        {/* Répartition par Centre de Coût et Segment */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <CollaborateursGroupeChart />
-          <QualificationStatusChart />
-        </div>
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+        <CollaborateursGroupeChart />
+        <QualificationStatusChart />
+      </div>
 
-        {/* Charts Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <EntreesSortiesChart />
-          <FormateursDisponibiliteChart />
-        </div>
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+        <EntreesSortiesChart />
+        <FormateursDisponibiliteChart />
+      </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <HeuresPresenceChart />
-          <AnalyseDefautsChart />
-        </div>
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+        <HeuresPresenceChart />
+        <AnalyseDefautsChart />
       </div>
     </div>
   );

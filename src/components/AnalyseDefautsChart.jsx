@@ -1,14 +1,5 @@
 import { Card } from "./ui/card";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 export function AnalyseDefautsChart() {
   const data = [
@@ -26,109 +17,34 @@ export function AnalyseDefautsChart() {
     { mois: "Déc", justifies: 19, injustifies: 4 },
   ];
 
-  const CustomTooltip = ({ active, payload }) => {
-    if (active && payload && payload.length) {
-      const total = payload[0].value + payload[1].value;
-
-      return (
-        <div className="bg-white p-3 border border-border/40 rounded-lg shadow-md">
-          <p className="text-sm font-semibold text-foreground mb-2">
-            {payload[0].payload.mois}
-          </p>
-
-          <div className="space-y-1">
-            <p className="text-sm text-muted-foreground">
-              Justifiés:{" "}
-              <span
-                className="font-semibold"
-                style={{ color: "#f59e0b" }}
-              >
-                {payload[0].value}
-              </span>
-            </p>
-
-            <p className="text-sm text-muted-foreground">
-              Injustifiés:{" "}
-              <span
-                className="font-semibold"
-                style={{ color: "#ef4444" }}
-              >
-                {payload[1].value}
-              </span>
-            </p>
-
-            <p className="text-sm font-semibold text-foreground mt-1">
-              Total: {total} défauts
-            </p>
-          </div>
-        </div>
-      );
-    }
-
-    return null;
-  };
-
   return (
-    <Card className="p-6 bg-white border-border/40 shadow-sm">
+    <Card className="rounded-[20px] border border-[#dfe5e2] bg-white p-6 shadow-sm">
       <div className="mb-6">
-        <h3 className="text-lg font-semibold text-foreground mb-1">
-          Analyse des Absence
-        </h3>
-        <p className="text-sm text-muted-foreground">
-          Évolution mensuelle des absences justifiées et injustifiées
-        </p>
+        <h3 className="mb-1 text-[38px] font-medium text-[#1b1e23]">Analyse des Absence</h3>
+        <p className="text-[15px] text-[#5f6777]">Évolution mensuelle des absences justifiées et injustifiées</p>
       </div>
 
       <ResponsiveContainer width="100%" height={300}>
         <BarChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-
-          <XAxis
-            dataKey="mois"
-            stroke="#6b7280"
-            style={{ fontSize: "12px" }}
-          />
-
-          <YAxis
-            stroke="#6b7280"
-            style={{ fontSize: "12px" }}
-          />
-
-          <Tooltip content={<CustomTooltip />} />
-
+          <CartesianGrid strokeDasharray="3 3" stroke="#d9dee2" />
+          <XAxis dataKey="mois" stroke="#6b7280" style={{ fontSize: "13px" }} />
+          <YAxis stroke="#6b7280" style={{ fontSize: "13px" }} />
+          <Tooltip />
           <Legend wrapperStyle={{ fontSize: "12px" }} />
-
-          <Bar
-            dataKey="justifies"
-            fill="#f59e0b"
-            radius={[8, 8, 0, 0]}
-            name="Justifiés"
-            stackId="a"
-          />
-
-          <Bar
-            dataKey="injustifies"
-            fill="#ef4444"
-            radius={[8, 8, 0, 0]}
-            name="Injustifiés"
-            stackId="a"
-          />
+          <Bar dataKey="justifies" fill="#f59e0b" radius={[8, 8, 0, 0]} name="Justifiés" stackId="a" />
+          <Bar dataKey="injustifies" fill="#ef4444" radius={[8, 8, 0, 0]} name="Injustifiés" stackId="a" />
         </BarChart>
       </ResponsiveContainer>
 
       <div className="mt-4 flex items-center justify-center gap-6">
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-orange-500" />
-          <span className="text-sm text-muted-foreground">
-            Absences justifiées
-          </span>
+          <div className="h-3 w-3 rounded-full bg-orange-500" />
+          <span className="text-[14px] text-[#5f6777]">Absences justifiées</span>
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-red-500" />
-          <span className="text-sm text-muted-foreground">
-            Absences injustifiées
-          </span>
+          <div className="h-3 w-3 rounded-full bg-red-500" />
+          <span className="text-[14px] text-[#5f6777]">Absences injustifiées</span>
         </div>
       </div>
     </Card>

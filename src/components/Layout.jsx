@@ -1,68 +1,81 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { Sidebar } from "./Sidebar";
-import { Dashboard } from "./Dashboard";
-import { Analytics } from "./Analytics";
+import { TrainingDashboard } from "./TrainingDashboard";
+import { FormationPage } from "./FormationPage";
+import { FormateursList } from "./FormateursList";
+import { CollaborateursPage } from "./CollaborateursPage";
 
-// Placeholder pages for sections not yet implemented
-const Configuration = () => (
-  <div className="p-6">
-    <h1 className="text-3xl mb-4">Configuration</h1>
-    <p className="text-muted-foreground">
-      System configuration and device management coming soon...
-    </p>
-  </div>
-);
-
-const Reports = () => (
-  <div className="p-6">
-    <h1 className="text-3xl mb-4">Reports</h1>
-    <p className="text-muted-foreground">
-      Generate and export energy reports coming soon...
-    </p>
-  </div>
-);
-
-const Settings = () => (
-  <div className="p-6">
-    <h1 className="text-3xl mb-4">Settings & Profile</h1>
-    <p className="text-muted-foreground">
-      User preferences and profile settings coming soon...
-    </p>
+const PlaceholderPage = ({ title, subtitle }) => (
+  <div className="rounded-[20px] bg-transparent px-2 py-1">
+    <h1 className="leoni-page-title">{title}</h1>
+    <p className="leoni-page-subtitle">{subtitle}</p>
   </div>
 );
 
 export function Layout() {
   const [currentPage, setCurrentPage] = useState("dashboard");
 
-  // Render the selected page
   const renderContent = () => {
     switch (currentPage) {
       case "dashboard":
-        return <Dashboard />;
-      case "analytics":
-        return <Analytics />;
-      case "configuration":
-        return <Configuration />;
-      case "reports":
-        return <Reports />;
-      case "settings":
-        return <Settings />;
+        return <TrainingDashboard />;
+      case "formation":
+        return <FormationPage />;
+      case "qualification":
+        return (
+          <PlaceholderPage
+            title="Gestion des Qualifications"
+            subtitle="Suivi et validation des qualifications des collaborateurs..."
+          />
+        );
+      case "requalification":
+        return (
+          <PlaceholderPage
+            title="Gestion des Requalifications"
+            subtitle="Planification et suivi des requalifications..."
+          />
+        );
+      case "formateurs":
+        return <FormateursList />;
+      case "collaborateurs":
+        return <CollaborateursPage />;
+      case "statistiques":
+        return (
+          <PlaceholderPage
+            title="Statistiques et Analyses"
+            subtitle="Rapports détaillés et analyses de performance..."
+          />
+        );
+      case "parametres":
+        return (
+          <PlaceholderPage
+            title="Paramètres du Système"
+            subtitle="Configuration et paramètres de l'application..."
+          />
+        );
       default:
-        return <Dashboard />;
+        return <TrainingDashboard />;
     }
   };
 
   return (
-    <div className="flex h-screen bg-background">
-      {/* Sidebar */}
-      <div className="flex-shrink-0">
-        <Sidebar currentPage={currentPage} onPageChange={setCurrentPage} />
+    <div className="leoni-shell flex h-screen overflow-hidden">
+      <div className="px-5 py-5">
+        <Sidebar
+          currentPage={currentPage}
+          onPageChange={setCurrentPage}
+          compact={currentPage === "dashboard"}
+        />
       </div>
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-auto">
-        {renderContent()}
-      </main>
+      <div className="leoni-divider" />
+
+      <main className="leoni-main flex-1 overflow-y-auto">{renderContent()}</main>
+
+      <button aria-label="Aide" className="leoni-help">
+        ?
+      </button>
     </div>
   );
 }
+

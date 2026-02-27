@@ -2,7 +2,6 @@ import { Card } from "./ui/card";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 export function EntreesSortiesChart() {
-  // Mock data pour l'évolution mensuelle des entrées/sorties
   const data = [
     { mois: "Jan", entrees: 42, sorties: 15 },
     { mois: "Fév", entrees: 38, sorties: 18 },
@@ -15,59 +14,45 @@ export function EntreesSortiesChart() {
     { mois: "Sep", entrees: 63, sorties: 11 },
     { mois: "Oct", entrees: 58, sorties: 13 },
     { mois: "Nov", entrees: 52, sorties: 17 },
-    { mois: "Déc", entrees: 47, sorties: 12 }
+    { mois: "Déc", entrees: 47, sorties: 12 },
   ];
 
   return (
-    <Card className="p-6 bg-white border-border/40 shadow-sm">
+    <Card className="rounded-[20px] border border-[#dfe5e2] bg-white p-6 shadow-sm">
       <div className="mb-6">
-        <h3 className="text-lg font-semibold text-foreground mb-1">
-          Évolution des Entrées/Sorties
-        </h3>
-        <p className="text-sm text-muted-foreground">
-          Analyse mensuelle des mouvements de collaborateurs
-        </p>
+        <h3 className="mb-1 text-[38px] font-medium text-[#1b1e23]">Évolution des Entrées/Sorties</h3>
+        <p className="text-[15px] text-[#5f6777]">Analyse mensuelle des mouvements de collaborateurs</p>
       </div>
 
       <ResponsiveContainer width="100%" height={300}>
         <LineChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-          <XAxis 
-            dataKey="mois" 
-            stroke="#6b7280"
-            style={{ fontSize: '12px' }}
-          />
-          <YAxis 
-            stroke="#6b7280"
-            style={{ fontSize: '12px' }}
-          />
-          <Tooltip 
+          <CartesianGrid strokeDasharray="3 3" stroke="#d9dee2" />
+          <XAxis dataKey="mois" stroke="#6b7280" style={{ fontSize: "13px" }} />
+          <YAxis stroke="#6b7280" style={{ fontSize: "13px" }} />
+          <Tooltip
             contentStyle={{
-              backgroundColor: 'white',
-              border: '1px solid #e5e7eb',
-              borderRadius: '8px',
-              fontSize: '12px'
+              backgroundColor: "white",
+              border: "1px solid #d9dee2",
+              borderRadius: "8px",
+              fontSize: "12px",
             }}
           />
-          <Legend 
-            wrapperStyle={{ fontSize: '12px' }}
-            iconType="line"
-          />
-          <Line 
-            type="monotone" 
-            dataKey="entrees" 
-            stroke="#10b981" 
-            strokeWidth={2}
-            dot={{ fill: '#10b981', r: 4 }}
+          <Legend wrapperStyle={{ fontSize: "12px" }} iconType="circle" />
+          <Line
+            type="monotone"
+            dataKey="entrees"
+            stroke="#1bb37d"
+            strokeWidth={2.5}
+            dot={{ fill: "#1bb37d", r: 4 }}
             activeDot={{ r: 6 }}
             name="Entrées"
           />
-          <Line 
-            type="monotone" 
-            dataKey="sorties" 
-            stroke="#ef4444" 
-            strokeWidth={2}
-            dot={{ fill: '#ef4444', r: 4 }}
+          <Line
+            type="monotone"
+            dataKey="sorties"
+            stroke="#ef4444"
+            strokeWidth={2.5}
+            dot={{ fill: "#ef4444", r: 4 }}
             activeDot={{ r: 6 }}
             name="Sorties"
           />

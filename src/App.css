@@ -1,42 +1,68 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+.leoni-shell {
+  background: #f3f5f4;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+.leoni-divider {
+  width: 1px;
+  background: #e4e8e6;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.leoni-main {
+  padding: 20px 24px;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
+.leoni-help {
+  position: fixed;
+  right: 12px;
+  bottom: 12px;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  background: #222529;
+  color: #fff;
+  font-size: 22px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.22);
 }
 
-.card {
-  padding: 2em;
+.leoni-page-title {
+  font-size: 42px;
+  line-height: 1.08;
+  font-weight: 600;
+  color: #16181d;
+  letter-spacing: -0.01em;
 }
 
-.read-the-docs {
-  color: #888;
+.leoni-page-subtitle {
+  margin-top: 6px;
+  font-size: 18px;
+  line-height: 1.25;
+  color: #5f6777;
+}
+
+.leoni-sidebar {
+  height: calc(100vh - 40px);
+  border-radius: 26px;
+  border: 1px solid rgba(45, 109, 87, 0.3);
+  background: linear-gradient(180deg, #2e6f59 0%, #3f7d67 100%);
+  box-shadow: 0 10px 25px rgba(25, 59, 46, 0.2);
+}
+
+.leoni-nav-item {
+  transition: all 0.2s ease;
+}
+
+.leoni-nav-item.is-active {
+  background: linear-gradient(90deg, #79de93 0%, #6fd489 100%);
+  color: #255e4a;
+  box-shadow: 0 10px 22px rgba(111, 212, 137, 0.35);
+}
+
+.leoni-nav-item:not(.is-active) {
+  background: rgba(255, 255, 255, 0.08);
+  color: #e7f2eb;
+}
+
+.leoni-nav-item:not(.is-active):hover {
+  background: rgba(255, 255, 255, 0.12);
 }
