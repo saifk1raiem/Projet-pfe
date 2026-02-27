@@ -29,9 +29,9 @@ const collaborateurs = [
     nom: "Ahmed Ben Ali",
     prenom: "Ahmed",
     departement: "Production",
-    poste: "Opérateur",
+    poste: "Operateur",
     dateEntree: "15/01/2024",
-    statut: "Qualifié",
+    statut: "Qualifie",
     formations: 5,
     derniereFormation: "10/01/2026",
   },
@@ -40,10 +40,10 @@ const collaborateurs = [
     matricule: "MAT002",
     nom: "Fatima Zahra",
     prenom: "Fatima",
-    departement: "Qualité",
-    poste: "Contrôleur Qualité",
+    departement: "Qualite",
+    poste: "Controleur Qualite",
     dateEntree: "20/06/2023",
-    statut: "Qualifié",
+    statut: "Qualifie",
     formations: 8,
     derniereFormation: "05/02/2026",
   },
@@ -65,9 +65,9 @@ const collaborateurs = [
     nom: "Nadia Mansouri",
     prenom: "Nadia",
     departement: "Production",
-    poste: "Chef d'équipe",
+    poste: "Chef d'equipe",
     dateEntree: "01/09/2022",
-    statut: "Qualifié",
+    statut: "Qualifie",
     formations: 12,
     derniereFormation: "28/01/2026",
   },
@@ -79,7 +79,7 @@ const collaborateurs = [
     departement: "Logistique",
     poste: "Magasinier",
     dateEntree: "05/11/2024",
-    statut: "Non associé",
+    statut: "Non associe",
     formations: 2,
     derniereFormation: "20/05/2025",
   },
@@ -91,7 +91,7 @@ const collaborateurs = [
     departement: "Support",
     poste: "Assistante RH",
     dateEntree: "14/02/2023",
-    statut: "Qualifié",
+    statut: "Qualifie",
     formations: 6,
     derniereFormation: "18/01/2026",
   },
@@ -101,9 +101,9 @@ const collaborateurs = [
     nom: "Karim Belkacem",
     prenom: "Karim",
     departement: "Production",
-    poste: "Opérateur",
+    poste: "Operateur",
     dateEntree: "12/08/2024",
-    statut: "Dépassement",
+    statut: "Depassement",
     formations: 4,
     derniereFormation: "20/08/2025",
   },
@@ -125,11 +125,11 @@ const Stat = ({ icon: Icon, title, value, color }) => (
 
 const getStatusBadge = (statut) => {
   switch (statut) {
-    case "Qualifié":
+    case "Qualifie":
       return (
         <Badge className="w-fit rounded-lg border border-[#b4e2ca] bg-[#dcf5e8] px-3 py-1 text-[14px] font-medium text-[#0c8d3e]">
           <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
-          Qualifié
+          Qualifie
         </Badge>
       );
     case "En cours":
@@ -139,18 +139,18 @@ const getStatusBadge = (statut) => {
           En cours
         </Badge>
       );
-    case "Non associé":
+    case "Non associe":
       return (
         <Badge className="w-fit rounded-lg border border-[#f2c4c4] bg-[#fdeeee] px-3 py-1 text-[14px] font-medium text-[#ea3737]">
           <XCircle className="mr-1 h-3.5 w-3.5" />
-          Non associé
+          Non associe
         </Badge>
       );
-    case "Dépassement":
+    case "Depassement":
       return (
         <Badge className="w-fit rounded-lg border border-[#d9c2ff] bg-[#f3edff] px-3 py-1 text-[14px] font-medium text-[#7b35e8]">
           <AlertTriangle className="mr-1 h-3.5 w-3.5" />
-          Dépassement
+          Depassement
         </Badge>
       );
     default:
@@ -183,10 +183,10 @@ export function CollaborateursPage() {
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
         <Stat icon={Users} title="Total" value="1,248" color={{ bg: "bg-[#e8f0ff]", text: "text-[#0f63f2]" }} />
-        <Stat icon={CheckCircle2} title="Qualifiés" value="1,092" color={{ bg: "bg-[#e8f7ee]", text: "text-[#06b64e]" }} />
+        <Stat icon={CheckCircle2} title="Qualifies" value="1,092" color={{ bg: "bg-[#e8f7ee]", text: "text-[#06b64e]" }} />
         <Stat icon={AlertCircle} title="En cours" value="94" color={{ bg: "bg-[#fff2e4]", text: "text-[#fc6200]" }} />
-        <Stat icon={XCircle} title="Non associée" value="32" color={{ bg: "bg-[#fdeeee]", text: "text-[#ea3737]" }} />
-        <Stat icon={AlertTriangle} title="Dépassement" value="30" color={{ bg: "bg-[#f3edff]", text: "text-[#7b35e8]" }} />
+        <Stat icon={XCircle} title="Non associee" value="32" color={{ bg: "bg-[#fdeeee]", text: "text-[#ea3737]" }} />
+        <Stat icon={AlertTriangle} title="Depassement" value="30" color={{ bg: "bg-[#f3edff]", text: "text-[#7b35e8]" }} />
       </div>
 
       <Card className="rounded-[20px] border border-[#dfe5e2] bg-white p-4 shadow-sm">
@@ -194,7 +194,7 @@ export function CollaborateursPage() {
           <div className="relative flex-1">
             <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#7a8290]" />
             <Input
-              placeholder="Rechercher par nom, matricule ou département..."
+              placeholder="Rechercher par nom, matricule ou departement..."
               className="h-12 rounded-xl border-[#d7dde1] pl-11 text-[15px]"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -212,13 +212,13 @@ export function CollaborateursPage() {
           <TableHeader>
             <TableRow className="hover:bg-transparent">
               <TableHead className="text-[15px] font-semibold text-[#252930]">Matricule</TableHead>
-              <TableHead className="text-[15px] font-semibold text-[#252930]">Nom & Prénom</TableHead>
-              <TableHead className="text-[15px] font-semibold text-[#252930]">Département</TableHead>
+              <TableHead className="text-[15px] font-semibold text-[#252930]">Nom & Prenom</TableHead>
+              <TableHead className="text-[15px] font-semibold text-[#252930]">Departement</TableHead>
               <TableHead className="text-[15px] font-semibold text-[#252930]">Poste</TableHead>
-              <TableHead className="text-[15px] font-semibold text-[#252930]">Date d'entrée</TableHead>
+              <TableHead className="text-[15px] font-semibold text-[#252930]">Date d'entree</TableHead>
               <TableHead className="text-[15px] font-semibold text-[#252930]">Statut</TableHead>
               <TableHead className="text-[15px] font-semibold text-[#252930]">Formations</TableHead>
-              <TableHead className="text-[15px] font-semibold text-[#252930]">Dernière formation</TableHead>
+              <TableHead className="text-[15px] font-semibold text-[#252930]">Derniere formation</TableHead>
               <TableHead className="text-right text-[15px] font-semibold text-[#252930]">Actions</TableHead>
             </TableRow>
           </TableHeader>

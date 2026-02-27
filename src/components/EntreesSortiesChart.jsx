@@ -4,23 +4,23 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 export function EntreesSortiesChart() {
   const data = [
     { mois: "Jan", entrees: 42, sorties: 15 },
-    { mois: "Fév", entrees: 38, sorties: 18 },
+    { mois: "Fev", entrees: 38, sorties: 18 },
     { mois: "Mar", entrees: 51, sorties: 12 },
     { mois: "Avr", entrees: 47, sorties: 20 },
     { mois: "Mai", entrees: 55, sorties: 14 },
     { mois: "Jun", entrees: 49, sorties: 16 },
     { mois: "Jul", entrees: 35, sorties: 22 },
-    { mois: "Aoû", entrees: 28, sorties: 19 },
+    { mois: "Aou", entrees: 28, sorties: 19 },
     { mois: "Sep", entrees: 63, sorties: 11 },
     { mois: "Oct", entrees: 58, sorties: 13 },
     { mois: "Nov", entrees: 52, sorties: 17 },
-    { mois: "Déc", entrees: 47, sorties: 12 },
+    { mois: "Dec", entrees: 47, sorties: 12 },
   ];
 
   return (
     <Card className="rounded-[20px] border border-[#dfe5e2] bg-white p-6 shadow-sm">
       <div className="mb-6">
-        <h3 className="mb-1 text-[38px] font-medium text-[#1b1e23]">Évolution des Entrées/Sorties</h3>
+        <h3 className="mb-1 text-[38px] font-medium text-[#1b1e23]">Evolution des Entrees/Sorties</h3>
         <p className="text-[15px] text-[#5f6777]">Analyse mensuelle des mouvements de collaborateurs</p>
       </div>
 
@@ -45,7 +45,7 @@ export function EntreesSortiesChart() {
             strokeWidth={2.5}
             dot={{ fill: "#1bb37d", r: 4 }}
             activeDot={{ r: 6 }}
-            name="Entrées"
+            name="Entrees"
           />
           <Line
             type="monotone"

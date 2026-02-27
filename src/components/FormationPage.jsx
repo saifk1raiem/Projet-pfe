@@ -6,7 +6,7 @@ import { BookOpen, Calendar, Users, Clock3, CheckCircle2, AlertCircle } from "lu
 const formations = [
   {
     id: 1,
-    titre: "Sécurité au Travail - Niveau 1",
+    titre: "Securite au Travail - Niveau 1",
     dateDebut: "20/02/2026",
     dateFin: "22/02/2026",
     formateur: "Ahmed Ben Ali",
@@ -17,7 +17,7 @@ const formations = [
   },
   {
     id: 2,
-    titre: "Qualité Produit - ISO 9001",
+    titre: "Qualite Produit - ISO 9001",
     dateDebut: "25/02/2026",
     dateFin: "28/02/2026",
     formateur: "Fatma Zahra",
@@ -28,7 +28,7 @@ const formations = [
   },
   {
     id: 3,
-    titre: "Maintenance Préventive",
+    titre: "Maintenance Preventive",
     dateDebut: "05/03/2026",
     dateFin: "08/03/2026",
     formateur: "Mohamed Salhi",
@@ -74,9 +74,9 @@ export function FormationPage() {
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
         <Stat icon={BookOpen} title="En cours" value="1" color={{ bg: "bg-[#e6f0ff]", text: "text-[#0f63f2]" }} />
-        <Stat icon={Calendar} title="Planifiées" value="2" color={{ bg: "bg-[#e8f7ee]", text: "text-[#06b64e]" }} />
+        <Stat icon={Calendar} title="Planifiees" value="2" color={{ bg: "bg-[#e8f7ee]", text: "text-[#06b64e]" }} />
         <Stat icon={Users} title="Participants" value="65" color={{ bg: "bg-[#f3edff]", text: "text-[#9029ff]" }} />
-        <Stat icon={CheckCircle2} title="Terminées" value="1" color={{ bg: "bg-[#eff2f5]", text: "text-[#5f6777]" }} />
+        <Stat icon={CheckCircle2} title="Terminees" value="1" color={{ bg: "bg-[#eff2f5]", text: "text-[#5f6777]" }} />
       </div>
 
       <div className="space-y-4">
@@ -91,7 +91,7 @@ export function FormationPage() {
                   <div className="mb-1 flex items-center gap-3">
                     <h3 className="text-[36px] font-medium leading-tight text-[#191c20]">{formation.titre}</h3>
                     <Badge className={`rounded-lg border px-3 py-1 text-[14px] font-medium ${statusBadge[formation.statut]}`}>
-                      {formation.statut === "en_cours" ? "En cours" : "Planifié"}
+                      {formation.statut === "en_cours" ? "En cours" : "Planifie"}
                     </Badge>
                   </div>
                   <div className="flex flex-wrap items-center gap-5 text-[15px] text-[#5f6777]">
@@ -105,7 +105,7 @@ export function FormationPage() {
                     </span>
                   </div>
                 </div>
-                <Button variant="outline" className="h-10 rounded-xl border-[#ccd4d8] px-5 text-[16px]">Détails</Button>
+                <Button variant="outline" className="h-10 rounded-xl border-[#ccd4d8] px-5 text-[16px]">Details</Button>
               </div>
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -140,7 +140,7 @@ export function FormationPage() {
                     )}
                   </div>
                   <div>
-                    <p className="text-[13px] text-[#5f6777]">Disponibilité</p>
+                    <p className="text-[13px] text-[#5f6777]">Disponibilite</p>
                     <p className={`text-[24px] font-medium ${complet ? "text-[#fc6200]" : "text-[#0e9f46]"}`}>
                       {complet ? "Complet" : `${disponible} places restantes`}
                     </p>

@@ -4,7 +4,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 export function CollaborateursGroupeChart() {
   const data = [
     { name: "Production", value: 425, color: "#1bb37d" },
-    { name: "Qualité", value: 198, color: "#3b82f6" },
+    { name: "Qualite", value: 198, color: "#3b82f6" },
     { name: "Maintenance", value: 287, color: "#7c55e8" },
     { name: "Logistique", value: 156, color: "#f59e0b" },
     { name: "Support", value: 182, color: "#19abc8" },
@@ -13,8 +13,8 @@ export function CollaborateursGroupeChart() {
   return (
     <Card className="rounded-[20px] border border-[#dfe5e2] bg-white p-6 shadow-sm">
       <div className="mb-6">
-        <h3 className="mb-1 text-[38px] font-medium text-[#1b1e23]">Répartition par Centre de Coût</h3>
-        <p className="text-[15px] text-[#5f6777]">Distribution des collaborateurs par département</p>
+        <h3 className="mb-1 text-[38px] font-medium text-[#1b1e23]">Repartition par Centre de Cout</h3>
+        <p className="text-[15px] text-[#5f6777]">Distribution des collaborateurs par departement</p>
       </div>
 
       <ResponsiveContainer width="100%" height={300}>

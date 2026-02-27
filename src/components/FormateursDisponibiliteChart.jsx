@@ -16,8 +16,8 @@ export function FormateursDisponibiliteChart() {
   return (
     <Card className="rounded-[20px] border border-[#dfe5e2] bg-white p-6 shadow-sm">
       <div className="mb-6">
-        <h3 className="mb-1 text-[38px] font-medium text-[#1b1e23]">Disponibilité des Formateurs</h3>
-        <p className="text-[15px] text-[#5f6777]">Aperçu hebdomadaire de la disponibilité des formateurs</p>
+        <h3 className="mb-1 text-[38px] font-medium text-[#1b1e23]">Disponibilite des Formateurs</h3>
+        <p className="text-[15px] text-[#5f6777]">Apercu hebdomadaire de la disponibilite des formateurs</p>
       </div>
 
       <ResponsiveContainer width="100%" height={300}>
@@ -35,7 +35,7 @@ export function FormateursDisponibiliteChart() {
           />
           <Legend wrapperStyle={{ fontSize: "12px" }} />
           <Bar dataKey="disponibles" fill="#1bb37d" radius={[8, 8, 0, 0]} name="Disponibles" />
-          <Bar dataKey="occupes" fill="#f59e0b" radius={[8, 8, 0, 0]} name="Occupés" />
+          <Bar dataKey="occupes" fill="#f59e0b" radius={[8, 8, 0, 0]} name="Occupes" />
         </BarChart>
       </ResponsiveContainer>
     </Card>

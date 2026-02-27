@@ -8,7 +8,7 @@ const formateurs = [
     id: 1,
     nom: "Ahmed Ben Ali",
     initials: "ABA",
-    specialites: ["Sécurité", "Qualité"],
+    specialites: ["Securite", "Qualite"],
     formations: 24,
     disponible: true,
     evaluation: 4.8,
@@ -18,7 +18,7 @@ const formateurs = [
     id: 2,
     nom: "Fatima Zahra",
     initials: "FZ",
-    specialites: ["Qualité", "ISO 9001"],
+    specialites: ["Qualite", "ISO 9001"],
     formations: 18,
     disponible: true,
     evaluation: 4.9,
@@ -66,7 +66,7 @@ export function FormateursList() {
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-[40px] font-semibold leading-tight text-[#171a1f]">Gestion des Formateurs</h1>
-          <p className="mt-1 text-[18px] text-[#5d6574]">Liste et disponibilité des formateurs</p>
+          <p className="mt-1 text-[18px] text-[#5d6574]">Liste et disponibilite des formateurs</p>
         </div>
         <Button className="h-10 rounded-[10px] bg-[#2ac15d] px-5 text-[16px] font-medium text-white hover:bg-[#22ad53]">
           <GraduationCap className="mr-2 h-4 w-4" />
@@ -101,13 +101,13 @@ export function FormateursList() {
               {formateur.disponible ? (
                 <Badge className="rounded-lg border border-[#b4e2ca] bg-[#dcf5e8] px-3 py-1 text-[14px] text-[#0c8d3e]">Disponible</Badge>
               ) : (
-                <Badge className="rounded-lg border border-[#f1c59e] bg-[#fff2e4] px-3 py-1 text-[14px] text-[#fc6200]">Occupé</Badge>
+                <Badge className="rounded-lg border border-[#f1c59e] bg-[#fff2e4] px-3 py-1 text-[14px] text-[#fc6200]">Occupe</Badge>
               )}
             </div>
 
             <div className="space-y-4">
               <div>
-                <p className="mb-2 text-[13px] text-[#5f6777]">Spécialités</p>
+                <p className="mb-2 text-[13px] text-[#5f6777]">Specialites</p>
                 <div className="flex flex-wrap gap-2">
                   {formateur.specialites.map((specialite) => (
                     <Badge key={specialite} variant="outline" className="rounded-xl border-[#d5dce0] bg-[#f7f8f9] text-[13px]">
@@ -119,7 +119,7 @@ export function FormateursList() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <p className="text-[13px] text-[#5f6777]">Formations données</p>
+                  <p className="text-[13px] text-[#5f6777]">Formations donnees</p>
                   <p className="text-[32px] font-medium text-[#191c20]">{formateur.formations}</p>
                 </div>
                 <div>
@@ -130,7 +130,7 @@ export function FormateursList() {
             </div>
 
             <div className="mt-5 flex gap-2">
-              <Button variant="outline" className="h-9 flex-1 rounded-xl border-[#ccd4d8] text-[16px]">Voir détails</Button>
+              <Button variant="outline" className="h-9 flex-1 rounded-xl border-[#ccd4d8] text-[16px]">Voir details</Button>
               <Button className="h-9 flex-1 rounded-xl bg-[#2ac15d] text-[16px] font-medium text-white hover:bg-[#22ad53]">Planifier</Button>
             </div>
           </Card>
