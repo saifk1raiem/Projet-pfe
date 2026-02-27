@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { useState } from 'react'
 import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
@@ -33,3 +34,12 @@ function App() {
 }
 
 export default App
+=======
+import { Layout } from "./components/Layout";
+import './styles/globals.css';
+function App() {
+  return <Layout />;
+}
+
+export default App;
+>>>>>>> 4e031ed (Initial commit)
