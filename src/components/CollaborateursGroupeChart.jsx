@@ -3,7 +3,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 
 export function CollaborateursGroupeChart() {
   const data = [
-    { name: "Production", value: 425, color: "#1bb37d" },
+    { name: "Production", value: 425, color: "#005ca9" },
     { name: "Qualite", value: 198, color: "#3b82f6" },
     { name: "Maintenance", value: 287, color: "#7c55e8" },
     { name: "Logistique", value: 156, color: "#f59e0b" },

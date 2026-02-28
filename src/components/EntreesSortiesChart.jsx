@@ -41,9 +41,9 @@ export function EntreesSortiesChart() {
           <Line
             type="monotone"
             dataKey="entrees"
-            stroke="#1bb37d"
+            stroke="#005ca9"
             strokeWidth={2.5}
-            dot={{ fill: "#1bb37d", r: 4 }}
+            dot={{ fill: "#005ca9", r: 4 }}
             activeDot={{ r: 6 }}
             name="Entrees"
           />

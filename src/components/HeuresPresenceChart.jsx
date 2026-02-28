@@ -28,8 +28,8 @@ export function HeuresPresenceChart() {
         <AreaChart data={data}>
           <defs>
             <linearGradient id="colorHeures" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#1bb37d" stopOpacity={0.8} />
-              <stop offset="95%" stopColor="#1bb37d" stopOpacity={0.08} />
+              <stop offset="5%" stopColor="#005ca9" stopOpacity={0.8} />
+              <stop offset="95%" stopColor="#005ca9" stopOpacity={0.08} />
             </linearGradient>
             <linearGradient id="colorObjectif" x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor="#7a8090" stopOpacity={0.45} />
@@ -41,7 +41,7 @@ export function HeuresPresenceChart() {
           <YAxis stroke="#6b7280" style={{ fontSize: "13px" }} />
           <Tooltip />
           <Area type="monotone" dataKey="objectif" stroke="#6f7584" strokeWidth={2} fillOpacity={1} fill="url(#colorObjectif)" />
-          <Area type="monotone" dataKey="heures" stroke="#1bb37d" strokeWidth={2} fillOpacity={1} fill="url(#colorHeures)" />
+          <Area type="monotone" dataKey="heures" stroke="#005ca9" strokeWidth={2} fillOpacity={1} fill="url(#colorHeures)" />
         </AreaChart>
       </ResponsiveContainer>
     </Card>

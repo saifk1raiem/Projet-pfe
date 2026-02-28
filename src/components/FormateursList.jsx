@@ -68,7 +68,7 @@ export function FormateursList() {
           <h1 className="text-[40px] font-semibold leading-tight text-[#171a1f]">Gestion des Formateurs</h1>
           <p className="mt-1 text-[18px] text-[#5d6574]">Liste et disponibilite des formateurs</p>
         </div>
-        <Button className="h-10 rounded-[10px] bg-[#2ac15d] px-5 text-[16px] font-medium text-white hover:bg-[#22ad53]">
+        <Button className="h-10 rounded-[10px] bg-[#005ca9] px-5 text-[16px] font-medium text-white hover:bg-[#004a87]">
           <GraduationCap className="mr-2 h-4 w-4" />
           Nouveau Formateur
         </Button>
@@ -76,7 +76,7 @@ export function FormateursList() {
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
         <Stat icon={GraduationCap} title="Total Formateurs" value="24" color={{ bg: "bg-[#f3edff]", text: "text-[#9029ff]" }} />
-        <Stat icon={GraduationCap} title="Disponibles" value="20" color={{ bg: "bg-[#e8f7ee]", text: "text-[#06b64e]" }} />
+        <Stat icon={GraduationCap} title="Disponibles" value="20" color={{ bg: "bg-[#e8f1fb]", text: "text-[#005ca9]" }} />
         <Stat icon={BookOpen} title="En formation" value="4" color={{ bg: "bg-[#fff2e4]", text: "text-[#fc6200]" }} />
         <Stat icon={Star} title="Note moyenne" value="4.8" color={{ bg: "bg-[#e8f0ff]", text: "text-[#0f63f2]" }} />
       </div>
@@ -99,7 +99,7 @@ export function FormateursList() {
               </div>
 
               {formateur.disponible ? (
-                <Badge className="rounded-lg border border-[#b4e2ca] bg-[#dcf5e8] px-3 py-1 text-[14px] text-[#0c8d3e]">Disponible</Badge>
+                <Badge className="rounded-lg border border-[#b9d3ea] bg-[#e8f1fb] px-3 py-1 text-[14px] text-[#005ca9]">Disponible</Badge>
               ) : (
                 <Badge className="rounded-lg border border-[#f1c59e] bg-[#fff2e4] px-3 py-1 text-[14px] text-[#fc6200]">Occupe</Badge>
               )}
@@ -131,7 +131,7 @@ export function FormateursList() {
 
             <div className="mt-5 flex gap-2">
               <Button variant="outline" className="h-9 flex-1 rounded-xl border-[#ccd4d8] text-[16px]">Voir details</Button>
-              <Button className="h-9 flex-1 rounded-xl bg-[#2ac15d] text-[16px] font-medium text-white hover:bg-[#22ad53]">Planifier</Button>
+              <Button className="h-9 flex-1 rounded-xl bg-[#005ca9] text-[16px] font-medium text-white hover:bg-[#004a87]">Planifier</Button>
             </div>
           </Card>
         ))}

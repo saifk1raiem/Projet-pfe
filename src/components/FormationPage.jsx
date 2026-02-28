@@ -55,7 +55,7 @@ const Stat = ({ icon: Icon, title, value, color }) => (
 
 const statusBadge = {
   en_cours: "bg-[#e6f0ff] text-[#0959ec] border-[#bfccf2]",
-  planifie: "bg-[#dcf5e8] text-[#0c8d3e] border-[#b4e2ca]",
+  planifie: "bg-[#e8f1fb] text-[#005ca9] border-[#b9d3ea]",
 };
 
 export function FormationPage() {
@@ -66,7 +66,7 @@ export function FormationPage() {
           <h1 className="text-[40px] font-semibold leading-tight text-[#171a1f]">Gestion des Formations</h1>
           <p className="mt-1 text-[18px] text-[#5d6574]">Planification et suivi des sessions de formation</p>
         </div>
-        <Button className="h-10 rounded-[10px] bg-[#2ac15d] px-5 text-[16px] font-medium text-white hover:bg-[#22ad53]">
+        <Button className="h-10 rounded-[10px] bg-[#005ca9] px-5 text-[16px] font-medium text-white hover:bg-[#004a87]">
           <BookOpen className="mr-2 h-4 w-4" />
           Nouvelle Formation
         </Button>
@@ -74,7 +74,7 @@ export function FormationPage() {
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
         <Stat icon={BookOpen} title="En cours" value="1" color={{ bg: "bg-[#e6f0ff]", text: "text-[#0f63f2]" }} />
-        <Stat icon={Calendar} title="Planifiees" value="2" color={{ bg: "bg-[#e8f7ee]", text: "text-[#06b64e]" }} />
+        <Stat icon={Calendar} title="Planifiees" value="2" color={{ bg: "bg-[#e8f1fb]", text: "text-[#005ca9]" }} />
         <Stat icon={Users} title="Participants" value="65" color={{ bg: "bg-[#f3edff]", text: "text-[#9029ff]" }} />
         <Stat icon={CheckCircle2} title="Terminees" value="1" color={{ bg: "bg-[#eff2f5]", text: "text-[#5f6777]" }} />
       </div>
@@ -132,16 +132,16 @@ export function FormationPage() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <div className={`flex h-9 w-9 items-center justify-center rounded-full ${complet ? "bg-[#fff2e4]" : "bg-[#e8f7ee]"}`}>
+                  <div className={`flex h-9 w-9 items-center justify-center rounded-full ${complet ? "bg-[#fff2e4]" : "bg-[#e8f1fb]"}`}>
                     {complet ? (
                       <AlertCircle className="h-4 w-4 text-[#fc6200]" />
                     ) : (
-                      <CheckCircle2 className="h-4 w-4 text-[#06b64e]" />
+                      <CheckCircle2 className="h-4 w-4 text-[#005ca9]" />
                     )}
                   </div>
                   <div>
                     <p className="text-[13px] text-[#5f6777]">Disponibilite</p>
-                    <p className={`text-[24px] font-medium ${complet ? "text-[#fc6200]" : "text-[#0e9f46]"}`}>
+                    <p className={`text-[24px] font-medium ${complet ? "text-[#fc6200]" : "text-[#005ca9]"}`}>
                       {complet ? "Complet" : `${disponible} places restantes`}
                     </p>
                   </div>

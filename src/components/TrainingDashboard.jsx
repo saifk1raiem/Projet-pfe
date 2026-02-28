@@ -28,7 +28,7 @@ const KPI = ({ title, value, icon: Icon, trend, suffix = "", iconColor, iconBg }
             {suffix}
           </h3>
           {typeof trend === "number" && (
-            <div className={`flex items-center gap-1 text-[14px] ${trend >= 0 ? "text-[#00a63e]" : "text-[#ea3737]"}`}>
+            <div className={`flex items-center gap-1 text-[14px] ${trend >= 0 ? "text-[#005ca9]" : "text-[#ea3737]"}`}>
               {trend >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
               <span>{Math.abs(trend)}%</span>
             </div>
@@ -50,15 +50,15 @@ export function TrainingDashboard() {
           <h1 className="text-[40px] font-semibold leading-tight text-[#171a1f]">Bonjour, Seef</h1>
           <p className="mt-1 text-[18px] text-[#5d6574]">Systeme Intelligent de Gestion de Formation</p>
         </div>
-        <Badge className="mt-2 rounded-xl border border-[#abd7be] bg-[#dff3e7] px-4 py-2 text-[14px] font-medium text-[#2f8b4d]">
-          <span className="mr-2 inline-block h-2.5 w-2.5 rounded-full bg-[#4bc06e]" />
+        <Badge className="mt-2 rounded-xl border border-[#b9d3ea] bg-[#e8f1fb] px-4 py-2 text-[14px] font-medium text-[#005ca9]">
+          <span className="mr-2 inline-block h-2.5 w-2.5 rounded-full bg-[#2e8ad7]" />
           Donnees mises a jour aujourd'hui
         </Badge>
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
         <KPI title="Total Collaborateurs" value="1248" icon={Users} trend={3.2} iconColor="text-[#0f63f2]" iconBg="bg-[#e8f0ff]" />
-        <KPI title="Nouvelles Entrees" value="47" icon={UserPlus} trend={8.5} iconColor="text-[#06b64e]" iconBg="bg-[#e8f7ee]" />
+        <KPI title="Nouvelles Entrees" value="47" icon={UserPlus} trend={8.5} iconColor="text-[#005ca9]" iconBg="bg-[#e8f1fb]" />
         <KPI title="Sorties" value="12" icon={UserMinus} trend={-2.1} iconColor="text-[#ea3737]" iconBg="bg-[#fdeeee]" />
         <KPI title="Formateurs Disponibles" value="24" icon={GraduationCap} trend={5} iconColor="text-[#9029ff]" iconBg="bg-[#f3edff]" />
       </div>

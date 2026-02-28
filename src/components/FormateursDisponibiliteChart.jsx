@@ -34,7 +34,7 @@ export function FormateursDisponibiliteChart() {
             }}
           />
           <Legend wrapperStyle={{ fontSize: "12px" }} />
-          <Bar dataKey="disponibles" fill="#1bb37d" radius={[8, 8, 0, 0]} name="Disponibles" />
+          <Bar dataKey="disponibles" fill="#005ca9" radius={[8, 8, 0, 0]} name="Disponibles" />
           <Bar dataKey="occupes" fill="#f59e0b" radius={[8, 8, 0, 0]} name="Occupes" />
         </BarChart>
       </ResponsiveContainer>

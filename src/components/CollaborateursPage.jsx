@@ -127,7 +127,7 @@ const getStatusBadge = (statut) => {
   switch (statut) {
     case "Qualifie":
       return (
-        <Badge className="w-fit rounded-lg border border-[#b4e2ca] bg-[#dcf5e8] px-3 py-1 text-[14px] font-medium text-[#0c8d3e]">
+        <Badge className="w-fit rounded-lg border border-[#b9d3ea] bg-[#e8f1fb] px-3 py-1 text-[14px] font-medium text-[#005ca9]">
           <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
           Qualifie
         </Badge>
@@ -175,7 +175,7 @@ export function CollaborateursPage() {
           <h1 className="text-[40px] font-semibold leading-tight text-[#171a1f]">Gestion des Collaborateurs</h1>
           <p className="mt-1 text-[18px] text-[#5d6574]">Liste et suivi des collaborateurs</p>
         </div>
-        <Button className="h-10 rounded-[10px] bg-[#2ac15d] px-5 text-[16px] font-medium text-white hover:bg-[#22ad53]">
+        <Button className="h-10 rounded-[10px] bg-[#005ca9] px-5 text-[16px] font-medium text-white hover:bg-[#004a87]">
           <Users className="mr-2 h-4 w-4" />
           Nouveau Collaborateur
         </Button>
@@ -183,7 +183,7 @@ export function CollaborateursPage() {
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
         <Stat icon={Users} title="Total" value="1,248" color={{ bg: "bg-[#e8f0ff]", text: "text-[#0f63f2]" }} />
-        <Stat icon={CheckCircle2} title="Qualifies" value="1,092" color={{ bg: "bg-[#e8f7ee]", text: "text-[#06b64e]" }} />
+        <Stat icon={CheckCircle2} title="Qualifies" value="1,092" color={{ bg: "bg-[#e8f1fb]", text: "text-[#005ca9]" }} />
         <Stat icon={AlertCircle} title="En cours" value="94" color={{ bg: "bg-[#fff2e4]", text: "text-[#fc6200]" }} />
         <Stat icon={XCircle} title="Non associee" value="32" color={{ bg: "bg-[#fdeeee]", text: "text-[#ea3737]" }} />
         <Stat icon={AlertTriangle} title="Depassement" value="30" color={{ bg: "bg-[#f3edff]", text: "text-[#7b35e8]" }} />
