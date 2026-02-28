@@ -1,4 +1,4 @@
-﻿import {
+import {
   LayoutDashboard,
   BookOpen,
   Award,
@@ -7,7 +7,8 @@
   Users,
   BarChart3,
   Settings,
-  X,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { cn } from "./ui/utils";
 
@@ -63,45 +64,73 @@ const navigationItems = [
   },
   {
     id: "parametres",
-    name: "Paramètres",
-    subtitle: "Configuration système",
-    compactSubtitle: "Paramètres",
+    name: "Param\u00E8tres",
+    subtitle: "Configuration syst\u00E8me",
+    compactSubtitle: "Param\u00E8tres",
     icon: Settings,
   },
 ];
 
-export function Sidebar({ currentPage, onPageChange, compact = false }) {
+export function Sidebar({
+  currentPage,
+  onPageChange,
+  compact = false,
+  onToggleCompact,
+}) {
   return (
     <aside
       className={cn(
-        "leoni-sidebar",
+        "leoni-sidebar overflow-hidden transition-[width,padding] duration-300 ease-in-out",
         compact ? "w-[86px] px-3 py-4" : "w-[280px] p-4",
       )}
     >
-      <div className="flex h-full flex-col">
+      <div className="flex h-full min-h-0 flex-col">
         {compact ? (
-          <div className="mb-4 flex justify-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-[22px] bg-[#7ae094] text-[#2b6d56] shadow-[0_8px_18px_rgba(122,224,148,0.35)]">
-              <GraduationCap className="h-6 w-6" />
+          <div className="mb-4">
+            <div className="mb-2 flex justify-end">
+              <button
+                onClick={onToggleCompact}
+                aria-label="Ouvrir la barre lat�rale"
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white/80 transition-colors hover:bg-white/20"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="flex justify-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-[22px] bg-[#7ae094] text-[#2b6d56] shadow-[0_8px_18px_rgba(122,224,148,0.35)]">
+                <GraduationCap className="h-6 w-6" />
+              </div>
             </div>
           </div>
         ) : (
           <div className="mb-6 flex flex-col items-center">
             <div className="relative mb-4 w-full">
-              <button className="absolute right-0 top-0 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white/80">
-                <X className="h-5 w-5" />
+              <button
+                onClick={onToggleCompact}
+                aria-label="Fermer la barre lat�rale"
+                className="absolute right-0 top-0 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white/80 transition-colors hover:bg-white/20"
+              >
+                <ChevronLeft className="h-5 w-5" />
               </button>
             </div>
             <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-[#7ae094] text-[#2b6d56] shadow-[0_8px_18px_rgba(122,224,148,0.35)]">
               <GraduationCap className="h-7 w-7" />
             </div>
-            <p className="text-[31px] font-semibold tracking-[0.01em] text-[#f2f8f4]">LEONI</p>
+            <p className="text-[31px] font-semibold tracking-[0.01em] text-[#f2f8f4]">
+              LEONI
+            </p>
             <p className="mt-1 text-[13px] text-[#cde0d6]">Gestion de Formation</p>
           </div>
         )}
 
-        <nav className={cn("flex-1", compact ? "space-y-3" : "space-y-4")}>
-          {navigationItems.map((item) => {
+        <nav
+          key={compact ? "sidebar-compact-nav" : "sidebar-expanded-nav"}
+          className={cn(
+            "leoni-sidebar-scroll flex-1 min-h-0 overflow-x-hidden overflow-y-auto",
+            compact ? "space-y-3" : "space-y-4 pr-1",
+          )}
+        >
+          {navigationItems.map((item, index) => {
             const isActive = currentPage === item.id;
             const Icon = item.icon;
 
@@ -109,8 +138,10 @@ export function Sidebar({ currentPage, onPageChange, compact = false }) {
               <button
                 key={item.id}
                 onClick={() => onPageChange(item.id)}
+                style={{ "--item-index": index }}
                 className={cn(
                   "leoni-nav-item group relative w-full",
+                  !compact ? "leoni-nav-item-anim" : "",
                   compact
                     ? "flex h-12 items-center justify-center rounded-full"
                     : "flex min-h-[56px] items-center rounded-[16px] px-4",
@@ -121,19 +152,35 @@ export function Sidebar({ currentPage, onPageChange, compact = false }) {
 
                 {!compact && (
                   <div className="ml-4 text-left">
-                    <p className={cn("text-[16px] font-medium", isActive ? "text-[#1f5240]" : "text-[#f2f7f3]")}>{item.name}</p>
-                    <p className={cn("text-[13px]", isActive ? "text-[#356a57]" : "text-[#cde0d6]")}>{item.subtitle}</p>
+                    <p
+                      className={cn(
+                        "text-[16px] font-medium",
+                        isActive ? "text-[#1f5240]" : "text-[#f2f7f3]",
+                      )}
+                    >
+                      {item.name}
+                    </p>
+                    <p
+                      className={cn(
+                        "text-[13px]",
+                        isActive ? "text-[#356a57]" : "text-[#cde0d6]",
+                      )}
+                    >
+                      {item.subtitle}
+                    </p>
                   </div>
                 )}
 
-                {!compact && isActive && <span className="ml-auto h-3 w-3 rounded-full bg-[#356a57]/80" />}
+                {!compact && isActive && (
+                  <span className="active-indicator ml-auto h-3 w-3 rounded-full bg-[#356a57]/80" />
+                )}
               </button>
             );
           })}
         </nav>
 
         {compact ? (
-          <div className="pt-4 flex justify-center">
+          <div className="flex justify-center pt-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#7ae094] text-[22px] font-semibold text-[#2b6d56]">
               LG
             </div>
@@ -153,4 +200,7 @@ export function Sidebar({ currentPage, onPageChange, compact = false }) {
     </aside>
   );
 }
+
+
+
 

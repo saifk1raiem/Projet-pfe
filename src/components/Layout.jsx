@@ -14,6 +14,7 @@ const PlaceholderPage = ({ title, subtitle }) => (
 
 export function Layout() {
   const [currentPage, setCurrentPage] = useState("dashboard");
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const renderContent = () => {
     switch (currentPage) {
@@ -64,7 +65,8 @@ export function Layout() {
         <Sidebar
           currentPage={currentPage}
           onPageChange={setCurrentPage}
-          compact={currentPage === "dashboard"}
+          compact={isSidebarCollapsed}
+          onToggleCompact={() => setIsSidebarCollapsed((prev) => !prev)}
         />
       </div>
 
