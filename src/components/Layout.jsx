@@ -4,6 +4,7 @@ import { TrainingDashboard } from "./TrainingDashboard";
 import { FormationPage } from "./FormationPage";
 import { FormateursList } from "./FormateursList";
 import { CollaborateursPage } from "./CollaborateursPage";
+import { QualificationPage } from "./QualificationPage";
 
 const PlaceholderPage = ({ title, subtitle }) => (
   <div className="rounded-[20px] bg-transparent px-2 py-1">
@@ -12,7 +13,7 @@ const PlaceholderPage = ({ title, subtitle }) => (
   </div>
 );
 
-export function Layout() {
+export function Layout({ onSignOut }) {
   const [currentPage, setCurrentPage] = useState("dashboard");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
@@ -23,12 +24,7 @@ export function Layout() {
       case "formation":
         return <FormationPage />;
       case "qualification":
-        return (
-          <PlaceholderPage
-            title="Gestion des Qualifications"
-            subtitle="Suivi et validation des qualifications des collaborateurs..."
-          />
-        );
+        return <QualificationPage />;
       case "requalification":
         return (
           <PlaceholderPage
@@ -67,6 +63,7 @@ export function Layout() {
           onPageChange={setCurrentPage}
           compact={isSidebarCollapsed}
           onToggleCompact={() => setIsSidebarCollapsed((prev) => !prev)}
+          onSignOut={onSignOut}
         />
       </div>
 
@@ -80,4 +77,3 @@ export function Layout() {
     </div>
   );
 }
-

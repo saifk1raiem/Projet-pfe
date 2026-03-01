@@ -1,4 +1,4 @@
-import {
+﻿import {
   LayoutDashboard,
   BookOpen,
   Award,
@@ -9,6 +9,7 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
+  LogOut,
 } from "lucide-react";
 import { cn } from "./ui/utils";
 
@@ -64,9 +65,9 @@ const navigationItems = [
   },
   {
     id: "parametres",
-    name: "Param\u00E8tres",
-    subtitle: "Configuration syst\u00E8me",
-    compactSubtitle: "Param\u00E8tres",
+    name: "Paramètres",
+    subtitle: "Configuration système",
+    compactSubtitle: "Paramètres",
     icon: Settings,
   },
 ];
@@ -76,6 +77,7 @@ export function Sidebar({
   onPageChange,
   compact = false,
   onToggleCompact,
+  onSignOut,
 }) {
   return (
     <aside
@@ -90,7 +92,7 @@ export function Sidebar({
             <div className="mb-2 flex justify-end">
               <button
                 onClick={onToggleCompact}
-                aria-label="Ouvrir la barre lat�rale"
+                aria-label="Ouvrir la barre latérale"
                 className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white/80 transition-colors hover:bg-white/20"
               >
                 <ChevronRight className="h-4 w-4" />
@@ -107,7 +109,7 @@ export function Sidebar({
             <div className="relative mb-4 w-full">
               <button
                 onClick={onToggleCompact}
-                aria-label="Fermer la barre lat�rale"
+                aria-label="Fermer la barre latérale"
                 className="absolute right-0 top-0 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white/80 transition-colors hover:bg-white/20"
               >
                 <ChevronLeft className="h-5 w-5" />
@@ -180,9 +182,20 @@ export function Sidebar({
         </nav>
 
         {compact ? (
-          <div className="flex justify-center pt-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#7ae094] text-[22px] font-semibold text-[#2b6d56]">
-              LG
+          <div className="space-y-3 pt-4">
+            <div className="flex justify-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#7ae094] text-[22px] font-semibold text-[#2b6d56]">
+                LG
+              </div>
+            </div>
+            <div className="flex justify-center">
+              <button
+                onClick={onSignOut}
+                aria-label="Se déconnecter"
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/12 text-[#f2f8f4] transition-colors hover:bg-white/24"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
             </div>
           </div>
         ) : (
@@ -194,13 +207,16 @@ export function Sidebar({
                 LG
               </div>
             </div>
+            <button
+              onClick={onSignOut}
+              className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-[14px] bg-white/12 px-4 text-[14px] font-medium text-[#f2f8f4] transition-colors hover:bg-white/24"
+            >
+              <LogOut className="h-4 w-4" />
+              Se déconnecter
+            </button>
           </div>
         )}
       </div>
     </aside>
   );
 }
-
-
-
-
