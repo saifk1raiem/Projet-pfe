@@ -82,8 +82,8 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        "leoni-sidebar overflow-hidden transition-[width,padding] duration-300 ease-in-out",
-        compact ? "w-[86px] px-3 py-4" : "w-[280px] p-4",
+        "leoni-sidebar overflow-hidden",
+        compact ? "w-[92px] px-3 py-4" : "w-[280px] px-4 py-4",
       )}
     >
       <div className="flex h-full min-h-0 flex-col">
@@ -126,7 +126,6 @@ export function Sidebar({
         )}
 
         <nav
-          key={compact ? "sidebar-compact-nav" : "sidebar-expanded-nav"}
           className={cn(
             "leoni-sidebar-scroll flex-1 min-h-0 overflow-x-hidden overflow-y-auto",
             compact ? "space-y-3" : "space-y-4 pr-1",
@@ -143,7 +142,6 @@ export function Sidebar({
                 style={{ "--item-index": index }}
                 className={cn(
                   "leoni-nav-item group relative w-full",
-                  !compact ? "leoni-nav-item-anim" : "",
                   compact
                     ? "flex h-12 items-center justify-center rounded-full"
                     : "flex min-h-[56px] items-center rounded-[16px] px-4",

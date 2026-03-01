@@ -46,8 +46,9 @@
   border: 1px solid rgba(12, 77, 134, 0.36);
   background: linear-gradient(180deg, #004681 0%, #005ca9 100%);
   box-shadow: 0 10px 25px rgba(6, 56, 101, 0.26);
+  transition: width 240ms cubic-bezier(0.22, 1, 0.36, 1), padding 240ms cubic-bezier(0.22, 1, 0.36, 1);
   animation: sidebarIn 420ms cubic-bezier(0.22, 1, 0.36, 1);
-  will-change: transform, opacity;
+  will-change: width;
 }
 
 .leoni-nav-item {
