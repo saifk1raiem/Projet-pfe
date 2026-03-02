@@ -1,10 +1,13 @@
-﻿import { useState } from "react";
+import { useState } from "react";
+import { Moon, Sun } from "lucide-react";
 import { Sidebar } from "./Sidebar";
 import { TrainingDashboard } from "./TrainingDashboard";
 import { FormationPage } from "./FormationPage";
 import { FormateursList } from "./FormateursList";
 import { CollaborateursPage } from "./CollaborateursPage";
 import { QualificationPage } from "./QualificationPage";
+import { ParametresPage } from "./ParametresPage";
+import { useAppPreferences } from "../context/AppPreferencesContext";
 
 const PlaceholderPage = ({ title, subtitle }) => (
   <div className="rounded-[20px] bg-transparent px-2 py-1">
@@ -14,6 +17,7 @@ const PlaceholderPage = ({ title, subtitle }) => (
 );
 
 export function Layout({ onSignOut }) {
+  const { tr, theme, toggleTheme } = useAppPreferences();
   const [currentPage, setCurrentPage] = useState("dashboard");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
@@ -28,8 +32,8 @@ export function Layout({ onSignOut }) {
       case "requalification":
         return (
           <PlaceholderPage
-            title="Gestion des Requalifications"
-            subtitle="Planification et suivi des requalifications..."
+            title={tr("Gestion des Requalifications", "Requalification Management")}
+            subtitle={tr("Planification et suivi des requalifications...", "Planning and follow-up of requalifications...")}
           />
         );
       case "formateurs":
@@ -39,17 +43,12 @@ export function Layout({ onSignOut }) {
       case "statistiques":
         return (
           <PlaceholderPage
-            title="Statistiques et Analyses"
-            subtitle="Rapports détaillés et analyses de performance..."
+            title={tr("Statistiques et Analyses", "Statistics and Analytics")}
+            subtitle={tr("Rapports detailles et analyses de performance...", "Detailed reports and performance analytics...")}
           />
         );
       case "parametres":
-        return (
-          <PlaceholderPage
-            title="Paramètres du Système"
-            subtitle="Configuration et paramètres de l'application..."
-          />
-        );
+        return <ParametresPage />;
       default:
         return <TrainingDashboard />;
     }
@@ -71,7 +70,11 @@ export function Layout({ onSignOut }) {
 
       <main className="leoni-main flex-1 overflow-y-auto">{renderContent()}</main>
 
-      <button aria-label="Aide" className="leoni-help">
+      <button aria-label={tr("Changer le theme", "Toggle theme")} className="leoni-theme-toggle" onClick={toggleTheme}>
+        {theme === "night" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+      </button>
+
+      <button aria-label={tr("Aide", "Help")} className="leoni-help">
         ?
       </button>
     </div>

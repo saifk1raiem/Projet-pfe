@@ -1,10 +1,10 @@
 .leoni-shell {
-  background: #f4f7fb;
+  background: var(--background);
 }
 
 .leoni-divider {
   width: 1px;
-  background: #d4dfeb;
+  background: var(--border);
 }
 
 .leoni-main {
@@ -22,6 +22,22 @@
   background: #003b6f;
   color: #fff;
   font-size: 22px;
+  box-shadow: 0 8px 20px rgba(0, 70, 129, 0.28);
+}
+
+.leoni-theme-toggle {
+  position: fixed;
+  right: 12px;
+  bottom: 60px;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 70, 129, 0.24);
+  background: #005ca9;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   box-shadow: 0 8px 20px rgba(0, 70, 129, 0.28);
 }
 
@@ -49,6 +65,13 @@
   transition: width 240ms cubic-bezier(0.22, 1, 0.36, 1), padding 240ms cubic-bezier(0.22, 1, 0.36, 1);
   animation: sidebarIn 420ms cubic-bezier(0.22, 1, 0.36, 1);
   will-change: width;
+}
+
+.dark .leoni-help,
+.dark .leoni-theme-toggle {
+  border-color: rgba(103, 184, 242, 0.35);
+  background: #124673;
+  box-shadow: 0 8px 20px rgba(6, 24, 40, 0.42);
 }
 
 .leoni-nav-item {

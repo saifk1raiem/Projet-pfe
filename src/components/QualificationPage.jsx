@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { createElement, useRef, useState } from "react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -27,7 +27,28 @@ import {
   MoreVertical,
   TrendingUp,
   TrendingDown,
+  Eye,
+  Pencil,
+  Trash2,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "./ui/alert-dialog";
+import { useAppPreferences } from "../context/AppPreferencesContext";
 
 const TOTAL_COLLABORATEURS = 1248;
 const YESTERDAY_TOTAL_COLLABORATEURS = 1209;
@@ -133,7 +154,9 @@ const collaborateursQualification = [
   },
 ];
 
-const Stat = ({ icon: Icon, title, value, color, delay }) => (
+const statutOptions = ["Non associe", "En cours", "Qualifie", "Depassement"];
+
+const Stat = ({ icon, title, value, color, delay }) => (
   <Card
     className="leoni-rise-up rounded-[20px] border border-[#dfe5e2] bg-white p-5 shadow-sm"
     style={{ animationDelay: delay }}
@@ -144,13 +167,13 @@ const Stat = ({ icon: Icon, title, value, color, delay }) => (
         <h3 className="mt-1 text-[42px] font-semibold leading-none text-[#191c20]">{value}</h3>
       </div>
       <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${color.bg}`}>
-        <Icon className={`h-6 w-6 ${color.text}`} />
+        {createElement(icon, { className: `h-6 w-6 ${color.text}` })}
       </div>
     </div>
   </Card>
 );
 
-const ComparisonStat = ({ title, value, deltaPercent, delay, icon: Icon = Users, iconBg = "bg-[#e8f0ff]", iconColor = "text-[#0f63f2]" }) => (
+const ComparisonStat = ({ title, value, deltaPercent, delay, icon = Users, iconBg = "bg-[#e8f0ff]", iconColor = "text-[#0f63f2]" }) => (
   <Card
     className="leoni-rise-up rounded-[20px] border border-[#dfe5e2] bg-white p-5 shadow-sm"
     style={{ animationDelay: delay }}
@@ -167,7 +190,7 @@ const ComparisonStat = ({ title, value, deltaPercent, delay, icon: Icon = Users,
         </div>
       </div>
       <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${iconBg}`}>
-        <Icon className={`h-6 w-6 ${iconColor}`} />
+        {createElement(icon, { className: `h-6 w-6 ${iconColor}` })}
       </div>
     </div>
   </Card>
@@ -208,7 +231,7 @@ const getStatusBadge = (statut) => {
   }
 };
 
-function CollaborateursTable({ rows }) {
+function CollaborateursTable({ rows, onViewDetails, onOpenStatusDialog, onAskDelete, labels }) {
   return (
     <Card className="rounded-[20px] border border-[#dfe5e2] bg-white shadow-sm">
       <Table>
@@ -244,9 +267,28 @@ function CollaborateursTable({ rows }) {
               </TableCell>
               <TableCell className="text-[15px]">{collab.derniereFormation}</TableCell>
               <TableCell className="text-right">
-                <Button variant="ghost" className="h-8 w-8 rounded-lg p-0">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="h-8 w-8 rounded-lg p-0">
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-44">
+                    <DropdownMenuItem onClick={() => onViewDetails(collab)}>
+                      <Eye className="h-4 w-4" />
+                      {labels.viewDetails}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => onOpenStatusDialog(collab)}>
+                      <Pencil className="h-4 w-4" />
+                      {labels.changeStatus}
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem variant="destructive" onClick={() => onAskDelete(collab)}>
+                      <Trash2 className="h-4 w-4" />
+                      {labels.delete}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </TableCell>
             </TableRow>
           ))}
@@ -257,8 +299,16 @@ function CollaborateursTable({ rows }) {
 }
 
 export function QualificationPage() {
+  const { tr } = useAppPreferences();
   const [activeTab, setActiveTab] = useState("indection");
   const [searchTerm, setSearchTerm] = useState("");
+  const [collaborateursData, setCollaborateursData] = useState(collaborateursQualification);
+  const [selectedCollaborateur, setSelectedCollaborateur] = useState(null);
+  const [collaborateurToDelete, setCollaborateurToDelete] = useState(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [collaborateurToUpdateStatus, setCollaborateurToUpdateStatus] = useState(null);
+  const [statusDraft, setStatusDraft] = useState(statutOptions[0]);
+  const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState([]);
@@ -295,7 +345,56 @@ export function QualificationPage() {
     setSelectedFiles([]);
   };
 
-  const filteredCollaborateurs = collaborateursQualification.filter(
+  const handleViewCollaborateur = (collab) => {
+    setSelectedCollaborateur(collab);
+  };
+
+  const handleOpenStatusDialog = (collab) => {
+    setCollaborateurToUpdateStatus(collab);
+    setStatusDraft(collab.statut);
+    setIsStatusDialogOpen(true);
+  };
+
+  const handleUpdateStatus = () => {
+    if (!collaborateurToUpdateStatus) return;
+
+    setCollaborateursData((prev) =>
+      prev.map((collab) =>
+        collab.id === collaborateurToUpdateStatus.id
+          ? { ...collab, statut: statusDraft }
+          : collab,
+      ),
+    );
+
+    setSelectedCollaborateur((prev) =>
+      prev?.id === collaborateurToUpdateStatus.id
+        ? { ...prev, statut: statusDraft }
+        : prev,
+    );
+
+    setIsStatusDialogOpen(false);
+    setCollaborateurToUpdateStatus(null);
+  };
+
+  const handleAskDeleteCollaborateur = (collab) => {
+    setCollaborateurToDelete(collab);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleDeleteCollaborateur = () => {
+    if (!collaborateurToDelete) return;
+
+    setCollaborateursData((prev) =>
+      prev.filter((collab) => collab.id !== collaborateurToDelete.id),
+    );
+    setSelectedCollaborateur((prev) =>
+      prev?.id === collaborateurToDelete.id ? null : prev,
+    );
+    setIsDeleteDialogOpen(false);
+    setCollaborateurToDelete(null);
+  };
+
+  const filteredCollaborateurs = collaborateursData.filter(
     (collab) =>
       collab.phase === activeTab &&
       (collab.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -307,8 +406,8 @@ export function QualificationPage() {
     <div className="space-y-5 pb-6">
       <div className="flex items-start justify-between gap-4">
         <div className="leoni-rise-up-soft">
-          <h1 className="text-[40px] font-semibold leading-tight text-[#171a1f]">Gestion des Qualifications</h1>
-          <p className="mt-1 text-[18px] text-[#5d6574]">Suivi et validation des qualifications des collaborateurs</p>
+          <h1 className="text-[40px] font-semibold leading-tight text-[#171a1f]">{tr("Gestion des Qualifications", "Qualification Management")}</h1>
+          <p className="mt-1 text-[18px] text-[#5d6574]">{tr("Suivi et validation des qualifications des collaborateurs", "Tracking and validation of collaborator qualifications")}</p>
         </div>
 
         <Button
@@ -316,7 +415,7 @@ export function QualificationPage() {
           className="leoni-rise-up-soft h-10 rounded-[10px] bg-[#005ca9] px-5 text-[16px] font-medium text-white hover:bg-[#004a87]"
         >
           <FileText className="mr-2 h-4 w-4" />
-          Donner le rapport du jour
+          {tr("Donner le rapport du jour", "Submit today's report")}
         </Button>
       </div>
 
@@ -352,7 +451,7 @@ export function QualificationPage() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-[30px] font-semibold leading-tight text-[#171a1f]">Repartition Collaborateurs</h2>
+          <h2 className="text-[30px] font-semibold leading-tight text-[#171a1f]">{tr("Repartition Collaborateurs", "Collaborator Distribution")}</h2>
           <TabsList className="h-11 rounded-xl bg-[#e8eef6] p-1">
             <TabsTrigger value="indection" className="rounded-lg px-5 text-[15px]">Indection</TabsTrigger>
             <TabsTrigger value="qualification" className="rounded-lg px-5 text-[15px]">Qualification</TabsTrigger>
@@ -364,7 +463,7 @@ export function QualificationPage() {
             <div className="relative flex-1">
               <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#7a8290]" />
               <Input
-                placeholder="Rechercher par nom, matricule ou departement..."
+                placeholder={tr("Rechercher par nom, matricule ou departement...", "Search by name, ID, or department...")}
                 className="h-12 rounded-xl border-[#d7dde1] pl-11 text-[15px]"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -372,19 +471,165 @@ export function QualificationPage() {
             </div>
             <Button variant="outline" className="h-10 rounded-xl border-[#ccd4d8] px-5 text-[16px]">
               <Filter className="mr-2 h-4 w-4" />
-              Filtres
+              {tr("Filtres", "Filters")}
             </Button>
           </div>
         </Card>
 
+        {selectedCollaborateur && (
+          <Card className="rounded-[20px] border border-[#dfe5e2] bg-white p-4 shadow-sm">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <p className="text-[14px] text-[#5f6777]">{tr("Collaborateur selectionne", "Selected collaborator")}</p>
+                <p className="text-[18px] font-semibold text-[#171a1f]">
+                  {selectedCollaborateur.nom} ({selectedCollaborateur.matricule})
+                </p>
+                <div className="mt-2">{getStatusBadge(selectedCollaborateur.statut)}</div>
+              </div>
+              <Button variant="outline" className="rounded-xl" onClick={() => setSelectedCollaborateur(null)}>
+                {tr("Fermer", "Close")}
+              </Button>
+            </div>
+            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+              <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3">
+                <p className="text-[12px] text-[#64748b]">Matricule</p>
+                <p className="text-[15px] font-medium text-[#1d2025]">{selectedCollaborateur.matricule}</p>
+              </div>
+              <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3">
+                <p className="text-[12px] text-[#64748b]">Nom</p>
+                <p className="text-[15px] font-medium text-[#1d2025]">{selectedCollaborateur.nom}</p>
+              </div>
+              <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3">
+                <p className="text-[12px] text-[#64748b]">Prenom</p>
+                <p className="text-[15px] font-medium text-[#1d2025]">{selectedCollaborateur.prenom}</p>
+              </div>
+              <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3">
+                <p className="text-[12px] text-[#64748b]">Departement</p>
+                <p className="text-[15px] font-medium text-[#1d2025]">{selectedCollaborateur.departement}</p>
+              </div>
+              <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3">
+                <p className="text-[12px] text-[#64748b]">Poste</p>
+                <p className="text-[15px] font-medium text-[#1d2025]">{selectedCollaborateur.poste}</p>
+              </div>
+              <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3">
+                <p className="text-[12px] text-[#64748b]">Date d'entree</p>
+                <p className="text-[15px] font-medium text-[#1d2025]">{selectedCollaborateur.dateEntree}</p>
+              </div>
+              <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3">
+                <p className="text-[12px] text-[#64748b]">Formations</p>
+                <p className="text-[15px] font-medium text-[#1d2025]">{selectedCollaborateur.formations}</p>
+              </div>
+              <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3">
+                <p className="text-[12px] text-[#64748b]">Derniere formation</p>
+                <p className="text-[15px] font-medium text-[#1d2025]">{selectedCollaborateur.derniereFormation}</p>
+              </div>
+              <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3">
+                <p className="text-[12px] text-[#64748b]">Phase</p>
+                <p className="text-[15px] font-medium text-[#1d2025]">
+                  {selectedCollaborateur.phase === "indection" ? "Indection" : "Qualification"}
+                </p>
+              </div>
+            </div>
+          </Card>
+        )}
+
         <TabsContent value="indection" className="m-0">
-          <CollaborateursTable rows={filteredCollaborateurs} />
+          <CollaborateursTable
+            rows={filteredCollaborateurs}
+            onViewDetails={handleViewCollaborateur}
+            onOpenStatusDialog={handleOpenStatusDialog}
+            onAskDelete={handleAskDeleteCollaborateur}
+            labels={{
+              viewDetails: tr("Voir details", "View details"),
+              changeStatus: tr("Changer statut", "Change status"),
+              delete: tr("Supprimer", "Delete"),
+            }}
+          />
         </TabsContent>
 
         <TabsContent value="qualification" className="m-0">
-          <CollaborateursTable rows={filteredCollaborateurs} />
+          <CollaborateursTable
+            rows={filteredCollaborateurs}
+            onViewDetails={handleViewCollaborateur}
+            onOpenStatusDialog={handleOpenStatusDialog}
+            onAskDelete={handleAskDeleteCollaborateur}
+            labels={{
+              viewDetails: tr("Voir details", "View details"),
+              changeStatus: tr("Changer statut", "Change status"),
+              delete: tr("Supprimer", "Delete"),
+            }}
+          />
         </TabsContent>
       </Tabs>
+
+      <AlertDialog
+        open={isStatusDialogOpen}
+        onOpenChange={(open) => {
+          setIsStatusDialogOpen(open);
+          if (!open) {
+            setCollaborateurToUpdateStatus(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{tr("Changer le statut", "Change status")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {collaborateurToUpdateStatus
+                ? `Selectionnez le nouveau statut pour ${collaborateurToUpdateStatus.nom}.`
+                : tr("Selectionnez un statut.", "Select a status.")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2">
+            <label htmlFor="status-select-qualification" className="text-sm font-medium text-[#252930]">
+              {tr("Statut", "Status")}
+            </label>
+            <select
+              id="status-select-qualification"
+              className="h-10 w-full rounded-md border border-[#d5dce0] bg-white px-3 text-sm outline-none focus:border-[#0f63f2]"
+              value={statusDraft}
+              onChange={(e) => setStatusDraft(e.target.value)}
+            >
+              {statutOptions.map((status) => (
+                <option key={status} value={status}>
+                  {status}
+                </option>
+              ))}
+            </select>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{tr("Annuler", "Cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleUpdateStatus}>{tr("Enregistrer", "Save")}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={(open) => {
+          setIsDeleteDialogOpen(open);
+          if (!open) {
+            setCollaborateurToDelete(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{tr("Supprimer ce collaborateur ?", "Delete this collaborator?")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {collaborateurToDelete
+                ? `Cette action supprimera ${collaborateurToDelete.nom} de la liste.`
+                : tr("Cette action est irreversible.", "This action is irreversible.")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{tr("Annuler", "Cancel")}</AlertDialogCancel>
+            <AlertDialogAction className="bg-[#ea3737] hover:bg-[#d12f2f]" onClick={handleDeleteCollaborateur}>
+              {tr("Supprimer", "Delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {isUploadOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={closeModal}>

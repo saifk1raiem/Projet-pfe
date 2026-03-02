@@ -1,4 +1,4 @@
-﻿import {
+import {
   LayoutDashboard,
   BookOpen,
   Award,
@@ -12,62 +12,71 @@
   LogOut,
 } from "lucide-react";
 import { cn } from "./ui/utils";
+import { useAppPreferences } from "../context/AppPreferencesContext";
 
 const navigationItems = [
   {
     id: "dashboard",
-    name: "Tableau de bord",
-    subtitle: "Vue d'ensemble",
-    compactSubtitle: "Vue d'ensemble",
+    nameFr: "Tableau de bord",
+    nameEn: "Dashboard",
+    subtitleFr: "Vue d'ensemble",
+    subtitleEn: "Overview",
     icon: LayoutDashboard,
   },
   {
     id: "formation",
-    name: "Formation",
-    subtitle: "Gestion des formations",
-    compactSubtitle: "Formation",
+    nameFr: "Formation",
+    nameEn: "Training",
+    subtitleFr: "Gestion des formations",
+    subtitleEn: "Training management",
     icon: BookOpen,
   },
   {
     id: "qualification",
-    name: "Qualification",
-    subtitle: "Suivi des qualifications",
-    compactSubtitle: "Qualification",
+    nameFr: "Qualification",
+    nameEn: "Qualification",
+    subtitleFr: "Suivi des qualifications",
+    subtitleEn: "Qualification tracking",
     icon: Award,
   },
   {
     id: "requalification",
-    name: "Requalification",
-    subtitle: "Gestion requalification",
-    compactSubtitle: "Requalif.",
+    nameFr: "Requalification",
+    nameEn: "Requalification",
+    subtitleFr: "Gestion requalification",
+    subtitleEn: "Requalification management",
     icon: RefreshCcw,
   },
   {
     id: "formateurs",
-    name: "Formateurs",
-    subtitle: "Liste des formateurs",
-    compactSubtitle: "Formateurs",
+    nameFr: "Formateurs",
+    nameEn: "Trainers",
+    subtitleFr: "Liste des formateurs",
+    subtitleEn: "Trainer list",
     icon: GraduationCap,
   },
   {
     id: "collaborateurs",
-    name: "Collaborateurs",
-    subtitle: "Gestion collaborateurs",
-    compactSubtitle: "Collaborateurs",
+    nameFr: "Collaborateurs",
+    nameEn: "Collaborators",
+    subtitleFr: "Gestion collaborateurs",
+    subtitleEn: "Collaborator management",
     icon: Users,
   },
   {
     id: "statistiques",
-    name: "Statistiques",
-    subtitle: "Analyses et rapports",
-    compactSubtitle: "Statistiques",
+    nameFr: "Statistiques",
+    nameEn: "Statistics",
+    subtitleFr: "Analyses et rapports",
+    subtitleEn: "Analytics and reports",
     icon: BarChart3,
   },
   {
     id: "parametres",
-    name: "Paramètres",
-    subtitle: "Configuration système",
-    compactSubtitle: "Paramètres",
+    nameFr: "Parametres",
+    nameEn: "Settings",
+    subtitleFr: "Configuration systeme",
+    subtitleEn: "System configuration",
     icon: Settings,
   },
 ];
@@ -79,6 +88,8 @@ export function Sidebar({
   onToggleCompact,
   onSignOut,
 }) {
+  const { tr } = useAppPreferences();
+
   return (
     <aside
       className={cn(
@@ -92,7 +103,7 @@ export function Sidebar({
             <div className="mb-2 flex justify-end">
               <button
                 onClick={onToggleCompact}
-                aria-label="Ouvrir la barre latérale"
+                aria-label={tr("Ouvrir la barre laterale", "Open sidebar")}
                 className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white/80 transition-colors hover:bg-white/20"
               >
                 <ChevronRight className="h-4 w-4" />
@@ -109,7 +120,7 @@ export function Sidebar({
             <div className="relative mb-4 w-full">
               <button
                 onClick={onToggleCompact}
-                aria-label="Fermer la barre latérale"
+                aria-label={tr("Fermer la barre laterale", "Collapse sidebar")}
                 className="absolute right-0 top-0 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white/80 transition-colors hover:bg-white/20"
               >
                 <ChevronLeft className="h-5 w-5" />
@@ -121,7 +132,7 @@ export function Sidebar({
             <p className="text-[31px] font-semibold tracking-[0.01em] text-[#f2f8f4]">
               LEONI
             </p>
-            <p className="mt-1 text-[13px] text-[#cde0d6]">Gestion de Formation</p>
+            <p className="mt-1 text-[13px] text-[#cde0d6]">{tr("Gestion de Formation", "Training Management")}</p>
           </div>
         )}
 
@@ -158,7 +169,7 @@ export function Sidebar({
                         isActive ? "text-[#1f5240]" : "text-[#f2f7f3]",
                       )}
                     >
-                      {item.name}
+                      {tr(item.nameFr, item.nameEn)}
                     </p>
                     <p
                       className={cn(
@@ -166,7 +177,7 @@ export function Sidebar({
                         isActive ? "text-[#356a57]" : "text-[#cde0d6]",
                       )}
                     >
-                      {item.subtitle}
+                      {tr(item.subtitleFr, item.subtitleEn)}
                     </p>
                   </div>
                 )}
@@ -189,7 +200,7 @@ export function Sidebar({
             <div className="flex justify-center">
               <button
                 onClick={onSignOut}
-                aria-label="Se déconnecter"
+                aria-label={tr("Se deconnecter", "Sign out")}
                 className="flex h-10 w-10 items-center justify-center rounded-full bg-white/12 text-[#f2f8f4] transition-colors hover:bg-white/24"
               >
                 <LogOut className="h-4 w-4" />
@@ -199,7 +210,7 @@ export function Sidebar({
         ) : (
           <div className="pt-4 text-center">
             <p className="text-[16px] font-medium text-[#f2f8f4]">Liam Gallagher</p>
-            <p className="text-[13px] text-[#cde0d6]">System Administrator</p>
+            <p className="text-[13px] text-[#cde0d6]">{tr("Administrateur Systeme", "System Administrator")}</p>
             <div className="mt-3 flex justify-center">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#7ae094] text-[22px] font-semibold text-[#2b6d56]">
                 LG
@@ -210,7 +221,7 @@ export function Sidebar({
               className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-[14px] bg-white/12 px-4 text-[14px] font-medium text-[#f2f8f4] transition-colors hover:bg-white/24"
             >
               <LogOut className="h-4 w-4" />
-              Se déconnecter
+              {tr("Se deconnecter", "Sign out")}
             </button>
           </div>
         )}

@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
+import { useAppPreferences } from "../context/AppPreferencesContext";
 
 export function LoginPage({ onLogin }) {
+  const { tr } = useAppPreferences();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -21,11 +23,13 @@ export function LoginPage({ onLogin }) {
                 LEONI Training
               </p>
               <h1 className="mt-5 text-3xl font-semibold leading-tight">
-                Welcome back
+                {tr("Bon retour", "Welcome back")}
               </h1>
               <p className="mt-3 max-w-xs text-sm leading-6 text-white/85">
-                Sign in to manage training, qualifications, and collaborators
-                from one place.
+                {tr(
+                  "Connectez-vous pour gerer les formations, qualifications et collaborateurs depuis un seul espace.",
+                  "Sign in to manage training, qualifications, and collaborators from one place.",
+                )}
               </p>
             </div>
             <div className="pointer-events-none absolute -right-12 -top-10 h-56 w-56 rounded-full bg-white/15 blur-xl" />
@@ -33,8 +37,8 @@ export function LoginPage({ onLogin }) {
           </div>
 
           <div className="p-7 sm:p-10">
-            <p className="text-sm font-medium text-[#5d7088]">Account access</p>
-            <h2 className="mt-2 text-3xl font-semibold text-[#13263f]">Login</h2>
+            <p className="text-sm font-medium text-[#5d7088]">{tr("Acces compte", "Account access")}</p>
+            <h2 className="mt-2 text-3xl font-semibold text-[#13263f]">{tr("Connexion", "Login")}</h2>
 
             <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
               <div className="space-y-2">
@@ -44,7 +48,7 @@ export function LoginPage({ onLogin }) {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="name@company.com"
+                  placeholder={tr("nom@entreprise.com", "name@company.com")}
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   required
@@ -57,12 +61,12 @@ export function LoginPage({ onLogin }) {
                   className="text-sm font-medium text-[#1a3252]"
                   htmlFor="password"
                 >
-                  Password
+                  {tr("Mot de passe", "Password")}
                 </label>
                 <Input
                   id="password"
                   type="password"
-                  placeholder="Enter your password"
+                  placeholder={tr("Entrez votre mot de passe", "Enter your password")}
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   required
@@ -71,7 +75,7 @@ export function LoginPage({ onLogin }) {
               </div>
 
               <Button className="h-11 w-full text-sm font-semibold" type="submit">
-                Sign In
+                {tr("Se connecter", "Sign In")}
               </Button>
             </form>
           </div>
