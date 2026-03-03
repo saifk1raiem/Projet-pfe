@@ -129,7 +129,7 @@ export function Sidebar({
             <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-[#7ae094] text-[#2b6d56] shadow-[0_8px_18px_rgba(122,224,148,0.35)]">
               <GraduationCap className="h-7 w-7" />
             </div>
-            <p className="text-[31px] font-semibold tracking-[0.01em] text-[#f2f8f4]">
+            <p className="leoni-display-lg text-[31px] font-semibold tracking-[0.01em] text-[#f2f8f4]">
               LEONI
             </p>
             <p className="mt-1 text-[13px] text-[#cde0d6]">{tr("Gestion de Formation", "Training Management")}</p>

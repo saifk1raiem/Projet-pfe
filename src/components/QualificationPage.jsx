@@ -212,7 +212,7 @@ const Stat = ({ icon, title, value, color, delay }) => (
     <div className="flex items-start justify-between gap-3">
       <div>
         <p className="text-[15px] text-[#5f6777]">{title}</p>
-        <h3 className="mt-1 text-[42px] font-semibold leading-none text-[#191c20]">{value}</h3>
+        <h3 className="leoni-metric mt-1 text-[42px] font-semibold leading-none text-[#191c20]">{value}</h3>
       </div>
       <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${color.bg}`}>
         {createElement(icon, { className: `h-6 w-6 ${color.text}` })}
@@ -230,7 +230,7 @@ const ComparisonStat = ({ title, value, deltaPercent, delay, icon = Users, iconB
       <div>
         <p className="text-[15px] text-[#5f6777]">{title}</p>
         <div className="mt-1 flex items-baseline gap-3">
-          <h3 className="text-[42px] font-semibold leading-none text-[#191c20]">{value}</h3>
+          <h3 className="leoni-metric text-[42px] font-semibold leading-none text-[#191c20]">{value}</h3>
           <div className={`flex items-center gap-1 text-[14px] ${deltaPercent >= 0 ? "text-[#005ca9]" : "text-[#ea3737]"}`}>
             {deltaPercent >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
             <span>{Math.abs(deltaPercent).toFixed(1)}%</span>
@@ -475,8 +475,8 @@ export function QualificationPage({ onNavigateToPage }) {
     <div className="space-y-5 pb-6">
       <div className="flex items-start justify-between gap-4">
         <div className="leoni-rise-up-soft">
-          <h1 className="text-[40px] font-semibold leading-tight text-[#171a1f]">{tr("Gestion des Qualifications", "Qualification Management")}</h1>
-          <p className="mt-1 text-[18px] text-[#5d6574]">{tr("Suivi et validation des qualifications des collaborateurs", "Tracking and validation of collaborator qualifications")}</p>
+          <h1 className="leoni-display-xl text-[40px] font-semibold leading-tight text-[#171a1f]">{tr("Gestion des Qualifications", "Qualification Management")}</h1>
+          <p className="leoni-subtitle mt-1 text-[18px] text-[#5d6574]">{tr("Suivi et validation des qualifications des collaborateurs", "Tracking and validation of collaborator qualifications")}</p>
         </div>
 
         <Button
@@ -520,7 +520,7 @@ export function QualificationPage({ onNavigateToPage }) {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-[30px] font-semibold leading-tight text-[#171a1f]">{tr("Repartition Collaborateurs", "Collaborator Distribution")}</h2>
+          <h2 className="leoni-display-lg text-[30px] font-semibold leading-tight text-[#171a1f]">{tr("Repartition Collaborateurs", "Collaborator Distribution")}</h2>
           <TabsList className="h-11 rounded-xl bg-[#e8eef6] p-1">
             <TabsTrigger value="indection" className="rounded-lg px-5 text-[15px]">Indection</TabsTrigger>
             <TabsTrigger value="qualification" className="rounded-lg px-5 text-[15px]">Qualification</TabsTrigger>
@@ -643,7 +643,7 @@ export function QualificationPage({ onNavigateToPage }) {
           >
             <div className="flex items-start justify-between border-b border-[#e2e8f0] px-7 py-5">
               <div>
-                <h2 className="text-[30px] font-semibold leading-tight text-[#171a1f]">
+                <h2 className="leoni-display-lg text-[30px] font-semibold leading-tight text-[#171a1f]">
                   {tr("Formations du collaborateur", "Collaborator training history")}
                 </h2>
                 <p className="mt-1 text-[15px] text-[#64748b]">

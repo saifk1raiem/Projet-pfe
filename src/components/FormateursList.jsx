@@ -56,7 +56,7 @@ const Stat = ({ icon, title, value, color }) => (
       </div>
       <div>
         <p className="text-[15px] text-[#5f6777]">{title}</p>
-        <p className="text-[36px] font-semibold leading-tight text-[#191c20]">{value}</p>
+        <p className="leoni-metric text-[36px] font-semibold leading-tight text-[#191c20]">{value}</p>
       </div>
     </div>
   </Card>
@@ -70,8 +70,8 @@ export function FormateursList() {
     <div className="space-y-5 pb-6">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-[40px] font-semibold leading-tight text-[#171a1f]">{tr("Gestion des Formateurs", "Trainer Management")}</h1>
-          <p className="mt-1 text-[18px] text-[#5d6574]">{tr("Liste et disponibilite des formateurs", "Trainer list and availability")}</p>
+          <h1 className="leoni-display-xl text-[40px] font-semibold leading-tight text-[#171a1f]">{tr("Gestion des Formateurs", "Trainer Management")}</h1>
+          <p className="leoni-subtitle mt-1 text-[18px] text-[#5d6574]">{tr("Liste et disponibilite des formateurs", "Trainer list and availability")}</p>
         </div>
         <Button className="h-10 rounded-[10px] bg-[#005ca9] px-5 text-[16px] font-medium text-white hover:bg-[#004a87]">
           <GraduationCap className="mr-2 h-4 w-4" />
@@ -159,10 +159,10 @@ export function FormateursList() {
                   {formateur.initials}
                 </div>
                 <div>
-                  <h3 className="text-[40px] font-medium text-[#191c20]">{formateur.nom}</h3>
+                  <h3 className="leoni-display-lg text-[40px] font-medium text-[#191c20]">{formateur.nom}</h3>
                   <div className="mt-1 flex items-center gap-1">
                     <Star className="h-4 w-4 fill-[#e6a800] text-[#e6a800]" />
-                    <span className="text-[28px] font-medium text-[#191c20]">{formateur.evaluation}</span>
+                    <span className="leoni-metric text-[28px] font-medium text-[#191c20]">{formateur.evaluation}</span>
                   </div>
                 </div>
               </div>
@@ -189,11 +189,11 @@ export function FormateursList() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <p className="text-[13px] text-[#5f6777]">{tr("Formations donnees", "Delivered trainings")}</p>
-                  <p className="text-[32px] font-medium text-[#191c20]">{formateur.formations}</p>
+                  <p className="leoni-metric text-[32px] font-medium text-[#191c20]">{formateur.formations}</p>
                 </div>
                 <div>
                   <p className="text-[13px] text-[#5f6777]">{tr("Prochaine session", "Next session")}</p>
-                  <p className="text-[32px] font-medium text-[#191c20]">{formateur.prochaineSession || "-"}</p>
+                  <p className="leoni-metric text-[32px] font-medium text-[#191c20]">{formateur.prochaineSession || "-"}</p>
                 </div>
               </div>
             </div>

@@ -25,7 +25,7 @@ const KPI = ({ title, value, icon, trend, suffix = "", iconColor, iconBg }) => (
       <div>
         <p className="text-[15px] text-[#5f6777]">{title}</p>
         <div className="mt-1 flex items-baseline gap-3">
-          <h3 className="text-[42px] font-semibold leading-none text-[#191c20]">
+          <h3 className="leoni-metric text-[42px] font-semibold leading-none text-[#191c20]">
             {value}
             {suffix}
           </h3>
@@ -51,8 +51,8 @@ export function TrainingDashboard() {
     <div className="space-y-5 pb-6">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-[40px] font-semibold leading-tight text-[#171a1f]">{tr("Bonjour, Seef", "Hello, Seef")}</h1>
-          <p className="mt-1 text-[18px] text-[#5d6574]">{tr("Systeme Intelligent de Gestion de Formation", "Smart Training Management System")}</p>
+          <h1 className="leoni-display-xl text-[40px] font-semibold leading-tight text-[#171a1f]">{tr("Bonjour, Seef", "Hello, Seef")}</h1>
+          <p className="leoni-subtitle mt-1 text-[18px] text-[#5d6574]">{tr("Systeme Intelligent de Gestion de Formation", "Smart Training Management System")}</p>
         </div>
         <Badge className="mt-2 rounded-xl border border-[#b9d3ea] bg-[#e8f1fb] px-4 py-2 text-[14px] font-medium text-[#005ca9]">
           <span className="mr-2 inline-block h-2.5 w-2.5 rounded-full bg-[#2e8ad7]" />

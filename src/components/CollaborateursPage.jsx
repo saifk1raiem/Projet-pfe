@@ -186,7 +186,7 @@ const Stat = ({ icon, title, value, color }) => (
       </div>
       <div>
         <p className="text-[15px] text-[#5f6777]">{title}</p>
-        <p className="text-[36px] font-semibold leading-tight text-[#191c20]">{value}</p>
+        <p className="leoni-metric text-[36px] font-semibold leading-tight text-[#191c20]">{value}</p>
       </div>
     </div>
   </Card>
@@ -317,8 +317,8 @@ export function CollaborateursPage({ onNavigateToPage }) {
     <div className="space-y-5 pb-6">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-[40px] font-semibold leading-tight text-[#171a1f]">{tr("Gestion des Collaborateurs", "Collaborator Management")}</h1>
-          <p className="mt-1 text-[18px] text-[#5d6574]">{tr("Liste et suivi des collaborateurs", "Collaborator list and tracking")}</p>
+          <h1 className="leoni-display-xl text-[40px] font-semibold leading-tight text-[#171a1f]">{tr("Gestion des Collaborateurs", "Collaborator Management")}</h1>
+          <p className="leoni-subtitle mt-1 text-[18px] text-[#5d6574]">{tr("Liste et suivi des collaborateurs", "Collaborator list and tracking")}</p>
         </div>
         <Button className="h-10 rounded-[10px] bg-[#005ca9] px-5 text-[16px] font-medium text-white hover:bg-[#004a87]">
           <Users className="mr-2 h-4 w-4" />
@@ -484,7 +484,7 @@ export function CollaborateursPage({ onNavigateToPage }) {
           >
             <div className="flex items-start justify-between border-b border-[#e2e8f0] px-7 py-5">
               <div>
-                <h2 className="text-[30px] font-semibold leading-tight text-[#171a1f]">
+                <h2 className="leoni-display-lg text-[30px] font-semibold leading-tight text-[#171a1f]">
                   {tr("Formations du collaborateur", "Collaborator training history")}
                 </h2>
                 <p className="mt-1 text-[15px] text-[#64748b]">

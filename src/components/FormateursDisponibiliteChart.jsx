@@ -16,7 +16,7 @@ export function FormateursDisponibiliteChart() {
   return (
     <Card className="rounded-[20px] border border-[#dfe5e2] bg-white p-6 shadow-sm">
       <div className="mb-6">
-        <h3 className="mb-1 text-[38px] font-medium text-[#1b1e23]">Disponibilite des Formateurs</h3>
+        <h3 className="leoni-display-lg mb-1 text-[38px] font-medium text-[#1b1e23]">Disponibilite des Formateurs</h3>
         <p className="text-[15px] text-[#5f6777]">Apercu hebdomadaire de la disponibilite des formateurs</p>
       </div>
 
