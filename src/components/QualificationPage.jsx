@@ -30,6 +30,7 @@ import {
   Eye,
   Pencil,
   Trash2,
+  BookOpen,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -154,6 +155,53 @@ const collaborateursQualification = [
   },
 ];
 
+const collaborateursFormationHistory = {
+  1: [
+    { id: "f-101", titre: "Securite machine", type: "Technique", date: "10/01/2026", duree: "6h", resultat: "Valide" },
+    { id: "f-102", titre: "Qualite cablage", type: "Qualite", date: "22/11/2025", duree: "4h", resultat: "Valide" },
+    { id: "f-103", titre: "5S atelier", type: "Lean", date: "09/08/2025", duree: "3h", resultat: "Valide" },
+  ],
+  2: [
+    { id: "f-201", titre: "Audit produit", type: "Qualite", date: "05/02/2026", duree: "5h", resultat: "Valide" },
+    { id: "f-202", titre: "Metrologie avancee", type: "Technique", date: "16/12/2025", duree: "7h", resultat: "Valide" },
+    { id: "f-203", titre: "SPC niveau 2", type: "Qualite", date: "24/09/2025", duree: "4h", resultat: "Valide" },
+  ],
+  3: [
+    { id: "f-301", titre: "Diagnostic maintenance", type: "Technique", date: "15/12/2025", duree: "6h", resultat: "En cours" },
+    { id: "f-302", titre: "Consignation LOTOTO", type: "Securite", date: "03/07/2025", duree: "4h", resultat: "Valide" },
+  ],
+  4: [
+    { id: "f-401", titre: "Leadership terrain", type: "Soft skills", date: "28/01/2026", duree: "8h", resultat: "Valide" },
+    { id: "f-402", titre: "Pilotage KPI", type: "Management", date: "19/10/2025", duree: "5h", resultat: "Valide" },
+    { id: "f-403", titre: "Resolution probleme", type: "Lean", date: "06/06/2025", duree: "4h", resultat: "Valide" },
+  ],
+  5: [
+    { id: "f-501", titre: "Flux logistique", type: "Logistique", date: "20/05/2025", duree: "4h", resultat: "En cours" },
+    { id: "f-502", titre: "Inventaire digital", type: "Logistique", date: "02/03/2025", duree: "3h", resultat: "Valide" },
+  ],
+  6: [
+    { id: "f-601", titre: "SIRH operationnel", type: "RH", date: "18/01/2026", duree: "5h", resultat: "Valide" },
+    { id: "f-602", titre: "Onboarding process", type: "RH", date: "30/11/2025", duree: "4h", resultat: "Valide" },
+    { id: "f-603", titre: "Communication interne", type: "Soft skills", date: "11/08/2025", duree: "3h", resultat: "Valide" },
+  ],
+  7: [
+    { id: "f-701", titre: "Requalification poste", type: "Qualification", date: "20/08/2025", duree: "6h", resultat: "Expire" },
+    { id: "f-702", titre: "Ergonomie poste", type: "Securite", date: "28/04/2025", duree: "3h", resultat: "Valide" },
+  ],
+};
+
+const getFormationHistory = (collabId) => collaborateursFormationHistory[collabId] ?? [];
+const getFormationPageId = (formation) => {
+  const title = formation?.titre?.toLowerCase() ?? "";
+  if (title.includes("qualite") || title.includes("audit") || title.includes("spc") || title.includes("metrologie")) {
+    return 2;
+  }
+  if (title.includes("maintenance") || title.includes("diagnostic") || title.includes("requalification")) {
+    return 3;
+  }
+  return 1;
+};
+
 const statutOptions = ["Non associe", "En cours", "Qualifie", "Depassement"];
 
 const Stat = ({ icon, title, value, color, delay }) => (
@@ -231,7 +279,7 @@ const getStatusBadge = (statut) => {
   }
 };
 
-function CollaborateursTable({ rows, onViewDetails, onOpenStatusDialog, onAskDelete, labels }) {
+function CollaborateursTable({ rows, onViewDetails, onViewFormations, onOpenStatusDialog, onAskDelete, labels }) {
   return (
     <Card className="rounded-[20px] border border-[#dfe5e2] bg-white shadow-sm">
       <Table>
@@ -278,6 +326,10 @@ function CollaborateursTable({ rows, onViewDetails, onOpenStatusDialog, onAskDel
                       <Eye className="h-4 w-4" />
                       {labels.viewDetails}
                     </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => onViewFormations(collab)}>
+                      <BookOpen className="h-4 w-4" />
+                      {labels.viewFormations}
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => onOpenStatusDialog(collab)}>
                       <Pencil className="h-4 w-4" />
                       {labels.changeStatus}
@@ -298,7 +350,7 @@ function CollaborateursTable({ rows, onViewDetails, onOpenStatusDialog, onAskDel
   );
 }
 
-export function QualificationPage() {
+export function QualificationPage({ onNavigateToPage }) {
   const { tr } = useAppPreferences();
   const [activeTab, setActiveTab] = useState("indection");
   const [searchTerm, setSearchTerm] = useState("");
@@ -312,6 +364,8 @@ export function QualificationPage() {
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState([]);
+  const [isFormationsDialogOpen, setIsFormationsDialogOpen] = useState(false);
+  const [formationsCollaborateur, setFormationsCollaborateur] = useState(null);
   const inputRef = useRef(null);
 
   const addFiles = (fileList) => {
@@ -347,6 +401,21 @@ export function QualificationPage() {
 
   const handleViewCollaborateur = (collab) => {
     setSelectedCollaborateur(collab);
+  };
+
+  const handleOpenFormationsDialog = (collab) => {
+    setFormationsCollaborateur(collab);
+    setIsFormationsDialogOpen(true);
+  };
+
+  const closeFormationsDialog = () => {
+    setIsFormationsDialogOpen(false);
+    setFormationsCollaborateur(null);
+  };
+
+  const handleGoToFormationSection = (formation) => {
+    closeFormationsDialog();
+    onNavigateToPage?.("formation", { formationId: getFormationPageId(formation) });
   };
 
   const handleOpenStatusDialog = (collab) => {
@@ -537,10 +606,12 @@ export function QualificationPage() {
           <CollaborateursTable
             rows={filteredCollaborateurs}
             onViewDetails={handleViewCollaborateur}
+            onViewFormations={handleOpenFormationsDialog}
             onOpenStatusDialog={handleOpenStatusDialog}
             onAskDelete={handleAskDeleteCollaborateur}
             labels={{
               viewDetails: tr("Voir details", "View details"),
+              viewFormations: tr("Voir formations", "View trainings"),
               changeStatus: tr("Changer statut", "Change status"),
               delete: tr("Supprimer", "Delete"),
             }}
@@ -551,16 +622,72 @@ export function QualificationPage() {
           <CollaborateursTable
             rows={filteredCollaborateurs}
             onViewDetails={handleViewCollaborateur}
+            onViewFormations={handleOpenFormationsDialog}
             onOpenStatusDialog={handleOpenStatusDialog}
             onAskDelete={handleAskDeleteCollaborateur}
             labels={{
               viewDetails: tr("Voir details", "View details"),
+              viewFormations: tr("Voir formations", "View trainings"),
               changeStatus: tr("Changer statut", "Change status"),
               delete: tr("Supprimer", "Delete"),
             }}
           />
         </TabsContent>
       </Tabs>
+
+      {isFormationsDialogOpen && formationsCollaborateur && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={closeFormationsDialog}>
+          <div
+            className="leoni-rise-up flex h-[88vh] w-full max-w-[1200px] flex-col overflow-hidden rounded-[24px] border border-[#dfe5e2] bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between border-b border-[#e2e8f0] px-7 py-5">
+              <div>
+                <h2 className="text-[30px] font-semibold leading-tight text-[#171a1f]">
+                  {tr("Formations du collaborateur", "Collaborator training history")}
+                </h2>
+                <p className="mt-1 text-[15px] text-[#64748b]">
+                  {formationsCollaborateur.nom} ({formationsCollaborateur.matricule}) • {formationsCollaborateur.formations} formations
+                </p>
+              </div>
+              <Button variant="outline" className="rounded-xl" onClick={closeFormationsDialog}>
+                {tr("Fermer", "Close")}
+              </Button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-7 py-6">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                {getFormationHistory(formationsCollaborateur.id).map((formation) => (
+                  <Card key={formation.id} className="rounded-2xl border border-[#dfe5e2] bg-[#fbfdff] p-5 shadow-sm">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <h3 className="text-[20px] font-semibold text-[#191c20]">{formation.titre}</h3>
+                        <p className="mt-1 text-[14px] text-[#64748b]">{formation.type}</p>
+                      </div>
+                      <Badge className="rounded-lg border border-[#b9d3ea] bg-[#e8f1fb] px-3 py-1 text-[13px] font-medium text-[#005ca9]">
+                        {formation.resultat}
+                      </Badge>
+                    </div>
+                    <div className="mt-4 grid grid-cols-2 gap-3">
+                      <div className="rounded-xl border border-[#e2e8f0] bg-white p-3">
+                        <p className="text-[12px] text-[#64748b]">{tr("Date", "Date")}</p>
+                        <p className="text-[14px] font-medium text-[#1d2025]">{formation.date}</p>
+                      </div>
+                      <div className="rounded-xl border border-[#e2e8f0] bg-white p-3">
+                        <p className="text-[12px] text-[#64748b]">{tr("Duree", "Duration")}</p>
+                        <p className="text-[14px] font-medium text-[#1d2025]">{formation.duree}</p>
+                      </div>
+                    </div>
+                    <Button className="mt-4 h-10 rounded-xl bg-[#005ca9] text-white hover:bg-[#004a87]" onClick={() => handleGoToFormationSection(formation)}>
+                      {tr("Voir details formation", "Open training details")}
+                    </Button>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <AlertDialog
         open={isStatusDialogOpen}

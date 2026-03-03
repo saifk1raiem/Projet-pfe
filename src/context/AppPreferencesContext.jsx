@@ -2,10 +2,16 @@
 import { createContext, useContext, useEffect, useState } from "react";
 
 const AppPreferencesContext = createContext(null);
+const normalizeLanguage = (value) => (value === "en" ? "en" : "fr");
+const normalizeTheme = (value) => {
+  if (value === "night" || value === "dark") return "night";
+  if (value === "day" || value === "light") return "day";
+  return "day";
+};
 
 export function AppPreferencesProvider({ children }) {
-  const [language, setLanguage] = useState(() => localStorage.getItem("app_language") || "fr");
-  const [theme, setTheme] = useState(() => localStorage.getItem("app_theme") || "day");
+  const [language, setLanguage] = useState(() => normalizeLanguage(localStorage.getItem("app_language")));
+  const [theme, setTheme] = useState(() => normalizeTheme(localStorage.getItem("app_theme")));
 
   useEffect(() => {
     localStorage.setItem("app_language", language);

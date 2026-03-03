@@ -20,15 +20,25 @@ export function Layout({ onSignOut }) {
   const { tr, theme, toggleTheme } = useAppPreferences();
   const [currentPage, setCurrentPage] = useState("dashboard");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [formationDetailsId, setFormationDetailsId] = useState(null);
+
+  const handlePageChange = (page, options = {}) => {
+    setCurrentPage(page);
+    if (page === "formation") {
+      setFormationDetailsId(options.formationId ?? null);
+      return;
+    }
+    setFormationDetailsId(null);
+  };
 
   const renderContent = () => {
     switch (currentPage) {
       case "dashboard":
         return <TrainingDashboard />;
       case "formation":
-        return <FormationPage />;
+        return <FormationPage openFormationId={formationDetailsId} />;
       case "qualification":
-        return <QualificationPage />;
+        return <QualificationPage onNavigateToPage={handlePageChange} />;
       case "requalification":
         return (
           <PlaceholderPage
@@ -39,7 +49,7 @@ export function Layout({ onSignOut }) {
       case "formateurs":
         return <FormateursList />;
       case "collaborateurs":
-        return <CollaborateursPage />;
+        return <CollaborateursPage onNavigateToPage={handlePageChange} />;
       case "statistiques":
         return (
           <PlaceholderPage
@@ -59,7 +69,7 @@ export function Layout({ onSignOut }) {
       <div className="px-5 py-5">
         <Sidebar
           currentPage={currentPage}
-          onPageChange={setCurrentPage}
+          onPageChange={handlePageChange}
           compact={isSidebarCollapsed}
           onToggleCompact={() => setIsSidebarCollapsed((prev) => !prev)}
           onSignOut={onSignOut}
