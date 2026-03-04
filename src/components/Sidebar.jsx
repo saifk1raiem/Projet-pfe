@@ -87,8 +87,18 @@ export function Sidebar({
   compact = false,
   onToggleCompact,
   onSignOut,
+  currentUser,
 }) {
   const { tr } = useAppPreferences();
+  const fullName = currentUser
+    ? `${currentUser.first_name ?? ""} ${currentUser.last_name ?? ""}`.trim()
+    : "User";
+  const initials = currentUser
+    ? `${(currentUser.first_name ?? "").charAt(0)}${(currentUser.last_name ?? "").charAt(0)}`.toUpperCase()
+    : "U";
+  const roleLabel = currentUser?.role
+    ? currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1)
+    : tr("Utilisateur", "User");
 
   return (
     <aside
@@ -194,7 +204,7 @@ export function Sidebar({
           <div className="space-y-3 pt-4">
             <div className="flex justify-center">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#7ae094] text-[22px] font-semibold text-[#2b6d56]">
-                LG
+                {initials}
               </div>
             </div>
             <div className="flex justify-center">
@@ -209,11 +219,11 @@ export function Sidebar({
           </div>
         ) : (
           <div className="pt-4 text-center">
-            <p className="text-[16px] font-medium text-[#f2f8f4]">Liam Gallagher</p>
-            <p className="text-[13px] text-[#cde0d6]">{tr("Administrateur Systeme", "System Administrator")}</p>
+            <p className="text-[16px] font-medium text-[#f2f8f4]">{fullName}</p>
+            <p className="text-[13px] text-[#cde0d6]">{roleLabel}</p>
             <div className="mt-3 flex justify-center">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#7ae094] text-[22px] font-semibold text-[#2b6d56]">
-                LG
+                {initials}
               </div>
             </div>
             <button

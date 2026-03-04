@@ -3,14 +3,24 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { useAppPreferences } from "../context/AppPreferencesContext";
 
-export function LoginPage({ onLogin }) {
+export function LoginPage({ onLogin, onQuickLogin }) {
   const { tr } = useAppPreferences();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    onLogin({ email, password });
+    setError("");
+    setIsSubmitting(true);
+    try {
+      await onLogin({ email, password });
+    } catch (err) {
+      setError(err?.message || tr("Echec de connexion", "Login failed"));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -74,9 +84,24 @@ export function LoginPage({ onLogin }) {
                 />
               </div>
 
-              <Button className="h-11 w-full text-sm font-semibold" type="submit">
-                {tr("Se connecter", "Sign In")}
+              <Button className="h-11 w-full text-sm font-semibold" type="submit" disabled={isSubmitting}>
+                {isSubmitting ? tr("Connexion...", "Signing in...") : tr("Se connecter", "Sign In")}
               </Button>
+
+              <Button
+                className="h-11 w-full text-sm font-semibold"
+                type="button"
+                variant="outline"
+                onClick={onQuickLogin}
+              >
+                {tr("Connexion rapide (sans backend)", "Quick Login (no backend)")}
+              </Button>
+
+              {error ? (
+                <p className="text-sm font-medium text-red-600" role="alert">
+                  {error}
+                </p>
+              ) : null}
             </form>
           </div>
         </div>

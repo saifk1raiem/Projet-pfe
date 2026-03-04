@@ -16,7 +16,7 @@ const PlaceholderPage = ({ title, subtitle }) => (
   </div>
 );
 
-export function Layout({ onSignOut }) {
+export function Layout({ onSignOut, currentUser, accessToken }) {
   const { tr, theme, toggleTheme } = useAppPreferences();
   const [currentPage, setCurrentPage] = useState("dashboard");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -58,7 +58,7 @@ export function Layout({ onSignOut }) {
           />
         );
       case "parametres":
-        return <ParametresPage />;
+        return <ParametresPage currentUser={currentUser} accessToken={accessToken} />;
       default:
         return <TrainingDashboard />;
     }
@@ -73,6 +73,7 @@ export function Layout({ onSignOut }) {
           compact={isSidebarCollapsed}
           onToggleCompact={() => setIsSidebarCollapsed((prev) => !prev)}
           onSignOut={onSignOut}
+          currentUser={currentUser}
         />
       </div>
 
