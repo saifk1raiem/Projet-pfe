@@ -27,13 +27,13 @@ function App() {
     setIsAuthenticated(true);
   };
 
-  const handleQuickLogin = () => {
+  const handleQuickLogin = (role) => {
     setCurrentUser({
       id: 0,
       first_name: "Quick",
       last_name: "User",
       email: "quick.user@local",
-      role: "admin",
+      role,
       is_active: true,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),

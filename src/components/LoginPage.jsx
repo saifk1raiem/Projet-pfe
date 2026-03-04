@@ -9,6 +9,7 @@ export function LoginPage({ onLogin, onQuickLogin }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [quickRole, setQuickRole] = useState("admin");
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -92,10 +93,25 @@ export function LoginPage({ onLogin, onQuickLogin }) {
                 className="h-11 w-full text-sm font-semibold"
                 type="button"
                 variant="outline"
-                onClick={onQuickLogin}
+                onClick={() => onQuickLogin(quickRole)}
               >
                 {tr("Connexion rapide (sans backend)", "Quick Login (no backend)")}
               </Button>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-[#1a3252]" htmlFor="quick-role">
+                  {tr("Role de connexion rapide", "Quick login role")}
+                </label>
+                <select
+                  id="quick-role"
+                  className="h-11 w-full rounded-md border border-[#c8d8e8] bg-white px-3 text-sm text-[#1a3252]"
+                  value={quickRole}
+                  onChange={(event) => setQuickRole(event.target.value)}
+                >
+                  <option value="admin">{tr("Administrateur", "Admin")}</option>
+                  <option value="observer">{tr("Observateur", "Observer")}</option>
+                </select>
+              </div>
 
               {error ? (
                 <p className="text-sm font-medium text-red-600" role="alert">
