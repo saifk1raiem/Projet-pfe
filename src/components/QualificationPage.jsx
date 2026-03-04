@@ -279,7 +279,7 @@ const getStatusBadge = (statut) => {
   }
 };
 
-function CollaborateursTable({ rows, onViewDetails, onViewFormations, onOpenStatusDialog, onAskDelete, labels }) {
+function CollaborateursTable({ rows, onViewDetails, onViewFormations, onOpenStatusDialog, onAskDelete, labels, canManage }) {
   return (
     <Card className="rounded-[20px] border border-[#dfe5e2] bg-white shadow-sm">
       <Table>
@@ -330,15 +330,19 @@ function CollaborateursTable({ rows, onViewDetails, onViewFormations, onOpenStat
                       <BookOpen className="h-4 w-4" />
                       {labels.viewFormations}
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => onOpenStatusDialog(collab)}>
-                      <Pencil className="h-4 w-4" />
-                      {labels.changeStatus}
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem variant="destructive" onClick={() => onAskDelete(collab)}>
-                      <Trash2 className="h-4 w-4" />
-                      {labels.delete}
-                    </DropdownMenuItem>
+                    {canManage ? (
+                      <>
+                        <DropdownMenuItem onClick={() => onOpenStatusDialog(collab)}>
+                          <Pencil className="h-4 w-4" />
+                          {labels.changeStatus}
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem variant="destructive" onClick={() => onAskDelete(collab)}>
+                          <Trash2 className="h-4 w-4" />
+                          {labels.delete}
+                        </DropdownMenuItem>
+                      </>
+                    ) : null}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </TableCell>
@@ -350,8 +354,9 @@ function CollaborateursTable({ rows, onViewDetails, onViewFormations, onOpenStat
   );
 }
 
-export function QualificationPage({ onNavigateToPage }) {
+export function QualificationPage({ onNavigateToPage, currentUser }) {
   const { tr } = useAppPreferences();
+  const isObserver = currentUser?.role === "observer";
   const [activeTab, setActiveTab] = useState("indection");
   const [searchTerm, setSearchTerm] = useState("");
   const [collaborateursData, setCollaborateursData] = useState(collaborateursQualification);
@@ -419,6 +424,7 @@ export function QualificationPage({ onNavigateToPage }) {
   };
 
   const handleOpenStatusDialog = (collab) => {
+    if (isObserver) return;
     setCollaborateurToUpdateStatus(collab);
     setStatusDraft(collab.statut);
     setIsStatusDialogOpen(true);
@@ -446,6 +452,7 @@ export function QualificationPage({ onNavigateToPage }) {
   };
 
   const handleAskDeleteCollaborateur = (collab) => {
+    if (isObserver) return;
     setCollaborateurToDelete(collab);
     setIsDeleteDialogOpen(true);
   };
@@ -482,6 +489,7 @@ export function QualificationPage({ onNavigateToPage }) {
         <Button
           onClick={() => setIsUploadOpen(true)}
           className="leoni-rise-up-soft h-10 rounded-[10px] bg-[#005ca9] px-5 text-[16px] font-medium text-white hover:bg-[#004a87]"
+          disabled={isObserver}
         >
           <FileText className="mr-2 h-4 w-4" />
           {tr("Donner le rapport du jour", "Submit today's report")}
@@ -609,6 +617,7 @@ export function QualificationPage({ onNavigateToPage }) {
             onViewFormations={handleOpenFormationsDialog}
             onOpenStatusDialog={handleOpenStatusDialog}
             onAskDelete={handleAskDeleteCollaborateur}
+            canManage={!isObserver}
             labels={{
               viewDetails: tr("Voir details", "View details"),
               viewFormations: tr("Voir formations", "View trainings"),
@@ -625,6 +634,7 @@ export function QualificationPage({ onNavigateToPage }) {
             onViewFormations={handleOpenFormationsDialog}
             onOpenStatusDialog={handleOpenStatusDialog}
             onAskDelete={handleAskDeleteCollaborateur}
+            canManage={!isObserver}
             labels={{
               viewDetails: tr("Voir details", "View details"),
               viewFormations: tr("Voir formations", "View trainings"),
@@ -689,7 +699,7 @@ export function QualificationPage({ onNavigateToPage }) {
         </div>
       )}
 
-      <AlertDialog
+      {!isObserver ? <AlertDialog
         open={isStatusDialogOpen}
         onOpenChange={(open) => {
           setIsStatusDialogOpen(open);
@@ -729,9 +739,9 @@ export function QualificationPage({ onNavigateToPage }) {
             <AlertDialogAction onClick={handleUpdateStatus}>{tr("Enregistrer", "Save")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </AlertDialog>
+      </AlertDialog> : null}
 
-      <AlertDialog
+      {!isObserver ? <AlertDialog
         open={isDeleteDialogOpen}
         onOpenChange={(open) => {
           setIsDeleteDialogOpen(open);
@@ -756,9 +766,9 @@ export function QualificationPage({ onNavigateToPage }) {
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </AlertDialog>
+      </AlertDialog> : null}
 
-      {isUploadOpen && (
+      {!isObserver && isUploadOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={closeModal}>
           <div
             className="leoni-rise-up w-full max-w-[760px] rounded-[28px] border border-[#2b3340] bg-[#11151b] p-0 text-white shadow-2xl"

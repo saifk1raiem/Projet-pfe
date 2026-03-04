@@ -36,9 +36,9 @@ export function Layout({ onSignOut, currentUser, accessToken }) {
       case "dashboard":
         return <TrainingDashboard />;
       case "formation":
-        return <FormationPage openFormationId={formationDetailsId} />;
+        return <FormationPage openFormationId={formationDetailsId} currentUser={currentUser} />;
       case "qualification":
-        return <QualificationPage onNavigateToPage={handlePageChange} />;
+        return <QualificationPage onNavigateToPage={handlePageChange} currentUser={currentUser} />;
       case "requalification":
         return (
           <PlaceholderPage
@@ -47,9 +47,9 @@ export function Layout({ onSignOut, currentUser, accessToken }) {
           />
         );
       case "formateurs":
-        return <FormateursList />;
+        return <FormateursList currentUser={currentUser} />;
       case "collaborateurs":
-        return <CollaborateursPage onNavigateToPage={handlePageChange} />;
+        return <CollaborateursPage onNavigateToPage={handlePageChange} currentUser={currentUser} />;
       case "statistiques":
         return (
           <PlaceholderPage

@@ -62,9 +62,10 @@ const Stat = ({ icon, title, value, color }) => (
   </Card>
 );
 
-export function FormateursList() {
+export function FormateursList({ currentUser }) {
   const { tr } = useAppPreferences();
   const [selectedFormateur, setSelectedFormateur] = useState(null);
+  const isObserver = currentUser?.role === "observer";
 
   return (
     <div className="space-y-5 pb-6">
@@ -73,7 +74,10 @@ export function FormateursList() {
           <h1 className="leoni-display-xl text-[40px] font-semibold leading-tight text-[#171a1f]">{tr("Gestion des Formateurs", "Trainer Management")}</h1>
           <p className="leoni-subtitle mt-1 text-[18px] text-[#5d6574]">{tr("Liste et disponibilite des formateurs", "Trainer list and availability")}</p>
         </div>
-        <Button className="h-10 rounded-[10px] bg-[#005ca9] px-5 text-[16px] font-medium text-white hover:bg-[#004a87]">
+        <Button
+          className="h-10 rounded-[10px] bg-[#005ca9] px-5 text-[16px] font-medium text-white hover:bg-[#004a87]"
+          disabled={isObserver}
+        >
           <GraduationCap className="mr-2 h-4 w-4" />
           {tr("Nouveau Formateur", "New Trainer")}
         </Button>
@@ -206,7 +210,12 @@ export function FormateursList() {
               >
                 {tr("Voir details", "View details")}
               </Button>
-              <Button className="h-9 flex-1 rounded-xl bg-[#005ca9] text-[16px] font-medium text-white hover:bg-[#004a87]">{tr("Planifier", "Schedule")}</Button>
+              <Button
+                className="h-9 flex-1 rounded-xl bg-[#005ca9] text-[16px] font-medium text-white hover:bg-[#004a87]"
+                disabled={isObserver}
+              >
+                {tr("Planifier", "Schedule")}
+              </Button>
             </div>
           </Card>
         ))}

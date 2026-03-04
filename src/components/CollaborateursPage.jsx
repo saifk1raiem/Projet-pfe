@@ -229,8 +229,9 @@ const getStatusBadge = (statut) => {
 
 const statutOptions = ["Non associe", "En cours", "Qualifie", "Depassement"];
 
-export function CollaborateursPage({ onNavigateToPage }) {
+export function CollaborateursPage({ onNavigateToPage, currentUser }) {
   const { tr } = useAppPreferences();
+  const isObserver = currentUser?.role === "observer";
   const [searchTerm, setSearchTerm] = useState("");
   const [collaborateursData, setCollaborateursData] = useState(collaborateurs);
   const [selectedCollaborateur, setSelectedCollaborateur] = useState(null);
@@ -254,6 +255,7 @@ export function CollaborateursPage({ onNavigateToPage }) {
   };
 
   const handleOpenStatusDialog = (collab) => {
+    if (isObserver) return;
     setCollaborateurToUpdateStatus(collab);
     setStatusDraft(collab.statut);
     setIsStatusDialogOpen(true);
@@ -298,6 +300,7 @@ export function CollaborateursPage({ onNavigateToPage }) {
   };
 
   const handleAskDeleteCollaborateur = (collab) => {
+    if (isObserver) return;
     setCollaborateurToDelete(collab);
     setIsDeleteDialogOpen(true);
   };
@@ -320,7 +323,10 @@ export function CollaborateursPage({ onNavigateToPage }) {
           <h1 className="leoni-display-xl text-[40px] font-semibold leading-tight text-[#171a1f]">{tr("Gestion des Collaborateurs", "Collaborator Management")}</h1>
           <p className="leoni-subtitle mt-1 text-[18px] text-[#5d6574]">{tr("Liste et suivi des collaborateurs", "Collaborator list and tracking")}</p>
         </div>
-        <Button className="h-10 rounded-[10px] bg-[#005ca9] px-5 text-[16px] font-medium text-white hover:bg-[#004a87]">
+        <Button
+          className="h-10 rounded-[10px] bg-[#005ca9] px-5 text-[16px] font-medium text-white hover:bg-[#004a87]"
+          disabled={isObserver}
+        >
           <Users className="mr-2 h-4 w-4" />
           {tr("Nouveau Collaborateur", "New Collaborator")}
         </Button>
@@ -455,18 +461,22 @@ export function CollaborateursPage({ onNavigateToPage }) {
                         <BookOpen className="h-4 w-4" />
                         {tr("Voir formations", "View trainings")}
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleOpenStatusDialog(collab)}>
-                        <Pencil className="h-4 w-4" />
-                        {tr("Changer statut", "Change status")}
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        variant="destructive"
-                        onClick={() => handleAskDeleteCollaborateur(collab)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        {tr("Supprimer", "Delete")}
-                      </DropdownMenuItem>
+                      {!isObserver ? (
+                        <>
+                          <DropdownMenuItem onClick={() => handleOpenStatusDialog(collab)}>
+                            <Pencil className="h-4 w-4" />
+                            {tr("Changer statut", "Change status")}
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onClick={() => handleAskDeleteCollaborateur(collab)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            {tr("Supprimer", "Delete")}
+                          </DropdownMenuItem>
+                        </>
+                      ) : null}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>
@@ -530,7 +540,7 @@ export function CollaborateursPage({ onNavigateToPage }) {
         </div>
       )}
 
-      <AlertDialog
+      {!isObserver ? <AlertDialog
         open={isStatusDialogOpen}
         onOpenChange={(open) => {
           setIsStatusDialogOpen(open);
@@ -570,9 +580,9 @@ export function CollaborateursPage({ onNavigateToPage }) {
             <AlertDialogAction onClick={handleUpdateStatus}>{tr("Enregistrer", "Save")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </AlertDialog>
+      </AlertDialog> : null}
 
-      <AlertDialog
+      {!isObserver ? <AlertDialog
         open={isDeleteDialogOpen}
         onOpenChange={(open) => {
           setIsDeleteDialogOpen(open);
@@ -597,7 +607,7 @@ export function CollaborateursPage({ onNavigateToPage }) {
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </AlertDialog>
+      </AlertDialog> : null}
     </div>
   );
 }

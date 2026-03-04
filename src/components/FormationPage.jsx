@@ -102,9 +102,10 @@ const statusBadge = {
   planifie: "bg-[#e8f1fb] text-[#005ca9] border-[#b9d3ea]",
 };
 
-export function FormationPage({ openFormationId = null }) {
+export function FormationPage({ openFormationId = null, currentUser }) {
   const { tr } = useAppPreferences();
   const [selectedFormation, setSelectedFormation] = useState(null);
+  const isObserver = currentUser?.role === "observer";
 
   useEffect(() => {
     if (openFormationId === null) {
@@ -229,7 +230,10 @@ export function FormationPage({ openFormationId = null }) {
           <h1 className="leoni-display-xl text-[40px] font-semibold leading-tight text-[#171a1f]">{tr("Gestion des Formations", "Training Management")}</h1>
           <p className="leoni-subtitle mt-1 text-[18px] text-[#5d6574]">{tr("Planification et suivi des sessions de formation", "Planning and tracking of training sessions")}</p>
         </div>
-        <Button className="h-10 rounded-[10px] bg-[#005ca9] px-5 text-[16px] font-medium text-white hover:bg-[#004a87]">
+        <Button
+          className="h-10 rounded-[10px] bg-[#005ca9] px-5 text-[16px] font-medium text-white hover:bg-[#004a87]"
+          disabled={isObserver}
+        >
           <BookOpen className="mr-2 h-4 w-4" />
           {tr("Nouvelle Formation", "New Training")}
         </Button>
