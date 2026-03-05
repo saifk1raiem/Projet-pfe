@@ -175,12 +175,16 @@ def _compute_etat(date_recrutement: str | None, provided_status: Any) -> str | N
     return explicit
 
 
-def parse_excel_to_rows(file_content: bytes, filename: str) -> tuple[list[str], dict[str, str], list[dict[str, Any]]]:
+def parse_excel_to_rows(
+    file_content: bytes,
+    filename: str,
+    synonyms: dict[str, list[str]] | None = None,
+) -> tuple[list[str], dict[str, str], list[dict[str, Any]]]:
     file_name = (filename or "").lower()
     engine = "openpyxl" if file_name.endswith(".xlsx") else "xlrd"
     dataframe = pd.read_excel(BytesIO(file_content), dtype=object, engine=engine)
     columns_detected = [str(column) for column in dataframe.columns.tolist()]
-    mapping_used = infer_mapping(columns_detected, SYNONYMS)
+    mapping_used = infer_mapping(columns_detected, synonyms or SYNONYMS)
 
     rows: list[dict[str, Any]] = []
     for source_row in dataframe.to_dict(orient="records"):

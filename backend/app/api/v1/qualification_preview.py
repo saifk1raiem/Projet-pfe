@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from app.api.deps import require_roles
 from app.models.enums import UserRole
+from app.services.excel_synonyms import get_excel_synonyms
 from app.utils.qualification_preview import parse_excel_to_rows
 
 
@@ -32,7 +33,11 @@ async def preview_qualification_file(
             continue
 
         try:
-            columns_detected, mapping_used, rows = parse_excel_to_rows(content, filename)
+            columns_detected, mapping_used, rows = parse_excel_to_rows(
+                content,
+                filename,
+                synonyms=get_excel_synonyms(),
+            )
         except ImportError as exc:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

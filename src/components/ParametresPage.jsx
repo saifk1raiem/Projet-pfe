@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Badge } from "./ui/badge";
-import { Settings, Bell, Shield, UserRound, Sun, Moon } from "lucide-react";
+import { Settings, Bell, Shield, UserRound, Sun, Moon, Plus, X, ChevronDown } from "lucide-react";
 import { useAppPreferences } from "../context/AppPreferencesContext";
 
 export function ParametresPage({ currentUser, accessToken }) {
@@ -29,6 +29,14 @@ export function ParametresPage({ currentUser, accessToken }) {
   const [createUserError, setCreateUserError] = useState("");
   const [createUserSuccess, setCreateUserSuccess] = useState("");
   const [isCreatingUser, setIsCreatingUser] = useState(false);
+  const [excelSynonyms, setExcelSynonyms] = useState({});
+  const [isLoadingSynonyms, setIsLoadingSynonyms] = useState(false);
+  const [isSavingSynonyms, setIsSavingSynonyms] = useState(false);
+  const [synonymsError, setSynonymsError] = useState("");
+  const [synonymsSuccess, setSynonymsSuccess] = useState("");
+  const [synonymDrafts, setSynonymDrafts] = useState({});
+  const [synonymFilter, setSynonymFilter] = useState("");
+  const [isSynonymsOpen, setIsSynonymsOpen] = useState(false);
   const isAdmin = currentUser?.role === "admin";
   const accountFullName = `${currentUser?.first_name ?? ""} ${currentUser?.last_name ?? ""}`.trim() || "User";
   const accountEmail = currentUser?.email ?? "-";
@@ -83,6 +91,136 @@ export function ParametresPage({ currentUser, accessToken }) {
       setCreateUserError(error?.message || tr("Creation echouee", "Creation failed"));
     } finally {
       setIsCreatingUser(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isAdmin || !accessToken) return;
+
+    let cancelled = false;
+    const loadSynonyms = async () => {
+      setIsLoadingSynonyms(true);
+      setSynonymsError("");
+      try {
+        const response = await fetch("http://127.0.0.1:8000/api/v1/settings/excel-synonyms", {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(data?.detail || "Failed to load Excel synonyms");
+        }
+        if (!cancelled) {
+          setExcelSynonyms(data?.synonyms && typeof data.synonyms === "object" ? data.synonyms : {});
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setSynonymsError(error?.message || tr("Chargement echoue", "Loading failed"));
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingSynonyms(false);
+        }
+      }
+    };
+
+    loadSynonyms();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAdmin, accessToken, tr]);
+
+  const updateSynonymField = (field, value) => {
+    const aliases = value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+    setExcelSynonyms((prev) => ({ ...prev, [field]: aliases }));
+    setSynonymsSuccess("");
+  };
+
+  const updateSynonymDraft = (field, value) => {
+    setSynonymDrafts((prev) => ({ ...prev, [field]: value }));
+    setSynonymsSuccess("");
+  };
+
+  const addSynonymsToField = (field) => {
+    const rawDraft = synonymDrafts[field] || "";
+    const toAdd = rawDraft
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+    if (!toAdd.length) return;
+
+    setExcelSynonyms((prev) => {
+      const current = Array.isArray(prev[field]) ? prev[field] : [];
+      const merged = [...current];
+      toAdd.forEach((alias) => {
+        if (!merged.some((existing) => existing.toLowerCase() === alias.toLowerCase())) {
+          merged.push(alias);
+        }
+      });
+      return { ...prev, [field]: merged };
+    });
+    setSynonymDrafts((prev) => ({ ...prev, [field]: "" }));
+    setSynonymsSuccess("");
+  };
+
+  const removeSynonymFromField = (field, aliasToRemove) => {
+    setExcelSynonyms((prev) => {
+      const current = Array.isArray(prev[field]) ? prev[field] : [];
+      return {
+        ...prev,
+        [field]: current.filter((alias) => alias !== aliasToRemove),
+      };
+    });
+    setSynonymsSuccess("");
+  };
+
+  const handleSaveSynonyms = async () => {
+    if (!isAdmin || !accessToken) return;
+    setIsSavingSynonyms(true);
+    setSynonymsError("");
+    setSynonymsSuccess("");
+
+    const payloadSynonyms = Object.entries(synonymDrafts).reduce((acc, [field, draftValue]) => {
+      const current = Array.isArray(acc[field]) ? [...acc[field]] : [];
+      const toAdd = String(draftValue || "")
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+      toAdd.forEach((alias) => {
+        if (!current.some((existing) => existing.toLowerCase() === alias.toLowerCase())) {
+          current.push(alias);
+        }
+      });
+      acc[field] = current;
+      return acc;
+    }, { ...excelSynonyms });
+
+    setExcelSynonyms(payloadSynonyms);
+    setSynonymDrafts({});
+
+    try {
+      const response = await fetch("http://127.0.0.1:8000/api/v1/settings/excel-synonyms", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ synonyms: payloadSynonyms }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data?.detail || "Failed to save Excel synonyms");
+      }
+      setExcelSynonyms(data?.synonyms && typeof data.synonyms === "object" ? data.synonyms : {});
+      setSynonymsSuccess(tr("Synonymes sauvegardes", "Synonyms saved"));
+    } catch (error) {
+      setSynonymsError(error?.message || tr("Sauvegarde echouee", "Save failed"));
+    } finally {
+      setIsSavingSynonyms(false);
     }
   };
 
@@ -318,6 +456,134 @@ export function ParametresPage({ currentUser, accessToken }) {
             {createUserError ? <p className="text-sm font-medium text-red-600">{createUserError}</p> : null}
             {createUserSuccess ? <p className="text-sm font-medium text-green-700">{createUserSuccess}</p> : null}
           </form>
+        </Card>
+      ) : null}
+
+      {isAdmin ? (
+        <Card className="rounded-[20px] border border-border bg-card p-5 shadow-sm">
+          <button
+            type="button"
+            className="mb-1 flex w-full items-center justify-between gap-3 rounded-xl px-1 py-1 text-left transition-colors hover:bg-accent/40"
+            onClick={() => setIsSynonymsOpen((prev) => !prev)}
+          >
+            <div>
+              <h2 className="text-[22px] font-semibold text-card-foreground">
+                {tr("Synonymes Excel", "Excel synonyms")}
+              </h2>
+              <p className="text-[13px] text-muted-foreground">
+                {tr(
+                  "Modifiez les noms de colonnes acceptes pour les imports et apercus Excel.",
+                  "Edit accepted column names for Excel import and preview."
+                )}
+              </p>
+            </div>
+            <ChevronDown
+              className={`h-5 w-5 text-muted-foreground transition-transform duration-300 ${
+                isSynonymsOpen ? "rotate-180" : "rotate-0"
+              }`}
+            />
+          </button>
+
+          <div
+            className={`overflow-hidden transition-all duration-300 ease-out ${
+              isSynonymsOpen ? "max-h-[3000px] opacity-100" : "max-h-0 opacity-0"
+            }`}
+          >
+            <div className="pt-3">
+              <div className="mb-4 flex justify-end">
+                <Button
+                  className="h-10 rounded-[10px] bg-[#005ca9] px-5 text-[14px] font-medium text-white hover:bg-[#004a87]"
+                  onClick={handleSaveSynonyms}
+                  disabled={isLoadingSynonyms || isSavingSynonyms}
+                >
+                  {isSavingSynonyms ? tr("Sauvegarde...", "Saving...") : tr("Sauvegarder", "Save")}
+                </Button>
+              </div>
+
+              {isLoadingSynonyms ? (
+                <p className="text-sm text-muted-foreground">{tr("Chargement...", "Loading...")}</p>
+              ) : (
+                <div className="grid grid-cols-1 gap-3">
+                  <div>
+                    <p className="mb-1 text-[13px] text-muted-foreground">{tr("Rechercher un champ", "Search field")}</p>
+                    <Input
+                      value={synonymFilter}
+                      onChange={(e) => setSynonymFilter(e.target.value)}
+                      placeholder={tr("Ex: fonction, matricule, date...", "Ex: fonction, matricule, date...")}
+                    />
+                  </div>
+
+                  {Object.entries(excelSynonyms)
+                    .filter(([field]) => field.toLowerCase().includes(synonymFilter.trim().toLowerCase()))
+                    .map(([field, aliases]) => (
+                    <div key={field}>
+                      <div className="mb-1 flex items-center justify-between gap-2">
+                        <p className="text-[13px] font-medium text-card-foreground">{field}</p>
+                        <Badge variant="outline">{Array.isArray(aliases) ? aliases.length : 0}</Badge>
+                      </div>
+
+                      <div className="mb-2 flex flex-wrap gap-2 rounded-xl border border-border bg-background/40 p-2">
+                        {(Array.isArray(aliases) ? aliases : []).map((alias) => (
+                          <span
+                            key={`${field}-${alias}`}
+                            className="inline-flex items-center gap-1 rounded-full border border-[#cfe0f5] bg-[#e8f1fb] px-2 py-1 text-[12px] text-[#005ca9]"
+                          >
+                            {alias}
+                            <button
+                              type="button"
+                              className="rounded p-0.5 hover:bg-[#d7e8fb]"
+                              onClick={() => removeSynonymFromField(field, alias)}
+                              aria-label={`Remove ${alias}`}
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </span>
+                        ))}
+                        {!Array.isArray(aliases) || aliases.length === 0 ? (
+                          <span className="text-[12px] text-muted-foreground">{tr("Aucun alias", "No aliases")}</span>
+                        ) : null}
+                      </div>
+
+                      <div className="flex gap-2">
+                        <Input
+                          value={synonymDrafts[field] || ""}
+                          onChange={(e) => updateSynonymDraft(field, e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              addSynonymsToField(field);
+                            }
+                          }}
+                          placeholder={tr(
+                            "Ajouter un alias (ou plusieurs separes par virgule)",
+                            "Add alias (or multiple comma-separated)"
+                          )}
+                        />
+                        <Button type="button" variant="outline" onClick={() => addSynonymsToField(field)}>
+                          <Plus className="mr-1 h-4 w-4" />
+                          {tr("Ajouter", "Add")}
+                        </Button>
+                      </div>
+
+                      <div className="mt-2">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="h-8 px-2 text-[12px]"
+                          onClick={() => updateSynonymField(field, "")}
+                        >
+                          {tr("Vider la liste", "Clear list")}
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {synonymsError ? <p className="mt-3 text-sm font-medium text-red-600">{synonymsError}</p> : null}
+              {synonymsSuccess ? <p className="mt-3 text-sm font-medium text-green-700">{synonymsSuccess}</p> : null}
+            </div>
+          </div>
         </Card>
       ) : null}
     </div>

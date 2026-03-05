@@ -1,0 +1,103 @@
+{
+  "matricule": [
+    "matricule",
+    "mat",
+    "id",
+    "code",
+    "Plugins - matricule",
+    "emp_id"
+  ],
+  "nom": [
+    "nom",
+    "Plugins - name",
+    "surname",
+    "family_name"
+  ],
+  "prenom": [
+    "prenom",
+    "first_name",
+    "Plugins - first name"
+  ],
+  "nomprenom": [
+    "nom_prenom",
+    "nom_&_prenom",
+    "nom_prenom2",
+    "collaborateur_nom_&_prenom",
+    "collaborateur_nom_prenom"
+  ],
+  "fonction": [
+    "fonction",
+    "job",
+    "role",
+    "position",
+    "Fonction SAP"
+  ],
+  "centre_cout": [
+    "centre_cout",
+    "cc",
+    "cost_center",
+    "costcentre"
+  ],
+  "groupe": [
+    "groupe",
+    "group",
+    "gr"
+  ],
+  "competence": [
+    "competence",
+    "skill",
+    "qualification",
+    "competency",
+    "Plugins - Name_competence"
+  ],
+  "contre_maitre": [
+    "contre_maitre",
+    "supervisor",
+    "Contre maitre",
+    "team_lead",
+    "Rh seg"
+  ],
+  "segment": [
+    "segment",
+    "department",
+    "division",
+    "seg"
+  ],
+  "gender": [
+    "gender",
+    "sexe",
+    "sex"
+  ],
+  "num_tel": [
+    "num_tel",
+    "telephone",
+    "phone",
+    "tel",
+    "num tel"
+  ],
+  "date_recrutement": [
+    "date_recrutement",
+    "Date recrutement",
+    "date_embauche",
+    "recruitment_date",
+    "date_entree",
+    "date_dentree",
+    "date_d'association",
+    "date_association",
+    "Plugins - date d'association systeme"
+  ],
+  "anciennete": [
+    "anciennete",
+    "seniority",
+    "years",
+    "years_of_service"
+  ],
+  "etat": [
+    "etat",
+    "status",
+    "Niveau de formation",
+    "qualification_status",
+    "etat_qualifie",
+    "etatqualifies"
+  ]
+}

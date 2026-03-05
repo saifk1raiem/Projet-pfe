@@ -11,6 +11,7 @@ from app.api.deps import require_roles
 from app.db.session import get_db
 from app.models.collaborateur import Collaborateur
 from app.models.enums import UserRole
+from app.services.excel_synonyms import get_excel_synonyms
 from app.utils.collaborateur_import import REQUIRED_FIELDS, SYNONYMS, clean_row, infer_mapping
 
 
@@ -49,7 +50,7 @@ async def import_collaborateurs(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid Excel file: {exc}") from exc
 
     headers = [str(column) for column in dataframe.columns.tolist()]
-    mapping, unmapped_headers = infer_mapping(headers, SYNONYMS)
+    mapping, unmapped_headers = infer_mapping(headers, get_excel_synonyms() or SYNONYMS)
     has_name_fields = ("nom" in mapping and "prenom" in mapping) or ("nomprenom" in mapping)
     missing_required_fields = []
     if "matricule" not in mapping:
