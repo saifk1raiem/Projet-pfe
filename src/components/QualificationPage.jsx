@@ -27,6 +27,7 @@ import {
   MoreVertical,
   TrendingUp,
   TrendingDown,
+  Loader2,
   Eye,
   Pencil,
   Trash2,
@@ -68,9 +69,16 @@ const collaborateursQualification = [
     matricule: "MAT001",
     nom: "Ahmed Ben Ali",
     prenom: "Ahmed",
-    departement: "Production",
-    poste: "Operateur",
-    dateEntree: "15/01/2024",
+    fonction: "Operateur",
+    centre_cout: "CC-100",
+    groupe: "Assemblage A",
+    competence: "Cablage",
+    contre_maitre: "Hichem Trabelsi",
+    segment: "Production",
+    gender: "M",
+    num_tel: "21620101010",
+    date_recrutement: "15/01/2024",
+    anciennete: 2,
     statut: "Qualifie",
     formations: 5,
     derniereFormation: "10/01/2026",
@@ -81,9 +89,16 @@ const collaborateursQualification = [
     matricule: "MAT002",
     nom: "Fatima Zahra",
     prenom: "Fatima",
-    departement: "Qualite",
-    poste: "Controleur Qualite",
-    dateEntree: "20/06/2023",
+    fonction: "Controleur Qualite",
+    centre_cout: "CC-210",
+    groupe: "Qualite Ligne 2",
+    competence: "Audit Produit",
+    contre_maitre: "Meriem Kacem",
+    segment: "Qualite",
+    gender: "F",
+    num_tel: "21622112233",
+    date_recrutement: "20/06/2023",
+    anciennete: 3,
     statut: "Qualifie",
     formations: 8,
     derniereFormation: "05/02/2026",
@@ -94,10 +109,17 @@ const collaborateursQualification = [
     matricule: "MAT003",
     nom: "Mohamed Salhi",
     prenom: "Mohamed",
-    departement: "Maintenance",
-    poste: "Technicien",
-    dateEntree: "10/03/2025",
-    statut: "En cours",
+    fonction: "Technicien",
+    centre_cout: "CC-320",
+    groupe: "Maintenance Electrique",
+    competence: "Diagnostic",
+    contre_maitre: "Nizar Riahi",
+    segment: "Maintenance",
+    gender: "M",
+    num_tel: "21650111222",
+    date_recrutement: "10/03/2025",
+    anciennete: 1,
+    statut: "Non associe",
     formations: 3,
     derniereFormation: "15/12/2025",
   },
@@ -107,9 +129,16 @@ const collaborateursQualification = [
     matricule: "MAT004",
     nom: "Nadia Mansouri",
     prenom: "Nadia",
-    departement: "Production",
-    poste: "Chef d'equipe",
-    dateEntree: "01/09/2022",
+    fonction: "Chef d'equipe",
+    centre_cout: "CC-140",
+    groupe: "Assemblage B",
+    competence: "Management Equipe",
+    contre_maitre: "Aymen Gharbi",
+    segment: "Production",
+    gender: "F",
+    num_tel: "21698111000",
+    date_recrutement: "01/09/2022",
+    anciennete: 4,
     statut: "Qualifie",
     formations: 12,
     derniereFormation: "28/01/2026",
@@ -120,9 +149,16 @@ const collaborateursQualification = [
     matricule: "MAT005",
     nom: "Youssef El Amrani",
     prenom: "Youssef",
-    departement: "Logistique",
-    poste: "Magasinier",
-    dateEntree: "05/11/2024",
+    fonction: "Magasinier",
+    centre_cout: "CC-410",
+    groupe: "Stock Central",
+    competence: "Gestion Stock",
+    contre_maitre: "Sami Ben Othman",
+    segment: "Logistique",
+    gender: "M",
+    num_tel: "21628765432",
+    date_recrutement: "05/11/2024",
+    anciennete: 1,
     statut: "Non associe",
     formations: 2,
     derniereFormation: "20/05/2025",
@@ -133,9 +169,16 @@ const collaborateursQualification = [
     matricule: "MAT006",
     nom: "Samira Bennani",
     prenom: "Samira",
-    departement: "Support",
-    poste: "Assistante RH",
-    dateEntree: "14/02/2023",
+    fonction: "Assistante RH",
+    centre_cout: "CC-520",
+    groupe: "Ressources Humaines",
+    competence: "Onboarding",
+    contre_maitre: "Yasmine Gmati",
+    segment: "Support",
+    gender: "F",
+    num_tel: "21693123456",
+    date_recrutement: "14/02/2023",
+    anciennete: 3,
     statut: "Qualifie",
     formations: 6,
     derniereFormation: "18/01/2026",
@@ -146,9 +189,16 @@ const collaborateursQualification = [
     matricule: "MAT007",
     nom: "Karim Belkacem",
     prenom: "Karim",
-    departement: "Production",
-    poste: "Operateur",
-    dateEntree: "12/08/2024",
+    fonction: "Operateur",
+    centre_cout: "CC-101",
+    groupe: "Assemblage C",
+    competence: "Ergonomie Poste",
+    contre_maitre: "Hatem Baccar",
+    segment: "Production",
+    gender: "M",
+    num_tel: "21629001122",
+    date_recrutement: "12/08/2024",
+    anciennete: 1,
     statut: "Depassement",
     formations: 4,
     derniereFormation: "20/08/2025",
@@ -202,7 +252,7 @@ const getFormationPageId = (formation) => {
   return 1;
 };
 
-const statutOptions = ["Non associe", "En cours", "Qualifie", "Depassement"];
+const statutOptions = ["Non associe", "Qualifie", "Depassement"];
 
 const Stat = ({ icon, title, value, color, delay }) => (
   <Card
@@ -253,13 +303,6 @@ const getStatusBadge = (statut) => {
           Qualifie
         </Badge>
       );
-    case "En cours":
-      return (
-        <Badge className="w-fit rounded-lg border border-[#f1c59e] bg-[#fff2e4] px-3 py-1 text-[14px] font-medium text-[#fc6200]">
-          <AlertCircle className="mr-1 h-3.5 w-3.5" />
-          En cours
-        </Badge>
-      );
     case "Non associe":
       return (
         <Badge className="w-fit rounded-lg border border-[#f2c4c4] bg-[#fdeeee] px-3 py-1 text-[14px] font-medium text-[#ea3737]">
@@ -287,9 +330,9 @@ function CollaborateursTable({ rows, onViewDetails, onViewFormations, onOpenStat
           <TableRow className="hover:bg-transparent">
             <TableHead className="text-[15px] font-semibold text-[#252930]">Matricule</TableHead>
             <TableHead className="text-[15px] font-semibold text-[#252930]">Nom & Prenom</TableHead>
-            <TableHead className="text-[15px] font-semibold text-[#252930]">Departement</TableHead>
-            <TableHead className="text-[15px] font-semibold text-[#252930]">Poste</TableHead>
-            <TableHead className="text-[15px] font-semibold text-[#252930]">Date d'entree</TableHead>
+            <TableHead className="text-[15px] font-semibold text-[#252930]">Fonction SAP</TableHead>
+            <TableHead className="text-[15px] font-semibold text-[#252930]">Centre de cout</TableHead>
+            <TableHead className="text-[15px] font-semibold text-[#252930]">Date recrutement</TableHead>
             <TableHead className="text-[15px] font-semibold text-[#252930]">Statut</TableHead>
             <TableHead className="text-[15px] font-semibold text-[#252930]">Formations</TableHead>
             <TableHead className="text-[15px] font-semibold text-[#252930]">Derniere formation</TableHead>
@@ -304,9 +347,9 @@ function CollaborateursTable({ rows, onViewDetails, onViewFormations, onOpenStat
                 <div className="text-[15px] font-medium text-[#1d2025]">{collab.nom}</div>
                 <div className="text-[13px] text-[#6b7280]">{collab.prenom}</div>
               </TableCell>
-              <TableCell className="text-[15px]">{collab.departement}</TableCell>
-              <TableCell className="text-[15px]">{collab.poste}</TableCell>
-              <TableCell className="text-[15px]">{collab.dateEntree}</TableCell>
+              <TableCell className="text-[15px]">{collab.fonction}</TableCell>
+              <TableCell className="text-[15px]">{collab.centre_cout}</TableCell>
+              <TableCell className="text-[15px]">{collab.date_recrutement}</TableCell>
               <TableCell>{getStatusBadge(collab.statut)}</TableCell>
               <TableCell>
                 <Badge variant="outline" className="rounded-xl border-[#d5dce0] bg-[#f7f8f9] text-[14px]">
@@ -354,7 +397,7 @@ function CollaborateursTable({ rows, onViewDetails, onViewFormations, onOpenStat
   );
 }
 
-export function QualificationPage({ onNavigateToPage, currentUser }) {
+export function QualificationPage({ onNavigateToPage, currentUser, accessToken }) {
   const { tr } = useAppPreferences();
   const isObserver = currentUser?.role === "observer";
   const [activeTab, setActiveTab] = useState("indection");
@@ -369,12 +412,23 @@ export function QualificationPage({ onNavigateToPage, currentUser }) {
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState([]);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const [previewRows, setPreviewRows] = useState([]);
+  const [previewRowsCount, setPreviewRowsCount] = useState(0);
+  const [previewColumnsDetected, setPreviewColumnsDetected] = useState([]);
+  const [previewMappingUsed, setPreviewMappingUsed] = useState({});
+  const [previewFileErrors, setPreviewFileErrors] = useState([]);
+  const [previewError, setPreviewError] = useState("");
+  const [previewErrorDetails, setPreviewErrorDetails] = useState(null);
   const [isFormationsDialogOpen, setIsFormationsDialogOpen] = useState(false);
   const [formationsCollaborateur, setFormationsCollaborateur] = useState(null);
   const inputRef = useRef(null);
 
-  const addFiles = (fileList) => {
-    const incoming = Array.from(fileList || []);
+  const handleFileChange = (fileList) => {
+    const incoming = Array.from(fileList || []).filter((file) => {
+      const name = (file?.name || "").toLowerCase();
+      return name.endsWith(".xlsx") || name.endsWith(".xls");
+    });
     if (!incoming.length) return;
 
     setSelectedFiles((prev) => {
@@ -398,10 +452,56 @@ export function QualificationPage({ onNavigateToPage, currentUser }) {
     setIsDragging(false);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!selectedFiles.length) return;
-    closeModal();
-    setSelectedFiles([]);
+    if (!accessToken) {
+      setPreviewError(tr("Token manquant. Reconnectez-vous.", "Missing access token. Please sign in again."));
+      setPreviewErrorDetails(null);
+      return;
+    }
+
+    const formData = new FormData();
+    selectedFiles.forEach((file) => formData.append("files", file));
+    setIsPreviewLoading(true);
+    setPreviewError("");
+    setPreviewErrorDetails(null);
+    setPreviewFileErrors([]);
+
+    try {
+      const response = await fetch("http://127.0.0.1:8000/api/v1/qualification/preview", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: formData,
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const detail = data?.detail;
+        if (typeof detail === "object" && detail !== null) {
+          setPreviewError(detail.message || tr("Echec de lecture du fichier Excel.", "Failed to parse Excel file."));
+          setPreviewErrorDetails(detail);
+        } else {
+          setPreviewError(detail || tr("Echec de lecture du fichier Excel.", "Failed to parse Excel file."));
+          setPreviewErrorDetails(null);
+        }
+        return;
+      }
+
+      setPreviewRows(Array.isArray(data.rows) ? data.rows : []);
+      setPreviewRowsCount(Number.isFinite(data.rows_count) ? data.rows_count : 0);
+      setPreviewColumnsDetected(Array.isArray(data.columns_detected) ? data.columns_detected : []);
+      setPreviewMappingUsed(data.mapping_used && typeof data.mapping_used === "object" ? data.mapping_used : {});
+      setPreviewFileErrors(Array.isArray(data.file_errors) ? data.file_errors : []);
+      closeModal();
+      setSelectedFiles([]);
+    } catch (error) {
+      setPreviewError(error?.message || tr("Erreur reseau lors de l'envoi du fichier.", "Network error while uploading file."));
+      setPreviewErrorDetails(null);
+    } finally {
+      setIsPreviewLoading(false);
+    }
   };
 
   const handleViewCollaborateur = (collab) => {
@@ -475,7 +575,9 @@ export function QualificationPage({ onNavigateToPage, currentUser }) {
       collab.phase === activeTab &&
       (collab.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
         collab.matricule.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        collab.departement.toLowerCase().includes(searchTerm.toLowerCase())),
+        collab.fonction.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        collab.centre_cout.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        collab.groupe.toLowerCase().includes(searchTerm.toLowerCase())),
   );
 
   return (
@@ -540,7 +642,7 @@ export function QualificationPage({ onNavigateToPage, currentUser }) {
             <div className="relative flex-1">
               <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#7a8290]" />
               <Input
-                placeholder={tr("Rechercher par nom, matricule ou departement...", "Search by name, ID, or department...")}
+                placeholder={tr("Rechercher par nom, matricule, fonction SAP ou centre de cout...", "Search by name, ID, SAP function or cost center...")}
                 className="h-12 rounded-xl border-[#d7dde1] pl-11 text-[15px]"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -581,30 +683,44 @@ export function QualificationPage({ onNavigateToPage, currentUser }) {
                 <p className="text-[15px] font-medium text-[#1d2025]">{selectedCollaborateur.prenom}</p>
               </div>
               <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3">
-                <p className="text-[12px] text-[#64748b]">Departement</p>
-                <p className="text-[15px] font-medium text-[#1d2025]">{selectedCollaborateur.departement}</p>
+                <p className="text-[12px] text-[#64748b]">Fonction SAP</p>
+                <p className="text-[15px] font-medium text-[#1d2025]">{selectedCollaborateur.fonction}</p>
               </div>
               <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3">
-                <p className="text-[12px] text-[#64748b]">Poste</p>
-                <p className="text-[15px] font-medium text-[#1d2025]">{selectedCollaborateur.poste}</p>
+                <p className="text-[12px] text-[#64748b]">Centre de cout</p>
+                <p className="text-[15px] font-medium text-[#1d2025]">{selectedCollaborateur.centre_cout}</p>
               </div>
               <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3">
-                <p className="text-[12px] text-[#64748b]">Date d'entree</p>
-                <p className="text-[15px] font-medium text-[#1d2025]">{selectedCollaborateur.dateEntree}</p>
+                <p className="text-[12px] text-[#64748b]">Groupe</p>
+                <p className="text-[15px] font-medium text-[#1d2025]">{selectedCollaborateur.groupe}</p>
               </div>
               <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3">
-                <p className="text-[12px] text-[#64748b]">Formations</p>
-                <p className="text-[15px] font-medium text-[#1d2025]">{selectedCollaborateur.formations}</p>
+                <p className="text-[12px] text-[#64748b]">Competence</p>
+                <p className="text-[15px] font-medium text-[#1d2025]">{selectedCollaborateur.competence}</p>
               </div>
               <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3">
-                <p className="text-[12px] text-[#64748b]">Derniere formation</p>
-                <p className="text-[15px] font-medium text-[#1d2025]">{selectedCollaborateur.derniereFormation}</p>
+                <p className="text-[12px] text-[#64748b]">Contre maitre</p>
+                <p className="text-[15px] font-medium text-[#1d2025]">{selectedCollaborateur.contre_maitre}</p>
               </div>
               <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3">
-                <p className="text-[12px] text-[#64748b]">Phase</p>
-                <p className="text-[15px] font-medium text-[#1d2025]">
-                  {selectedCollaborateur.phase === "indection" ? "Indection" : "Qualification"}
-                </p>
+                <p className="text-[12px] text-[#64748b]">Segment</p>
+                <p className="text-[15px] font-medium text-[#1d2025]">{selectedCollaborateur.segment}</p>
+              </div>
+              <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3">
+                <p className="text-[12px] text-[#64748b]">Genre</p>
+                <p className="text-[15px] font-medium text-[#1d2025]">{selectedCollaborateur.gender}</p>
+              </div>
+              <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3">
+                <p className="text-[12px] text-[#64748b]">Telephone</p>
+                <p className="text-[15px] font-medium text-[#1d2025]">{selectedCollaborateur.num_tel}</p>
+              </div>
+              <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3">
+                <p className="text-[12px] text-[#64748b]">Date recrutement</p>
+                <p className="text-[15px] font-medium text-[#1d2025]">{selectedCollaborateur.date_recrutement}</p>
+              </div>
+              <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3">
+                <p className="text-[12px] text-[#64748b]">Anciennete</p>
+                <p className="text-[15px] font-medium text-[#1d2025]">{selectedCollaborateur.anciennete}</p>
               </div>
             </div>
           </Card>
@@ -644,6 +760,108 @@ export function QualificationPage({ onNavigateToPage, currentUser }) {
           />
         </TabsContent>
       </Tabs>
+
+      <Card className="rounded-[20px] border border-[#dfe5e2] bg-white p-4 shadow-sm">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h3 className="text-[20px] font-semibold text-[#171a1f]">
+            {tr("Apercu Qualification", "Qualification Preview")}
+          </h3>
+          <Badge variant="outline" className="rounded-xl border-[#d5dce0] bg-[#f7f8f9] text-[14px]">
+            {previewRowsCount} {tr("lignes", "rows")}
+          </Badge>
+        </div>
+
+        {previewError ? (
+          <div className="space-y-2 rounded-xl border border-[#f2c4c4] bg-[#fdeeee] p-3 text-[#8a1d1d]">
+            <p className="text-sm font-medium">{previewError}</p>
+            {previewErrorDetails?.headers_found?.length ? (
+              <p className="text-xs">
+                {tr("En-tetes detectes", "Detected headers")}: {previewErrorDetails.headers_found.join(", ")}
+              </p>
+            ) : null}
+            {Array.isArray(previewErrorDetails?.file_errors) && previewErrorDetails.file_errors.length > 0 ? (
+              <div className="text-xs">
+                {previewErrorDetails.file_errors.map((item, idx) => (
+                  <p key={`${item.file}-${idx}`}>{item.file}: {item.error}</p>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        {previewFileErrors.length > 0 ? (
+          <div className="mt-2 space-y-1 rounded-xl border border-[#f1c59e] bg-[#fff2e4] p-3 text-[#8a4b00]">
+            {previewFileErrors.map((item, idx) => (
+              <p key={`${item.file}-${idx}`} className="text-xs">
+                {item.file}: {item.error}
+              </p>
+            ))}
+          </div>
+        ) : null}
+
+        {previewRows.length > 0 ? (
+          <div className="mt-3 overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>matricule</TableHead>
+                  <TableHead>nom</TableHead>
+                  <TableHead>prenom</TableHead>
+                  <TableHead>fonction_sap</TableHead>
+                  <TableHead>centre_cout</TableHead>
+                  <TableHead>groupe</TableHead>
+                  <TableHead>competence</TableHead>
+                  <TableHead>contre_maitre</TableHead>
+                  <TableHead>segment</TableHead>
+                  <TableHead>gender</TableHead>
+                  <TableHead>num_tel</TableHead>
+                  <TableHead>date_recrutement</TableHead>
+                  <TableHead>anciennete</TableHead>
+                  <TableHead>etat</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {previewRows.map((row, idx) => (
+                  <TableRow key={`${row.matricule || "row"}-${idx}`}>
+                    <TableCell>{row.matricule || "-"}</TableCell>
+                    <TableCell>{row.nom || "-"}</TableCell>
+                    <TableCell>{row.prenom || "-"}</TableCell>
+                    <TableCell>{row.fonction || "-"}</TableCell>
+                    <TableCell>{row.centre_cout || "-"}</TableCell>
+                    <TableCell>{row.groupe || "-"}</TableCell>
+                    <TableCell>{row.competence || "-"}</TableCell>
+                    <TableCell>{row.contre_maitre || "-"}</TableCell>
+                    <TableCell>{row.segment || "-"}</TableCell>
+                    <TableCell>{row.gender || "-"}</TableCell>
+                    <TableCell>{row.num_tel || "-"}</TableCell>
+                    <TableCell>{row.date_recrutement || "-"}</TableCell>
+                    <TableCell>{row.anciennete ?? "-"}</TableCell>
+                    <TableCell>{row.etat || "-"}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        ) : (
+          <p className="mt-2 text-sm text-[#5f6777]">
+            {tr("Aucun apercu. Importez un fichier Excel pour afficher les lignes.", "No preview yet. Upload an Excel file to display rows.")}
+          </p>
+        )}
+
+        {previewColumnsDetected.length > 0 ? (
+          <p className="mt-3 text-xs text-[#5f6777]">
+            {tr("Colonnes detectees", "Detected columns")}: {previewColumnsDetected.join(", ")}
+          </p>
+        ) : null}
+        {Object.keys(previewMappingUsed).length > 0 ? (
+          <p className="mt-1 text-xs text-[#5f6777]">
+            {tr("Mapping", "Mapping")}:{" "}
+            {Object.entries(previewMappingUsed)
+              .map(([field, header]) => `${field} -> ${header}`)
+              .join(", ")}
+          </p>
+        ) : null}
+      </Card>
 
       {isFormationsDialogOpen && formationsCollaborateur && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={closeFormationsDialog}>
@@ -794,8 +1012,9 @@ export function QualificationPage({ onNavigateToPage, currentUser }) {
                 ref={inputRef}
                 type="file"
                 multiple
+                accept=".xlsx,.xls"
                 className="hidden"
-                onChange={(e) => addFiles(e.target.files)}
+                onChange={(e) => handleFileChange(e.target.files)}
               />
 
               <div
@@ -807,7 +1026,7 @@ export function QualificationPage({ onNavigateToPage, currentUser }) {
                 onDrop={(e) => {
                   e.preventDefault();
                   setIsDragging(false);
-                  addFiles(e.dataTransfer.files);
+                  handleFileChange(e.dataTransfer.files);
                 }}
                 className={`rounded-2xl border-2 border-dashed p-10 text-center transition-colors ${
                   isDragging ? "border-[#4f99d9] bg-[#182a3d]" : "border-[#3a4554] bg-[#171c24]"
@@ -817,7 +1036,7 @@ export function QualificationPage({ onNavigateToPage, currentUser }) {
                   <Upload className="h-7 w-7 text-[#7ec1f2]" />
                 </div>
                 <p className="text-[22px] font-medium text-white">Drag and drop your report here</p>
-                <p className="mt-2 text-[15px] text-[#9aabbe]">PDF, DOCX, XLSX, CSV, PNG, JPG</p>
+                <p className="mt-2 text-[15px] text-[#9aabbe]">XLSX, XLS</p>
               </div>
 
               {selectedFiles.length > 0 && (
@@ -847,9 +1066,16 @@ export function QualificationPage({ onNavigateToPage, currentUser }) {
                   type="button"
                   className="h-11 rounded-xl bg-[#005ca9] px-6 text-white hover:bg-[#004a87] disabled:cursor-not-allowed disabled:opacity-50"
                   onClick={handleSubmit}
-                  disabled={!selectedFiles.length}
+                  disabled={!selectedFiles.length || isPreviewLoading}
                 >
-                  Submit files
+                  {isPreviewLoading ? (
+                    <span className="inline-flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      {tr("Envoi...", "Submitting...")}
+                    </span>
+                  ) : (
+                    tr("Submit", "Submit")
+                  )}
                 </Button>
               </div>
             </div>

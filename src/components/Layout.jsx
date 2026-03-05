@@ -38,7 +38,13 @@ export function Layout({ onSignOut, currentUser, accessToken }) {
       case "formation":
         return <FormationPage openFormationId={formationDetailsId} currentUser={currentUser} />;
       case "qualification":
-        return <QualificationPage onNavigateToPage={handlePageChange} currentUser={currentUser} />;
+        return (
+          <QualificationPage
+            onNavigateToPage={handlePageChange}
+            currentUser={currentUser}
+            accessToken={accessToken}
+          />
+        );
       case "requalification":
         return (
           <PlaceholderPage

@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import require_roles
 from app.db.session import get_db
 from app.models.enrollment import Enrollment
-from app.models.enums import EtatQualifies, UserRole
+from app.models.enums import UserRole
 from app.models.formation import Formation
 from app.models.training_session import TrainingSession
 from app.models.user import User

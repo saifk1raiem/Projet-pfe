@@ -4,7 +4,6 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 export function QualificationStatusChart() {
   const data = [
     { name: "Qualifie", value: 1092, color: "#005ca9" },
-    { name: "En cours", value: 94, color: "#f59e0b" },
     { name: "Non associe", value: 32, color: "#ef4444" },
     { name: "Depassement", value: 30, color: "#7c55e8" },
   ];
