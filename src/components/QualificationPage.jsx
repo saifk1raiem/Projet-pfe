@@ -1,4 +1,4 @@
-import { createElement, useRef, useState } from "react";
+﻿import { createElement, useEffect, useRef, useState } from "react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -75,7 +75,6 @@ const collaborateursQualification = [
     competence: "Cablage",
     contre_maitre: "Hichem Trabelsi",
     segment: "Production",
-    gender: "M",
     num_tel: "21620101010",
     date_recrutement: "15/01/2024",
     anciennete: 2,
@@ -95,7 +94,6 @@ const collaborateursQualification = [
     competence: "Audit Produit",
     contre_maitre: "Meriem Kacem",
     segment: "Qualite",
-    gender: "F",
     num_tel: "21622112233",
     date_recrutement: "20/06/2023",
     anciennete: 3,
@@ -115,7 +113,6 @@ const collaborateursQualification = [
     competence: "Diagnostic",
     contre_maitre: "Nizar Riahi",
     segment: "Maintenance",
-    gender: "M",
     num_tel: "21650111222",
     date_recrutement: "10/03/2025",
     anciennete: 1,
@@ -135,7 +132,6 @@ const collaborateursQualification = [
     competence: "Management Equipe",
     contre_maitre: "Aymen Gharbi",
     segment: "Production",
-    gender: "F",
     num_tel: "21698111000",
     date_recrutement: "01/09/2022",
     anciennete: 4,
@@ -155,7 +151,6 @@ const collaborateursQualification = [
     competence: "Gestion Stock",
     contre_maitre: "Sami Ben Othman",
     segment: "Logistique",
-    gender: "M",
     num_tel: "21628765432",
     date_recrutement: "05/11/2024",
     anciennete: 1,
@@ -175,7 +170,6 @@ const collaborateursQualification = [
     competence: "Onboarding",
     contre_maitre: "Yasmine Gmati",
     segment: "Support",
-    gender: "F",
     num_tel: "21693123456",
     date_recrutement: "14/02/2023",
     anciennete: 3,
@@ -195,7 +189,6 @@ const collaborateursQualification = [
     competence: "Ergonomie Poste",
     contre_maitre: "Hatem Baccar",
     segment: "Production",
-    gender: "M",
     num_tel: "21629001122",
     date_recrutement: "12/08/2024",
     anciennete: 1,
@@ -250,6 +243,30 @@ const getFormationPageId = (formation) => {
     return 3;
   }
   return 1;
+};
+
+const normalizeCollaborateurForUI = (row, idx) => {
+  const ancienneteValue = Number.isFinite(Number(row?.anciennete)) ? Number(row.anciennete) : null;
+  const statut = ancienneteValue && ancienneteValue > 0 ? "Qualifie" : "Non associe";
+  return {
+    id: idx + 1,
+    phase: statut === "Qualifie" ? "qualification" : "indection",
+    matricule: row?.matricule || `ROW-${idx + 1}`,
+    nom: row?.nom || "",
+    prenom: row?.prenom || "",
+    fonction: row?.fonction || "",
+    centre_cout: row?.centre_cout || "",
+    groupe: row?.groupe || "",
+    competence: row?.competence || "",
+    contre_maitre: row?.contre_maitre || "",
+    segment: row?.segment || "",
+    num_tel: row?.num_tel || "",
+    date_recrutement: row?.date_recrutement || "",
+    anciennete: ancienneteValue,
+    statut,
+    formations: 0,
+    derniereFormation: "-",
+  };
 };
 
 const statutOptions = ["Non associe", "Qualifie", "Depassement"];
@@ -424,6 +441,31 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
   const [formationsCollaborateur, setFormationsCollaborateur] = useState(null);
   const inputRef = useRef(null);
 
+  const loadCollaborateurs = async () => {
+    if (!accessToken) return;
+    try {
+      const response = await fetch("http://127.0.0.1:8000/api/v1/admin/collaborateurs", {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      const data = await response.json().catch(() => []);
+      if (!response.ok || !Array.isArray(data)) {
+        return;
+      }
+      const normalized = data.map((row, idx) => normalizeCollaborateurForUI(row, idx));
+      if (normalized.length) {
+        setCollaborateursData(normalized);
+      }
+    } catch {
+      // Keep local fallback data if backend list fails.
+    }
+  };
+
+  useEffect(() => {
+    loadCollaborateurs();
+  }, [accessToken]);
+
   const handleFileChange = (fileList) => {
     const incoming = Array.from(fileList || []).filter((file) => {
       const name = (file?.name || "").toLowerCase();
@@ -493,7 +535,28 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
       setPreviewRowsCount(Number.isFinite(data.rows_count) ? data.rows_count : 0);
       setPreviewColumnsDetected(Array.isArray(data.columns_detected) ? data.columns_detected : []);
       setPreviewMappingUsed(data.mapping_used && typeof data.mapping_used === "object" ? data.mapping_used : {});
-      setPreviewFileErrors(Array.isArray(data.file_errors) ? data.file_errors : []);
+      const importErrors = [];
+      for (const file of selectedFiles) {
+        const importFormData = new FormData();
+        importFormData.append("file", file);
+        const importResponse = await fetch("http://127.0.0.1:8000/api/v1/admin/collaborateurs/import", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: importFormData,
+        });
+        const importData = await importResponse.json().catch(() => ({}));
+        if (!importResponse.ok) {
+          const detail = importData?.detail;
+          const message = typeof detail === "string" ? detail : (detail?.message || "Import failed");
+          importErrors.push({ file: file.name, error: message });
+        }
+      }
+
+      const previewErrors = Array.isArray(data.file_errors) ? data.file_errors : [];
+      setPreviewFileErrors([...previewErrors, ...importErrors]);
+      await loadCollaborateurs();
       closeModal();
       setSelectedFiles([]);
     } catch (error) {
@@ -571,13 +634,18 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
   };
 
   const filteredCollaborateurs = collaborateursData.filter(
-    (collab) =>
-      collab.phase === activeTab &&
-      (collab.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        collab.matricule.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        collab.fonction.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        collab.centre_cout.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        collab.groupe.toLowerCase().includes(searchTerm.toLowerCase())),
+    (collab) => {
+      const collabPhase = collab.phase || "qualification";
+      const search = searchTerm.toLowerCase();
+      return (
+        collabPhase === activeTab &&
+        ((collab.nom || "").toLowerCase().includes(search) ||
+          (collab.matricule || "").toLowerCase().includes(search) ||
+          (collab.fonction || "").toLowerCase().includes(search) ||
+          (collab.centre_cout || "").toLowerCase().includes(search) ||
+          (collab.groupe || "").toLowerCase().includes(search))
+      );
+    },
   );
 
   return (
@@ -707,10 +775,6 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
                 <p className="text-[15px] font-medium text-[#1d2025]">{selectedCollaborateur.segment}</p>
               </div>
               <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3">
-                <p className="text-[12px] text-[#64748b]">Genre</p>
-                <p className="text-[15px] font-medium text-[#1d2025]">{selectedCollaborateur.gender}</p>
-              </div>
-              <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3">
                 <p className="text-[12px] text-[#64748b]">Telephone</p>
                 <p className="text-[15px] font-medium text-[#1d2025]">{selectedCollaborateur.num_tel}</p>
               </div>
@@ -813,7 +877,6 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
                   <TableHead>competence</TableHead>
                   <TableHead>contre_maitre</TableHead>
                   <TableHead>segment</TableHead>
-                  <TableHead>gender</TableHead>
                   <TableHead>num_tel</TableHead>
                   <TableHead>date_recrutement</TableHead>
                   <TableHead>anciennete</TableHead>
@@ -832,7 +895,6 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
                     <TableCell>{row.competence || "-"}</TableCell>
                     <TableCell>{row.contre_maitre || "-"}</TableCell>
                     <TableCell>{row.segment || "-"}</TableCell>
-                    <TableCell>{row.gender || "-"}</TableCell>
                     <TableCell>{row.num_tel || "-"}</TableCell>
                     <TableCell>{row.date_recrutement || "-"}</TableCell>
                     <TableCell>{row.anciennete ?? "-"}</TableCell>
@@ -875,7 +937,7 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
                   {tr("Formations du collaborateur", "Collaborator training history")}
                 </h2>
                 <p className="mt-1 text-[15px] text-[#64748b]">
-                  {formationsCollaborateur.nom} ({formationsCollaborateur.matricule}) • {formationsCollaborateur.formations} formations
+                  {formationsCollaborateur.nom} ({formationsCollaborateur.matricule}) â€¢ {formationsCollaborateur.formations} formations
                 </p>
               </div>
               <Button variant="outline" className="rounded-xl" onClick={closeFormationsDialog}>
@@ -1085,3 +1147,4 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
     </div>
   );
 }
+
