@@ -22,7 +22,6 @@ DEFAULT_EXCEL_SYNONYMS: dict[str, list[str]] = {
     "competence": ["competence", "skill", "qualification", "competency"],
     "contre_maitre": ["contre_maitre", "supervisor", "Contre maitre", "team_lead", "Rh seg"],
     "segment": ["segment", "department", "division", "seg"],
-    "gender": ["gender", "sexe", "sex"],
     "num_tel": ["num_tel", "telephone", "phone", "tel", "num tel"],
     "date_recrutement": [
         "date_recrutement",
@@ -77,3 +76,4 @@ def save_excel_synonyms(payload: dict[str, list[str]]) -> dict[str, list[str]]:
     _SYNONYMS_FILE.parent.mkdir(parents=True, exist_ok=True)
     _SYNONYMS_FILE.write_text(json.dumps(sanitized, ensure_ascii=True, indent=2), encoding="utf-8")
     return sanitized
+

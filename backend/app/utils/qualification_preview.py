@@ -18,7 +18,6 @@ PREVIEW_FIELDS = [
     "competence",
     "contre_maitre",
     "segment",
-    "gender",
     "num_tel",
     "date_recrutement",
     "anciennete",
@@ -42,7 +41,6 @@ SYNONYMS: dict[str, list[str]] = {
     "competence": ["competence", "skill", "qualification", "competency"],
     "contre_maitre": ["contre_maitre", "supervisor", "Contre maitre", "team_lead", "Rh seg"],
     "segment": ["segment", "department", "division", "seg"],
-    "gender": ["gender", "sexe", "sex"],
     "num_tel": ["num_tel", "telephone", "phone", "tel", "num tel"],
     "date_recrutement": [
         "date_recrutement",
@@ -230,3 +228,4 @@ def parse_excel_to_rows(
         rows.append(normalized_row)
 
     return columns_detected, mapping_used, rows
+

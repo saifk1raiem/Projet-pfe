@@ -18,6 +18,31 @@ from app.utils.collaborateur_import import REQUIRED_FIELDS, SYNONYMS, clean_row,
 router = APIRouter(prefix="/admin/collaborateurs", tags=["admin"])
 
 
+@router.get("")
+def list_collaborateurs(
+    db: Session = Depends(get_db),
+    _: object = Depends(require_roles(UserRole.admin, UserRole.observer)),
+):
+    records = db.scalars(select(Collaborateur).order_by(Collaborateur.matricule.asc())).all()
+    return [
+        {
+            "matricule": record.matricule,
+            "nom": record.nom,
+            "prenom": record.prenom,
+            "fonction": record.fonction,
+            "centre_cout": record.centre_cout,
+            "groupe": record.groupe,
+            "competence": record.competence,
+            "contre_maitre": record.contre_maitre,
+            "segment": record.segment,
+            "num_tel": record.num_tel,
+            "date_recrutement": record.date_recrutement,
+            "anciennete": record.anciennete,
+        }
+        for record in records
+    ]
+
+
 @router.post("/import")
 async def import_collaborateurs(
     file: UploadFile = File(...),

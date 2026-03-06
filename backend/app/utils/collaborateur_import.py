@@ -17,7 +17,6 @@ DB_FIELDS = [
     "competence",
     "contre_maitre",
     "segment",
-    "gender",
     "num_tel",
     "date_recrutement",
     "anciennete",
@@ -42,7 +41,6 @@ SYNONYMS: dict[str, list[str]] = {
     "competence": ["competence", "skill", "qualification", "competency"],
     "contre_maitre": ["contre_maitre", "supervisor", "Contre maitre", "team_lead", "Rh seg"],
     "segment": ["segment", "department", "division", "seg"],
-    "gender": ["gender", "sexe", "sex"],
     "num_tel": ["num_tel", "telephone", "phone", "tel", "num tel"],
     "date_recrutement": [
         "date_recrutement",
@@ -229,3 +227,4 @@ def clean_row(row: dict[str, Any], mapping: dict[str, str]) -> dict[str, Any]:
             cleaned["nom"] = cleaned["nom"] or split_nom
 
     return cleaned
+
