@@ -444,7 +444,7 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
   const loadCollaborateurs = async () => {
     if (!accessToken) return;
     try {
-      const response = await fetch("http://127.0.0.1:8000/api/v1/admin/collaborateurs", {
+      const response = await fetch("https://projet-pfe-production-d47f.up.railway.app/api/v1/admin/collaborateurs", {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
@@ -510,7 +510,7 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
     setPreviewFileErrors([]);
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/api/v1/qualification/preview", {
+      const response = await fetch("https://projet-pfe-production-d47f.up.railway.app/api/v1/qualification/preview", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -539,7 +539,7 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
       for (const file of selectedFiles) {
         const importFormData = new FormData();
         importFormData.append("file", file);
-        const importResponse = await fetch("http://127.0.0.1:8000/api/v1/admin/collaborateurs/import", {
+        const importResponse = await fetch("https://projet-pfe-production-d47f.up.railway.app/api/v1/admin/collaborateurs/import", {
           method: "POST",
           headers: {
             Authorization: `Bearer ${accessToken}`,

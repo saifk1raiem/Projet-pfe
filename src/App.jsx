@@ -11,11 +11,14 @@ function App() {
   const [accessToken, setAccessToken] = useState("");
 
   const handleLogin = async ({ email, password }) => {
-    const response = await fetch("http://127.0.0.1:8000/api/v1/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
+    const response = await fetch(
+      "https://projet-pfe-production-d47f.up.railway.app/api/v1/auth/login",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      },
+    );
 
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
