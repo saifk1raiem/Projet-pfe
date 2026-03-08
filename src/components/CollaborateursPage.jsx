@@ -131,53 +131,6 @@ const collaborateurs = [
   },
 ];
 
-const collaborateursFormationHistory = {
-  1: [
-    { id: "f-101", titre: "Securite machine", type: "Technique", date: "10/01/2026", duree: "6h", resultat: "Valide" },
-    { id: "f-102", titre: "Qualite cablage", type: "Qualite", date: "22/11/2025", duree: "4h", resultat: "Valide" },
-    { id: "f-103", titre: "5S atelier", type: "Lean", date: "09/08/2025", duree: "3h", resultat: "Valide" },
-  ],
-  2: [
-    { id: "f-201", titre: "Audit produit", type: "Qualite", date: "05/02/2026", duree: "5h", resultat: "Valide" },
-    { id: "f-202", titre: "Metrologie avancee", type: "Technique", date: "16/12/2025", duree: "7h", resultat: "Valide" },
-    { id: "f-203", titre: "SPC niveau 2", type: "Qualite", date: "24/09/2025", duree: "4h", resultat: "Valide" },
-  ],
-  3: [
-    { id: "f-301", titre: "Diagnostic maintenance", type: "Technique", date: "15/12/2025", duree: "6h", resultat: "En cours" },
-    { id: "f-302", titre: "Consignation LOTOTO", type: "Securite", date: "03/07/2025", duree: "4h", resultat: "Valide" },
-  ],
-  4: [
-    { id: "f-401", titre: "Leadership terrain", type: "Soft skills", date: "28/01/2026", duree: "8h", resultat: "Valide" },
-    { id: "f-402", titre: "Pilotage KPI", type: "Management", date: "19/10/2025", duree: "5h", resultat: "Valide" },
-    { id: "f-403", titre: "Resolution probleme", type: "Lean", date: "06/06/2025", duree: "4h", resultat: "Valide" },
-  ],
-  5: [
-    { id: "f-501", titre: "Flux logistique", type: "Logistique", date: "20/05/2025", duree: "4h", resultat: "En cours" },
-    { id: "f-502", titre: "Inventaire digital", type: "Logistique", date: "02/03/2025", duree: "3h", resultat: "Valide" },
-  ],
-  6: [
-    { id: "f-601", titre: "SIRH operationnel", type: "RH", date: "18/01/2026", duree: "5h", resultat: "Valide" },
-    { id: "f-602", titre: "Onboarding process", type: "RH", date: "30/11/2025", duree: "4h", resultat: "Valide" },
-    { id: "f-603", titre: "Communication interne", type: "Soft skills", date: "11/08/2025", duree: "3h", resultat: "Valide" },
-  ],
-  7: [
-    { id: "f-701", titre: "Requalification poste", type: "Qualification", date: "20/08/2025", duree: "6h", resultat: "Expire" },
-    { id: "f-702", titre: "Ergonomie poste", type: "Securite", date: "28/04/2025", duree: "3h", resultat: "Valide" },
-  ],
-};
-
-const getFormationHistory = (collabId) => collaborateursFormationHistory[collabId] ?? [];
-const getFormationPageId = (formation) => {
-  const title = formation?.titre?.toLowerCase() ?? "";
-  if (title.includes("qualite") || title.includes("audit") || title.includes("spc") || title.includes("metrologie")) {
-    return 2;
-  }
-  if (title.includes("maintenance") || title.includes("diagnostic") || title.includes("requalification")) {
-    return 3;
-  }
-  return 1;
-};
-
 const Stat = ({ icon, title, value, color }) => (
   <Card className="rounded-[20px] border border-[#dfe5e2] bg-white p-4 shadow-sm">
     <div className="flex items-center gap-3">
@@ -229,7 +182,7 @@ const getStatusBadge = (statut) => {
 
 const statutOptions = ["Non associe", "En cours", "Qualifie", "Depassement"];
 
-export function CollaborateursPage({ onNavigateToPage, currentUser }) {
+export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken }) {
   const { tr } = useAppPreferences();
   const isObserver = currentUser?.role === "observer";
   const [searchTerm, setSearchTerm] = useState("");
@@ -242,6 +195,9 @@ export function CollaborateursPage({ onNavigateToPage, currentUser }) {
   const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
   const [isFormationsDialogOpen, setIsFormationsDialogOpen] = useState(false);
   const [formationsCollaborateur, setFormationsCollaborateur] = useState(null);
+  const [formationsHistory, setFormationsHistory] = useState([]);
+  const [formationsHistoryLoading, setFormationsHistoryLoading] = useState(false);
+  const [formationsHistoryError, setFormationsHistoryError] = useState("");
 
   const filteredCollaborateurs = collaborateursData.filter(
     (collab) =>
@@ -261,19 +217,47 @@ export function CollaborateursPage({ onNavigateToPage, currentUser }) {
     setIsStatusDialogOpen(true);
   };
 
-  const handleOpenFormationsDialog = (collab) => {
+  const handleOpenFormationsDialog = async (collab) => {
     setFormationsCollaborateur(collab);
     setIsFormationsDialogOpen(true);
+    setFormationsHistory([]);
+    setFormationsHistoryError("");
+
+    if (!accessToken || !collab?.matricule) {
+      setFormationsHistoryError(tr("Impossible de charger les formations.", "Failed to load trainings."));
+      return;
+    }
+
+    setFormationsHistoryLoading(true);
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/api/v1/qualification/${collab.matricule}/formations`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      const data = await response.json().catch(() => []);
+      if (!response.ok) {
+        setFormationsHistoryError(tr("Impossible de charger les formations.", "Failed to load trainings."));
+        return;
+      }
+      setFormationsHistory(Array.isArray(data) ? data : []);
+    } catch {
+      setFormationsHistoryError(tr("Impossible de charger les formations.", "Failed to load trainings."));
+    } finally {
+      setFormationsHistoryLoading(false);
+    }
   };
 
   const closeFormationsDialog = () => {
     setIsFormationsDialogOpen(false);
     setFormationsCollaborateur(null);
+    setFormationsHistory([]);
+    setFormationsHistoryError("");
   };
 
   const handleGoToFormationSection = (formation) => {
     closeFormationsDialog();
-    onNavigateToPage?.("formation", { formationId: getFormationPageId(formation) });
+    onNavigateToPage?.("formation", { formationId: formation.formation_id });
   };
 
   const handleUpdateStatus = () => {
@@ -507,12 +491,33 @@ export function CollaborateursPage({ onNavigateToPage, currentUser }) {
             </div>
 
             <div className="flex-1 overflow-y-auto px-7 py-6">
+              {formationsHistoryError ? (
+                <div className="rounded-xl border border-[#f2c4c4] bg-[#fdeeee] p-3 text-sm text-[#8a1d1d]">
+                  {formationsHistoryError}
+                </div>
+              ) : null}
+
+              {formationsHistoryLoading ? (
+                <div className="flex items-center gap-2 text-sm text-[#5f6777]">
+                  <AlertCircle className="h-4 w-4" />
+                  {tr("Chargement des formations...", "Loading trainings...")}
+                </div>
+              ) : null}
+
+              {!formationsHistoryLoading && !formationsHistoryError && formationsHistory.length === 0 ? (
+                <p className="text-sm text-[#5f6777]">
+                  {tr("Aucune formation trouvee pour ce collaborateur.", "No trainings found for this collaborator.")}
+                </p>
+              ) : null}
+
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                {getFormationHistory(formationsCollaborateur.id).map((formation) => (
+                {formationsHistory.map((formation) => (
                   <Card key={formation.id} className="rounded-2xl border border-[#dfe5e2] bg-[#fbfdff] p-5 shadow-sm">
                     <div className="flex items-start justify-between gap-4">
                       <div>
-                        <h3 className="text-[20px] font-semibold text-[#191c20]">{formation.titre}</h3>
+                        <h3 className="text-[20px] font-semibold text-[#191c20]">
+                          {formation.code} - {formation.titre}
+                        </h3>
                         <p className="mt-1 text-[14px] text-[#64748b]">{formation.type}</p>
                       </div>
                       <Badge className="rounded-lg border border-[#b9d3ea] bg-[#e8f1fb] px-3 py-1 text-[13px] font-medium text-[#005ca9]">
@@ -522,11 +527,13 @@ export function CollaborateursPage({ onNavigateToPage, currentUser }) {
                     <div className="mt-4 grid grid-cols-2 gap-3">
                       <div className="rounded-xl border border-[#e2e8f0] bg-white p-3">
                         <p className="text-[12px] text-[#64748b]">{tr("Date", "Date")}</p>
-                        <p className="text-[14px] font-medium text-[#1d2025]">{formation.date}</p>
+                        <p className="text-[14px] font-medium text-[#1d2025]">{formation.date || "-"}</p>
                       </div>
                       <div className="rounded-xl border border-[#e2e8f0] bg-white p-3">
                         <p className="text-[12px] text-[#64748b]">{tr("Duree", "Duration")}</p>
-                        <p className="text-[14px] font-medium text-[#1d2025]">{formation.duree}</p>
+                        <p className="text-[14px] font-medium text-[#1d2025]">
+                          {formation.duree ? tr(`${formation.duree} jours`, `${formation.duree} days`) : "-"}
+                        </p>
                       </div>
                     </div>
                     <Button className="mt-4 h-10 rounded-xl bg-[#005ca9] text-white hover:bg-[#004a87]" onClick={() => handleGoToFormationSection(formation)}>

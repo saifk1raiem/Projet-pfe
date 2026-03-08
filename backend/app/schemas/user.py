@@ -30,3 +30,13 @@ class UserRead(UserBase):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class LoginUserOption(BaseModel):
+    id: int
+    first_name: str
+    last_name: str
+    email: EmailStr
+    role: UserRole
+
+    model_config = {"from_attributes": True}

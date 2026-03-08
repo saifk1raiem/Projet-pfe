@@ -9,9 +9,7 @@
   ],
   "nom": [
     "nom",
-    "Plugins - name",
-    "surname",
-    "family_name"
+    "Plugins - name"
   ],
   "prenom": [
     "prenom",
@@ -30,7 +28,8 @@
     "job",
     "role",
     "position",
-    "Fonction SAP"
+    "Fonction SAP",
+    "Plugins - Fonction selon PF"
   ],
   "centre_cout": [
     "centre_cout",
@@ -41,7 +40,8 @@
   "groupe": [
     "groupe",
     "group",
-    "gr"
+    "gr",
+    "Plugins - Group"
   ],
   "competence": [
     "competence",
@@ -61,12 +61,8 @@
     "segment",
     "department",
     "division",
-    "seg"
-  ],
-  "gender": [
-    "gender",
-    "sexe",
-    "sex"
+    "seg",
+    "Plugins - seg"
   ],
   "num_tel": [
     "num_tel",
@@ -94,10 +90,6 @@
   ],
   "etat": [
     "etat",
-    "status",
-    "Niveau de formation",
-    "qualification_status",
-    "etat_qualifie",
-    "etatqualifies"
+    "status"
   ]
 }

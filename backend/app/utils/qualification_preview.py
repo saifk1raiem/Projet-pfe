@@ -15,13 +15,18 @@ PREVIEW_FIELDS = [
     "fonction",
     "centre_cout",
     "groupe",
-    "competence",
     "contre_maitre",
     "segment",
     "num_tel",
     "date_recrutement",
     "anciennete",
-    "etat",
+    "formation_id",
+    "formation_label",
+    "statut",
+    "date_association_systeme",
+    "date_completion",
+    "etat_qualification",
+    "score",
 ]
 
 SYNONYMS: dict[str, list[str]] = {
@@ -35,12 +40,11 @@ SYNONYMS: dict[str, list[str]] = {
         "collaborateur_nom_&_prenom",
         "collaborateur_nom_prenom",
     ],
-    "fonction": ["fonction", "job", "role", "position", "Fonction SAP"],
+    "fonction": ["fonction", "job", "role", "position", "Fonction SAP", "Plugins - Fonction selon PF"],
     "centre_cout": ["centre_cout", "cc", "cost_center", "costcentre"],
-    "groupe": ["groupe", "group", "gr"],
-    "competence": ["competence", "skill", "qualification", "competency"],
+    "groupe": ["groupe", "group", "gr", "Plugins - Group"],
     "contre_maitre": ["contre_maitre", "supervisor", "Contre maitre", "team_lead", "Rh seg"],
-    "segment": ["segment", "department", "division", "seg"],
+    "segment": ["segment", "department", "division", "seg", "Plugins - seg"],
     "num_tel": ["num_tel", "telephone", "phone", "tel", "num tel"],
     "date_recrutement": [
         "date_recrutement",
@@ -53,7 +57,22 @@ SYNONYMS: dict[str, list[str]] = {
         "date_association",
     ],
     "anciennete": ["anciennete", "seniority", "years", "years_of_service"],
-    "etat": ["etat", "status", "Niveau de formation", "qualification_status", "etat_qualifie", "etatqualifies"],
+    "competence": [
+        "competence",
+        "skill",
+        "qualification",
+        "competency",
+        "Plugins - Name_competence",
+    ],
+    "statut": ["statut", "status", "Plugins - status", "training_status", "qualification_status"],
+    "date_association_systeme": [
+        "date_association_systeme",
+        "Plugins - date d'association systeme",
+        "date_association",
+        "assigned_date",
+    ],
+    "date_completion": ["date_completion", "completion_date", "date_fin", "completed_at"],
+    "score": ["score", "resultat", "note", "score_final"],
 }
 
 
@@ -83,7 +102,6 @@ def infer_mapping(headers: list[str], synonyms: dict[str, list[str]] | None = No
                 used_headers.add(header)
                 break
 
-    # Optional combined full-name column; split later into prenom + nom.
     nomprenom_aliases = aliases_by_field.get("nomprenom", [])
     if nomprenom_aliases:
         alias_set = {normalize_header(alias) for alias in nomprenom_aliases}
@@ -92,25 +110,54 @@ def infer_mapping(headers: list[str], synonyms: dict[str, list[str]] | None = No
                 mapping["nomprenom"] = header
                 break
 
+    competence_aliases = aliases_by_field.get("competence", [])
+    if competence_aliases:
+        alias_set = {normalize_header(alias) for alias in competence_aliases}
+        for header, normalized in normalized_headers.items():
+            if normalized in alias_set:
+                mapping["competence"] = header
+                break
+
     return mapping
 
 
-def normalize_status(value: Any) -> str | None:
-    if value is None or pd.isna(value):
-        return None
-    normalized = normalize_header(str(value))
-    if not normalized:
-        return None
+def _looks_mostly_numeric(series: pd.Series) -> bool:
+    sample = [str(value).strip() for value in series.dropna().head(20).tolist() if str(value).strip()]
+    if not sample:
+        return False
+    numeric_like = 0
+    for value in sample:
+        compact = value.replace(".", "", 1)
+        if compact.isdigit():
+            numeric_like += 1
+    return numeric_like / len(sample) >= 0.6
 
-    if normalized in {"en_cours", "encours", "in_progress", "ongoing"}:
-        return "En cours"
-    if normalized in {"non_associee", "non_associe", "non_assoce", "non_associated", "non_assigned"}:
-        return "Non associe"
-    if normalized in {"depassement", "depasse", "overdue", "expired"}:
-        return "Depassement"
-    if normalized in {"qualifie", "qualified"}:
-        return "Qualifie"
-    return None
+
+def _refine_name_mapping(
+    dataframe: pd.DataFrame,
+    mapping_used: dict[str, str],
+    synonyms: dict[str, list[str]],
+) -> dict[str, str]:
+    current_header = mapping_used.get("nom")
+    if not current_header:
+        return mapping_used
+
+    if not _looks_mostly_numeric(dataframe[current_header]):
+        return mapping_used
+
+    candidate_aliases = {
+        normalize_header(alias)
+        for alias in synonyms.get("nom", [])
+        if normalize_header(alias) != normalize_header(current_header)
+    }
+    for header in dataframe.columns.tolist():
+        normalized = normalize_header(str(header))
+        if normalized not in candidate_aliases:
+            continue
+        if not _looks_mostly_numeric(dataframe[header]):
+            mapping_used["nom"] = str(header)
+            return mapping_used
+    return mapping_used
 
 
 def _as_clean_string(value: Any) -> str | None:
@@ -118,17 +165,6 @@ def _as_clean_string(value: Any) -> str | None:
         return None
     if isinstance(value, pd.Timestamp):
         return value.strftime("%Y-%m-%d")
-    text = str(value).strip()
-    return text or None
-
-
-def _as_optional_duration(value: Any) -> str | int | float | None:
-    if value is None or pd.isna(value):
-        return None
-    if isinstance(value, float) and value.is_integer():
-        return int(value)
-    if isinstance(value, (int, float)):
-        return value
     text = str(value).strip()
     return text or None
 
@@ -147,30 +183,65 @@ def _as_optional_int(value: Any) -> int | None:
         return None
 
 
+def _as_optional_score(value: Any) -> float | None:
+    if value is None or pd.isna(value):
+        return None
+    try:
+        return round(float(str(value).strip().replace(",", ".")), 2)
+    except ValueError:
+        return None
+
+
+def _as_iso_date(value: Any) -> str | None:
+    if value is None or pd.isna(value):
+        return None
+    parsed = pd.to_datetime(value, errors="coerce", dayfirst=True)
+    if pd.isna(parsed):
+        return None
+    return parsed.date().isoformat()
+
+
 def _split_prenom_nom(full_name: str | None) -> tuple[str | None, str | None]:
     if not full_name:
         return None, None
     parts = [part for part in full_name.strip().split() if part]
     if len(parts) < 2:
         return None, None
-    prenom = parts[0].title()
-    nom = " ".join(parts[1:]).title()
-    return prenom, nom
+    return parts[0].title(), " ".join(parts[1:]).title()
 
 
-def _compute_etat(date_recrutement: str | None, provided_status: Any) -> str | None:
-    parsed = pd.to_datetime(date_recrutement, errors="coerce", dayfirst=True) if date_recrutement else pd.NaT
-    if not pd.isna(parsed):
-        days = (pd.Timestamp.now() - parsed).days
-        if days > 30:
-            return "Depassement"
+def _parse_formation(value: Any) -> tuple[int | None, str | None]:
+    text = _as_clean_string(value)
+    if not text:
+        return None, None
 
-    explicit = normalize_status(provided_status)
-    if explicit in {"En cours", "Qualifie", "Non associe"}:
-        return explicit
-    if not pd.isna(parsed):
+    match = re.match(r"^\s*(\d+)\s*[-:]\s*(.+?)\s*$", text)
+    if match:
+        return int(match.group(1)), match.group(2).strip()
+
+    match = re.search(r"\b(\d{2,})\b", text)
+    if match:
+        return int(match.group(1)), text
+    return None, text
+
+
+def _normalize_statut(value: Any) -> str | None:
+    normalized = normalize_header(str(value)) if value is not None and not pd.isna(value) else ""
+    if not normalized:
+        return None
+    if normalized in {"completee", "complete", "completed", "terminee", "termine"}:
+        return "Completee"
+    if normalized in {"en_cours", "encours", "in_progress", "ongoing"}:
         return "En cours"
-    return explicit
+    return None
+
+
+def _derive_etat_qualification(statut: str | None) -> str | None:
+    if statut == "Completee":
+        return "Qualifie"
+    if statut == "En cours":
+        return "En cours"
+    return None
 
 
 def parse_excel_to_rows(
@@ -182,31 +253,60 @@ def parse_excel_to_rows(
     engine = "openpyxl" if file_name.endswith(".xlsx") else "xlrd"
     dataframe = pd.read_excel(BytesIO(file_content), dtype=object, engine=engine)
     columns_detected = [str(column) for column in dataframe.columns.tolist()]
-    mapping_used = infer_mapping(columns_detected, synonyms or SYNONYMS)
+    active_synonyms = synonyms or SYNONYMS
+    mapping_used = infer_mapping(columns_detected, active_synonyms)
+    mapping_used = _refine_name_mapping(dataframe, mapping_used, active_synonyms)
 
     rows: list[dict[str, Any]] = []
     for source_row in dataframe.to_dict(orient="records"):
         normalized_row: dict[str, Any] = {field: None for field in PREVIEW_FIELDS}
-        source_status = None
-        status_header = mapping_used.get("etat")
 
-        for field in PREVIEW_FIELDS:
-            source_header = mapping_used.get(field)
-            raw_value = source_row.get(source_header) if source_header else None
-            if field == "etat":
-                source_status = raw_value
+        for field in [
+            "matricule",
+            "nom",
+            "prenom",
+            "fonction",
+            "centre_cout",
+            "groupe",
+            "contre_maitre",
+            "segment",
+            "num_tel",
+            "date_recrutement",
+        ]:
+            header = mapping_used.get(field)
+            normalized_row[field] = _as_clean_string(source_row.get(header)) if header else None
 
-            if field == "etat":
-                normalized_row[field] = None
-            elif field == "anciennete":
-                normalized_row[field] = _as_optional_int(raw_value)
-            else:
-                normalized_row[field] = _as_clean_string(raw_value)
+        anciennete_header = mapping_used.get("anciennete")
+        normalized_row["anciennete"] = _as_optional_int(source_row.get(anciennete_header)) if anciennete_header else None
 
-        if status_header and source_status is None:
-            source_status = source_row.get(status_header)
+        formation_header = mapping_used.get("competence")
+        formation_id, formation_label = _parse_formation(source_row.get(formation_header) if formation_header else None)
+        normalized_row["formation_id"] = formation_id
+        normalized_row["formation_label"] = formation_label
+        normalized_row["competence"] = formation_label
 
-        # Handle files where "prenom nom" is present in a single name column.
+        statut_header = mapping_used.get("statut")
+        normalized_row["statut"] = _normalize_statut(source_row.get(statut_header)) if statut_header else None
+
+        date_association_header = mapping_used.get("date_association_systeme")
+        normalized_row["date_association_systeme"] = (
+            _as_iso_date(source_row.get(date_association_header)) if date_association_header else None
+        )
+
+        date_completion_header = mapping_used.get("date_completion")
+        normalized_row["date_completion"] = (
+            _as_iso_date(source_row.get(date_completion_header)) if date_completion_header else None
+        )
+
+        if normalized_row["statut"] == "Completee" and not normalized_row["date_completion"]:
+            normalized_row["date_completion"] = normalized_row["date_association_systeme"]
+
+        normalized_row["etat_qualification"] = _derive_etat_qualification(normalized_row["statut"])
+        normalized_row["etat"] = normalized_row["etat_qualification"]
+
+        score_header = mapping_used.get("score")
+        normalized_row["score"] = _as_optional_score(source_row.get(score_header)) if score_header else None
+
         if not normalized_row.get("prenom") or not normalized_row.get("nom"):
             combined_header = mapping_used.get("nomprenom")
             combined_value = _as_clean_string(source_row.get(combined_header)) if combined_header else None
@@ -216,16 +316,14 @@ def parse_excel_to_rows(
                 normalized_row["prenom"] = normalized_row.get("prenom") or split_prenom
                 normalized_row["nom"] = normalized_row.get("nom") or split_nom
 
-        normalized_row["etat"] = _compute_etat(normalized_row.get("date_recrutement"), source_status)
-
         has_identity = bool(normalized_row.get("matricule")) or bool(
             normalized_row.get("prenom") and normalized_row.get("nom")
         )
         if not has_identity:
             continue
-        if not any(value is not None for value in normalized_row.values()):
+        if normalized_row.get("formation_id") is None:
             continue
+
         rows.append(normalized_row)
 
     return columns_detected, mapping_used, rows
-

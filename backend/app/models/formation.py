@@ -8,9 +8,9 @@ class Formation(Base):
     __tablename__ = "formations"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    code: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
-    name: Mapped[str] = mapped_column(String(200), nullable=False)
-    field: Mapped[str] = mapped_column(String(100), nullable=False)
-    duration_days: Mapped[int] = mapped_column(Integer, nullable=False)
+    code: Mapped[str] = mapped_column("code_formation", String(50), unique=True, nullable=False, index=True)
+    name: Mapped[str] = mapped_column("nom_formation", String(150), nullable=False)
+    field: Mapped[str | None] = mapped_column("domaine", String(100), nullable=True)
+    duration_days: Mapped[int | None] = mapped_column("duree_jours", Integer, nullable=True)
 
     sessions: Mapped[list["TrainingSession"]] = relationship(back_populates="formation")

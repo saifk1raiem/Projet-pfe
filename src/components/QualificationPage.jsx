@@ -1,4 +1,4 @@
-import { createElement, useRef, useState } from "react";
+import { createElement, useEffect, useRef, useState } from "react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -51,16 +51,6 @@ import {
   AlertDialogTitle,
 } from "./ui/alert-dialog";
 import { useAppPreferences } from "../context/AppPreferencesContext";
-
-const TOTAL_COLLABORATEURS = 1248;
-const YESTERDAY_TOTAL_COLLABORATEURS = 1209;
-const QUALIFICATION_COUNT = 1092;
-const INDECTION_COUNT = TOTAL_COLLABORATEURS - QUALIFICATION_COUNT;
-const YESTERDAY_QUALIFICATION_COUNT = 1065;
-const YESTERDAY_INDECTION_COUNT = YESTERDAY_TOTAL_COLLABORATEURS - YESTERDAY_QUALIFICATION_COUNT;
-const TOTAL_DELTA_PERCENT = ((TOTAL_COLLABORATEURS - YESTERDAY_TOTAL_COLLABORATEURS) / YESTERDAY_TOTAL_COLLABORATEURS) * 100;
-const INDECTION_DELTA_PERCENT = ((INDECTION_COUNT - YESTERDAY_INDECTION_COUNT) / YESTERDAY_INDECTION_COUNT) * 100;
-const QUALIFICATION_DELTA_PERCENT = ((QUALIFICATION_COUNT - YESTERDAY_QUALIFICATION_COUNT) / YESTERDAY_QUALIFICATION_COUNT) * 100;
 
 const collaborateursQualification = [
   {
@@ -205,54 +195,7 @@ const collaborateursQualification = [
   },
 ];
 
-const collaborateursFormationHistory = {
-  1: [
-    { id: "f-101", titre: "Securite machine", type: "Technique", date: "10/01/2026", duree: "6h", resultat: "Valide" },
-    { id: "f-102", titre: "Qualite cablage", type: "Qualite", date: "22/11/2025", duree: "4h", resultat: "Valide" },
-    { id: "f-103", titre: "5S atelier", type: "Lean", date: "09/08/2025", duree: "3h", resultat: "Valide" },
-  ],
-  2: [
-    { id: "f-201", titre: "Audit produit", type: "Qualite", date: "05/02/2026", duree: "5h", resultat: "Valide" },
-    { id: "f-202", titre: "Metrologie avancee", type: "Technique", date: "16/12/2025", duree: "7h", resultat: "Valide" },
-    { id: "f-203", titre: "SPC niveau 2", type: "Qualite", date: "24/09/2025", duree: "4h", resultat: "Valide" },
-  ],
-  3: [
-    { id: "f-301", titre: "Diagnostic maintenance", type: "Technique", date: "15/12/2025", duree: "6h", resultat: "En cours" },
-    { id: "f-302", titre: "Consignation LOTOTO", type: "Securite", date: "03/07/2025", duree: "4h", resultat: "Valide" },
-  ],
-  4: [
-    { id: "f-401", titre: "Leadership terrain", type: "Soft skills", date: "28/01/2026", duree: "8h", resultat: "Valide" },
-    { id: "f-402", titre: "Pilotage KPI", type: "Management", date: "19/10/2025", duree: "5h", resultat: "Valide" },
-    { id: "f-403", titre: "Resolution probleme", type: "Lean", date: "06/06/2025", duree: "4h", resultat: "Valide" },
-  ],
-  5: [
-    { id: "f-501", titre: "Flux logistique", type: "Logistique", date: "20/05/2025", duree: "4h", resultat: "En cours" },
-    { id: "f-502", titre: "Inventaire digital", type: "Logistique", date: "02/03/2025", duree: "3h", resultat: "Valide" },
-  ],
-  6: [
-    { id: "f-601", titre: "SIRH operationnel", type: "RH", date: "18/01/2026", duree: "5h", resultat: "Valide" },
-    { id: "f-602", titre: "Onboarding process", type: "RH", date: "30/11/2025", duree: "4h", resultat: "Valide" },
-    { id: "f-603", titre: "Communication interne", type: "Soft skills", date: "11/08/2025", duree: "3h", resultat: "Valide" },
-  ],
-  7: [
-    { id: "f-701", titre: "Requalification poste", type: "Qualification", date: "20/08/2025", duree: "6h", resultat: "Expire" },
-    { id: "f-702", titre: "Ergonomie poste", type: "Securite", date: "28/04/2025", duree: "3h", resultat: "Valide" },
-  ],
-};
-
-const getFormationHistory = (collabId) => collaborateursFormationHistory[collabId] ?? [];
-const getFormationPageId = (formation) => {
-  const title = formation?.titre?.toLowerCase() ?? "";
-  if (title.includes("qualite") || title.includes("audit") || title.includes("spc") || title.includes("metrologie")) {
-    return 2;
-  }
-  if (title.includes("maintenance") || title.includes("diagnostic") || title.includes("requalification")) {
-    return 3;
-  }
-  return 1;
-};
-
-const statutOptions = ["Non associe", "Qualifie", "Depassement"];
+const statutOptions = ["Non associe", "En cours", "Qualifie", "Depassement"];
 
 const Stat = ({ icon, title, value, color, delay }) => (
   <Card
@@ -301,6 +244,13 @@ const getStatusBadge = (statut) => {
         <Badge className="w-fit rounded-lg border border-[#b9d3ea] bg-[#e8f1fb] px-3 py-1 text-[14px] font-medium text-[#005ca9]">
           <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
           Qualifie
+        </Badge>
+      );
+    case "En cours":
+      return (
+        <Badge className="w-fit rounded-lg border border-[#f1c59e] bg-[#fff2e4] px-3 py-1 text-[14px] font-medium text-[#fc6200]">
+          <AlertCircle className="mr-1 h-3.5 w-3.5" />
+          En cours
         </Badge>
       );
     case "Non associe":
@@ -402,6 +352,9 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
   const isObserver = currentUser?.role === "observer";
   const [activeTab, setActiveTab] = useState("indection");
   const [searchTerm, setSearchTerm] = useState("");
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [groupFilter, setGroupFilter] = useState("all");
   const [collaborateursData, setCollaborateursData] = useState(collaborateursQualification);
   const [selectedCollaborateur, setSelectedCollaborateur] = useState(null);
   const [collaborateurToDelete, setCollaborateurToDelete] = useState(null);
@@ -422,7 +375,55 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
   const [previewErrorDetails, setPreviewErrorDetails] = useState(null);
   const [isFormationsDialogOpen, setIsFormationsDialogOpen] = useState(false);
   const [formationsCollaborateur, setFormationsCollaborateur] = useState(null);
+  const [formationsHistory, setFormationsHistory] = useState([]);
+  const [formationsHistoryLoading, setFormationsHistoryLoading] = useState(false);
+  const [formationsHistoryError, setFormationsHistoryError] = useState("");
   const inputRef = useRef(null);
+  const totalCollaborateurs = collaborateursData.length;
+  const indectionCount = collaborateursData.filter((collab) => collab.phase === "indection").length;
+  const qualificationCount = collaborateursData.filter((collab) => collab.phase === "qualification").length;
+  const totalPercent = totalCollaborateurs > 0 ? 100 : 0;
+  const indectionPercent = totalCollaborateurs > 0 ? (indectionCount / totalCollaborateurs) * 100 : 0;
+  const qualificationPercent = totalCollaborateurs > 0 ? (qualificationCount / totalCollaborateurs) * 100 : 0;
+  const availableGroups = Array.from(
+    new Set(
+      collaborateursData
+        .map((collab) => collab.groupe)
+        .filter((value) => typeof value === "string" && value.trim().length > 0),
+    ),
+  ).sort((a, b) => a.localeCompare(b));
+
+  useEffect(() => {
+    if (!accessToken) return;
+
+    let cancelled = false;
+
+    const loadQualifications = async () => {
+      try {
+        const response = await fetch("http://127.0.0.1:8000/api/v1/qualification", {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const data = await response.json().catch(() => []);
+        if (!cancelled && Array.isArray(data) && data.length > 0) {
+          setCollaborateursData(data);
+        }
+      } catch {
+        // Keep the seeded UI data when the backend list is unavailable.
+      }
+    };
+
+    loadQualifications();
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken]);
 
   const handleFileChange = (fileList) => {
     const incoming = Array.from(fileList || []).filter((file) => {
@@ -494,6 +495,17 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
       setPreviewColumnsDetected(Array.isArray(data.columns_detected) ? data.columns_detected : []);
       setPreviewMappingUsed(data.mapping_used && typeof data.mapping_used === "object" ? data.mapping_used : {});
       setPreviewFileErrors(Array.isArray(data.file_errors) ? data.file_errors : []);
+      if (Array.isArray(data.rows) && data.rows.length > 0) {
+        const refreshResponse = await fetch("http://127.0.0.1:8000/api/v1/qualification", {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+        const refreshData = await refreshResponse.json().catch(() => []);
+        if (refreshResponse.ok && Array.isArray(refreshData)) {
+          setCollaborateursData(refreshData);
+        }
+      }
       closeModal();
       setSelectedFiles([]);
     } catch (error) {
@@ -508,19 +520,47 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
     setSelectedCollaborateur(collab);
   };
 
-  const handleOpenFormationsDialog = (collab) => {
+  const handleOpenFormationsDialog = async (collab) => {
     setFormationsCollaborateur(collab);
     setIsFormationsDialogOpen(true);
+    setFormationsHistory([]);
+    setFormationsHistoryError("");
+
+    if (!accessToken || !collab?.matricule) {
+      setFormationsHistoryError(tr("Impossible de charger les formations.", "Failed to load trainings."));
+      return;
+    }
+
+    setFormationsHistoryLoading(true);
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/api/v1/qualification/${collab.matricule}/formations`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      const data = await response.json().catch(() => []);
+      if (!response.ok) {
+        setFormationsHistoryError(tr("Impossible de charger les formations.", "Failed to load trainings."));
+        return;
+      }
+      setFormationsHistory(Array.isArray(data) ? data : []);
+    } catch {
+      setFormationsHistoryError(tr("Impossible de charger les formations.", "Failed to load trainings."));
+    } finally {
+      setFormationsHistoryLoading(false);
+    }
   };
 
   const closeFormationsDialog = () => {
     setIsFormationsDialogOpen(false);
     setFormationsCollaborateur(null);
+    setFormationsHistory([]);
+    setFormationsHistoryError("");
   };
 
   const handleGoToFormationSection = (formation) => {
     closeFormationsDialog();
-    onNavigateToPage?.("formation", { formationId: getFormationPageId(formation) });
+    onNavigateToPage?.("formation", { formationId: formation.formation_id });
   };
 
   const handleOpenStatusDialog = (collab) => {
@@ -570,15 +610,26 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
     setCollaborateurToDelete(null);
   };
 
-  const filteredCollaborateurs = collaborateursData.filter(
-    (collab) =>
-      collab.phase === activeTab &&
-      (collab.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        collab.matricule.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        collab.fonction.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        collab.centre_cout.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        collab.groupe.toLowerCase().includes(searchTerm.toLowerCase())),
-  );
+  const filteredCollaborateurs = collaborateursData.filter((collab) => {
+    const query = searchTerm.trim().toLowerCase();
+    const searchableFields = [
+      collab.nom,
+      collab.prenom,
+      collab.matricule,
+      collab.fonction,
+      collab.centre_cout,
+      collab.groupe,
+      collab.segment,
+    ]
+      .filter((value) => typeof value === "string")
+      .map((value) => value.toLowerCase());
+
+    const matchesSearch = !query || searchableFields.some((value) => value.includes(query));
+    const matchesStatus = statusFilter === "all" || collab.statut === statusFilter;
+    const matchesGroup = groupFilter === "all" || collab.groupe === groupFilter;
+
+    return collab.phase === activeTab && matchesSearch && matchesStatus && matchesGroup;
+  });
 
   return (
     <div className="space-y-5 pb-6">
@@ -601,8 +652,8 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <ComparisonStat
           title="Total Collaborateurs"
-          value={TOTAL_COLLABORATEURS}
-          deltaPercent={TOTAL_DELTA_PERCENT}
+          value={totalCollaborateurs}
+          deltaPercent={totalPercent}
           icon={Users}
           iconBg="bg-[#e8f0ff]"
           iconColor="text-[#0f63f2]"
@@ -610,8 +661,8 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
         />
         <ComparisonStat
           title="Indection"
-          value={INDECTION_COUNT}
-          deltaPercent={INDECTION_DELTA_PERCENT}
+          value={indectionCount}
+          deltaPercent={indectionPercent}
           icon={AlertCircle}
           iconBg="bg-[#fff2e4]"
           iconColor="text-[#fc6200]"
@@ -619,8 +670,8 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
         />
         <ComparisonStat
           title="Qualification"
-          value={QUALIFICATION_COUNT}
-          deltaPercent={QUALIFICATION_DELTA_PERCENT}
+          value={qualificationCount}
+          deltaPercent={qualificationPercent}
           icon={CheckCircle2}
           iconBg="bg-[#e8f1fb]"
           iconColor="text-[#005ca9]"
@@ -648,11 +699,68 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <Button variant="outline" className="h-10 rounded-xl border-[#ccd4d8] px-5 text-[16px]">
+            <Button
+              variant="outline"
+              className="h-10 rounded-xl border-[#ccd4d8] px-5 text-[16px]"
+              onClick={() => setIsFiltersOpen((prev) => !prev)}
+            >
               <Filter className="mr-2 h-4 w-4" />
               {tr("Filtres", "Filters")}
             </Button>
           </div>
+          {isFiltersOpen ? (
+            <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,220px)_minmax(0,260px)_auto]">
+              <div className="space-y-2">
+                <label htmlFor="qualification-status-filter" className="text-sm font-medium text-[#252930]">
+                  {tr("Statut", "Status")}
+                </label>
+                <select
+                  id="qualification-status-filter"
+                  className="h-10 w-full rounded-md border border-[#d5dce0] bg-white px-3 text-sm outline-none focus:border-[#0f63f2]"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                >
+                  <option value="all">{tr("Tous les statuts", "All statuses")}</option>
+                  {statutOptions.map((status) => (
+                    <option key={status} value={status}>
+                      {status}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="qualification-group-filter" className="text-sm font-medium text-[#252930]">
+                  {tr("Groupe", "Group")}
+                </label>
+                <select
+                  id="qualification-group-filter"
+                  className="h-10 w-full rounded-md border border-[#d5dce0] bg-white px-3 text-sm outline-none focus:border-[#0f63f2]"
+                  value={groupFilter}
+                  onChange={(e) => setGroupFilter(e.target.value)}
+                >
+                  <option value="all">{tr("Tous les groupes", "All groups")}</option>
+                  {availableGroups.map((group) => (
+                    <option key={group} value={group}>
+                      {group}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-end">
+                <Button
+                  variant="outline"
+                  className="h-10 rounded-xl border-[#ccd4d8] px-5 text-[16px]"
+                  onClick={() => {
+                    setStatusFilter("all");
+                    setGroupFilter("all");
+                    setSearchTerm("");
+                  }}
+                >
+                  {tr("Reinitialiser", "Reset")}
+                </Button>
+              </div>
+            </div>
+          ) : null}
         </Card>
 
         {selectedCollaborateur && (
@@ -884,12 +992,33 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
             </div>
 
             <div className="flex-1 overflow-y-auto px-7 py-6">
+              {formationsHistoryError ? (
+                <div className="rounded-xl border border-[#f2c4c4] bg-[#fdeeee] p-3 text-sm text-[#8a1d1d]">
+                  {formationsHistoryError}
+                </div>
+              ) : null}
+
+              {formationsHistoryLoading ? (
+                <div className="flex items-center gap-2 text-sm text-[#5f6777]">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  {tr("Chargement des formations...", "Loading trainings...")}
+                </div>
+              ) : null}
+
+              {!formationsHistoryLoading && !formationsHistoryError && formationsHistory.length === 0 ? (
+                <p className="text-sm text-[#5f6777]">
+                  {tr("Aucune formation trouvee pour ce collaborateur.", "No trainings found for this collaborator.")}
+                </p>
+              ) : null}
+
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                {getFormationHistory(formationsCollaborateur.id).map((formation) => (
+                {formationsHistory.map((formation) => (
                   <Card key={formation.id} className="rounded-2xl border border-[#dfe5e2] bg-[#fbfdff] p-5 shadow-sm">
                     <div className="flex items-start justify-between gap-4">
                       <div>
-                        <h3 className="text-[20px] font-semibold text-[#191c20]">{formation.titre}</h3>
+                        <h3 className="text-[20px] font-semibold text-[#191c20]">
+                          {formation.code} - {formation.titre}
+                        </h3>
                         <p className="mt-1 text-[14px] text-[#64748b]">{formation.type}</p>
                       </div>
                       <Badge className="rounded-lg border border-[#b9d3ea] bg-[#e8f1fb] px-3 py-1 text-[13px] font-medium text-[#005ca9]">
@@ -899,11 +1028,13 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
                     <div className="mt-4 grid grid-cols-2 gap-3">
                       <div className="rounded-xl border border-[#e2e8f0] bg-white p-3">
                         <p className="text-[12px] text-[#64748b]">{tr("Date", "Date")}</p>
-                        <p className="text-[14px] font-medium text-[#1d2025]">{formation.date}</p>
+                        <p className="text-[14px] font-medium text-[#1d2025]">{formation.date || "-"}</p>
                       </div>
                       <div className="rounded-xl border border-[#e2e8f0] bg-white p-3">
                         <p className="text-[12px] text-[#64748b]">{tr("Duree", "Duration")}</p>
-                        <p className="text-[14px] font-medium text-[#1d2025]">{formation.duree}</p>
+                        <p className="text-[14px] font-medium text-[#1d2025]">
+                          {formation.duree ? tr(`${formation.duree} jours`, `${formation.duree} days`) : "-"}
+                        </p>
                       </div>
                     </div>
                     <Button className="mt-4 h-10 rounded-xl bg-[#005ca9] text-white hover:bg-[#004a87]" onClick={() => handleGoToFormationSection(formation)}>
