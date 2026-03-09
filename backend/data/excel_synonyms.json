@@ -50,6 +50,12 @@
     "competency",
     "Plugins - Name_competence"
   ],
+  "formateur": [
+    "formateur",
+    "trainer",
+    "instructor",
+    "Plugins - Formateur"
+  ],
   "contre_maitre": [
     "contre_maitre",
     "supervisor",

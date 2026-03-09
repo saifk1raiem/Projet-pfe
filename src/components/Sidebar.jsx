@@ -5,6 +5,7 @@ import {
   RefreshCcw,
   GraduationCap,
   Users,
+  UserRoundCheck,
   BarChart3,
   Settings,
   ChevronLeft,
@@ -62,6 +63,14 @@ const navigationItems = [
     subtitleFr: "Gestion collaborateurs",
     subtitleEn: "Collaborator management",
     icon: Users,
+  },
+  {
+    id: "advisors",
+    nameFr: "Advisors",
+    nameEn: "Advisors",
+    subtitleFr: "Gestion des advisors",
+    subtitleEn: "Advisors management",
+    icon: UserRoundCheck,
   },
   {
     id: "statistiques",

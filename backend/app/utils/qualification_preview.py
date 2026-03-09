@@ -15,6 +15,7 @@ PREVIEW_FIELDS = [
     "fonction",
     "centre_cout",
     "groupe",
+    "formateur",
     "contre_maitre",
     "segment",
     "num_tel",
@@ -64,6 +65,7 @@ SYNONYMS: dict[str, list[str]] = {
         "competency",
         "Plugins - Name_competence",
     ],
+    "formateur": ["formateur", "trainer", "instructor", "Plugins - Formateur"],
     "statut": ["statut", "status", "Plugins - status", "training_status", "qualification_status"],
     "date_association_systeme": [
         "date_association_systeme",
@@ -116,6 +118,13 @@ def infer_mapping(headers: list[str], synonyms: dict[str, list[str]] | None = No
         for header, normalized in normalized_headers.items():
             if normalized in alias_set:
                 mapping["competence"] = header
+                break
+
+    # Fallback for trainer columns with unexpected naming variants.
+    if "formateur" not in mapping:
+        for header, normalized in normalized_headers.items():
+            if "formateur" in normalized or "trainer" in normalized:
+                mapping["formateur"] = header
                 break
 
     return mapping
@@ -268,6 +277,7 @@ def parse_excel_to_rows(
             "fonction",
             "centre_cout",
             "groupe",
+            "formateur",
             "contre_maitre",
             "segment",
             "num_tel",

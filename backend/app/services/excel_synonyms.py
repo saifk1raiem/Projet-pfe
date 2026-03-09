@@ -20,6 +20,7 @@ DEFAULT_EXCEL_SYNONYMS: dict[str, list[str]] = {
     "centre_cout": ["centre_cout", "cc", "cost_center", "costcentre"],
     "groupe": ["groupe", "group", "gr"],
     "competence": ["competence", "skill", "qualification", "competency"],
+    "formateur": ["formateur", "trainer", "instructor", "Plugins - Formateur"],
     "contre_maitre": ["contre_maitre", "supervisor", "Contre maitre", "team_lead", "Rh seg"],
     "segment": ["segment", "department", "division", "seg"],
     "num_tel": ["num_tel", "telephone", "phone", "tel", "num tel"],

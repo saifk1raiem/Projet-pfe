@@ -5,7 +5,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import Column, Date, Integer, MetaData, Numeric, String, Table, insert, select, update
+from sqlalchemy import Column, Date, Integer, MetaData, Numeric, String, Table, func, insert, select, update
 from sqlalchemy.orm import Session
 
 
@@ -38,6 +38,16 @@ formations_table = Table(
     Column("domaine", String(100)),
 )
 
+formateurs_table = Table(
+    "formateurs",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("nom_formateur", String(150), nullable=False),
+    Column("telephone", String(20)),
+    Column("email", String(150)),
+    Column("specialite", String(100)),
+)
+
 collaborateur_formations_table = Table(
     "collaborateur_formations",
     metadata,
@@ -49,6 +59,7 @@ collaborateur_formations_table = Table(
     Column("date_completion", Date),
     Column("etat_qualification", String(30)),
     Column("score", Numeric(5, 2)),
+    Column("formateur_id", Integer),
 )
 
 
@@ -91,6 +102,7 @@ def _build_qualification_values(row: dict[str, Any]) -> dict[str, Any]:
         "date_completion": _as_date(row.get("date_completion")),
         "etat_qualification": row.get("etat_qualification"),
         "score": _as_decimal(row.get("score")),
+        "formateur_id": row.get("formateur_id"),
     }
 
 
@@ -158,6 +170,28 @@ def _get_formation(db: Session, formation_id: int) -> dict[str, Any] | None:
     ).mappings().first()
 
 
+def _ensure_formateur(db: Session, nom_formateur: str | None) -> tuple[int | None, bool]:
+    if not nom_formateur:
+        return None, False
+
+    clean_name = nom_formateur.strip()
+    if not clean_name:
+        return None, False
+
+    existing = db.execute(
+        select(formateurs_table).where(func.lower(formateurs_table.c.nom_formateur) == clean_name.lower())
+    ).mappings().first()
+    if existing:
+        return existing["id"], False
+
+    inserted = db.execute(
+        insert(formateurs_table)
+        .values(nom_formateur=clean_name[:150])
+        .returning(formateurs_table.c.id)
+    ).scalar_one()
+    return inserted, True
+
+
 def _dedupe_rows(rows: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
     by_key: dict[tuple[str, int], dict[str, Any]] = {}
     for row in rows:
@@ -175,6 +209,8 @@ def import_qualification_rows(db: Session, rows: list[dict[str, Any]]) -> dict[s
     qualification_inserted = 0
     qualification_updated = 0
     skipped = 0
+    formateurs_created = 0
+    linked_with_formateur = 0
 
     try:
         for row in _dedupe_rows(rows):
@@ -208,8 +244,14 @@ def import_qualification_rows(db: Session, rows: list[dict[str, Any]]) -> dict[s
 
             _ensure_formation(db, int(formation_id), row.get("formation_label"))
             formation = _get_formation(db, int(formation_id))
+            formateur_id, formateur_was_created = _ensure_formateur(db, row.get("formateur"))
+            if formateur_was_created:
+                formateurs_created += 1
+            if formateur_id is not None:
+                linked_with_formateur += 1
 
             qualification_values = _build_qualification_values(row)
+            qualification_values["formateur_id"] = formateur_id
             qualification_values["etat_qualification"] = compute_etat_qualification(
                 qualification_values.get("statut"),
                 qualification_values.get("date_association_systeme"),
@@ -245,5 +287,7 @@ def import_qualification_rows(db: Session, rows: list[dict[str, Any]]) -> dict[s
         "collaborators_updated": collaborator_updated,
         "qualifications_inserted": qualification_inserted,
         "qualifications_updated": qualification_updated,
+        "formateurs_created": formateurs_created,
+        "qualification_rows_with_formateur": linked_with_formateur,
         "skipped": skipped,
     }

@@ -6,6 +6,7 @@ import { FormationPage } from "./FormationPage";
 import { FormateursList } from "./FormateursList";
 import { CollaborateursPage } from "./CollaborateursPage";
 import { QualificationPage } from "./QualificationPage";
+import { AdvisorsPage } from "./AdvisorsPage";
 import { ParametresPage } from "./ParametresPage";
 import { useAppPreferences } from "../context/AppPreferencesContext";
 
@@ -53,9 +54,11 @@ export function Layout({ onSignOut, currentUser, accessToken }) {
           />
         );
       case "formateurs":
-        return <FormateursList currentUser={currentUser} />;
+        return <FormateursList onNavigateToPage={handlePageChange} currentUser={currentUser} accessToken={accessToken} />;
       case "collaborateurs":
         return <CollaborateursPage onNavigateToPage={handlePageChange} currentUser={currentUser} accessToken={accessToken} />;
+      case "advisors":
+        return <AdvisorsPage accessToken={accessToken} />;
       case "statistiques":
         return (
           <PlaceholderPage

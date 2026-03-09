@@ -1,4 +1,4 @@
-import { createElement, useEffect, useRef, useState } from "react";
+import { createElement, Fragment, useEffect, useRef, useState } from "react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -272,7 +272,17 @@ const getStatusBadge = (statut) => {
   }
 };
 
-function CollaborateursTable({ rows, onViewDetails, onViewFormations, onOpenStatusDialog, onAskDelete, labels, canManage }) {
+function CollaborateursTable({
+  rows,
+  onViewDetails,
+  onViewFormations,
+  onOpenStatusDialog,
+  onAskDelete,
+  labels,
+  canManage,
+  selectedCollaborateur,
+  onCloseDetails,
+}) {
   return (
     <Card className="rounded-[20px] border border-[#dfe5e2] bg-white shadow-sm">
       <Table>
@@ -291,55 +301,84 @@ function CollaborateursTable({ rows, onViewDetails, onViewFormations, onOpenStat
         </TableHeader>
         <TableBody>
           {rows.map((collab) => (
-            <TableRow key={collab.id} className="h-16">
-              <TableCell className="text-[15px] font-semibold text-[#1d2025]">{collab.matricule}</TableCell>
-              <TableCell>
-                <div className="text-[15px] font-medium text-[#1d2025]">{collab.nom}</div>
-                <div className="text-[13px] text-[#6b7280]">{collab.prenom}</div>
-              </TableCell>
-              <TableCell className="text-[15px]">{collab.fonction}</TableCell>
-              <TableCell className="text-[15px]">{collab.centre_cout}</TableCell>
-              <TableCell className="text-[15px]">{collab.date_recrutement}</TableCell>
-              <TableCell>{getStatusBadge(collab.statut)}</TableCell>
-              <TableCell>
-                <Badge variant="outline" className="rounded-xl border-[#d5dce0] bg-[#f7f8f9] text-[14px]">
-                  {collab.formations} formations
-                </Badge>
-              </TableCell>
-              <TableCell className="text-[15px]">{collab.derniereFormation}</TableCell>
-              <TableCell className="text-right">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="h-8 w-8 rounded-lg p-0">
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-44">
-                    <DropdownMenuItem onClick={() => onViewDetails(collab)}>
-                      <Eye className="h-4 w-4" />
-                      {labels.viewDetails}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => onViewFormations(collab)}>
-                      <BookOpen className="h-4 w-4" />
-                      {labels.viewFormations}
-                    </DropdownMenuItem>
-                    {canManage ? (
-                      <>
-                        <DropdownMenuItem onClick={() => onOpenStatusDialog(collab)}>
-                          <Pencil className="h-4 w-4" />
-                          {labels.changeStatus}
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem variant="destructive" onClick={() => onAskDelete(collab)}>
-                          <Trash2 className="h-4 w-4" />
-                          {labels.delete}
-                        </DropdownMenuItem>
-                      </>
-                    ) : null}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </TableCell>
-            </TableRow>
+            <Fragment key={collab.id}>
+              <TableRow className="h-16">
+                <TableCell className="text-[15px] font-semibold text-[#1d2025]">{collab.matricule}</TableCell>
+                <TableCell>
+                  <div className="text-[15px] font-medium text-[#1d2025]">{collab.nom}</div>
+                  <div className="text-[13px] text-[#6b7280]">{collab.prenom}</div>
+                </TableCell>
+                <TableCell className="text-[15px]">{collab.fonction}</TableCell>
+                <TableCell className="text-[15px]">{collab.centre_cout}</TableCell>
+                <TableCell className="text-[15px]">{collab.date_recrutement}</TableCell>
+                <TableCell>{getStatusBadge(collab.statut)}</TableCell>
+                <TableCell>
+                  <Badge variant="outline" className="rounded-xl border-[#d5dce0] bg-[#f7f8f9] text-[14px]">
+                    {collab.formations} formations
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-[15px]">{collab.derniereFormation}</TableCell>
+                <TableCell className="text-right">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" className="h-8 w-8 rounded-lg p-0">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-44">
+                      <DropdownMenuItem onClick={() => onViewDetails(collab)}>
+                        <Eye className="h-4 w-4" />
+                        {labels.viewDetails}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => onViewFormations(collab)}>
+                        <BookOpen className="h-4 w-4" />
+                        {labels.viewFormations}
+                      </DropdownMenuItem>
+                      {canManage ? (
+                        <>
+                          <DropdownMenuItem onClick={() => onOpenStatusDialog(collab)}>
+                            <Pencil className="h-4 w-4" />
+                            {labels.changeStatus}
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem variant="destructive" onClick={() => onAskDelete(collab)}>
+                            <Trash2 className="h-4 w-4" />
+                            {labels.delete}
+                          </DropdownMenuItem>
+                        </>
+                      ) : null}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableCell>
+              </TableRow>
+              {selectedCollaborateur?.id === collab.id ? (
+                <TableRow className="bg-[#f8fbff]">
+                  <TableCell colSpan={9}>
+                    <div className="rounded-xl border border-[#dfe5e2] bg-white p-4">
+                      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                        <p className="text-[16px] font-semibold text-[#171a1f]">
+                          {collab.nom} ({collab.matricule})
+                        </p>
+                        <Button variant="outline" className="h-8 rounded-xl px-3" onClick={onCloseDetails}>
+                          Fermer
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+                        <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3"><p className="text-[12px] text-[#64748b]">Matricule</p><p className="text-[15px] font-medium text-[#1d2025]">{collab.matricule}</p></div>
+                        <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3"><p className="text-[12px] text-[#64748b]">Nom</p><p className="text-[15px] font-medium text-[#1d2025]">{collab.nom}</p></div>
+                        <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3"><p className="text-[12px] text-[#64748b]">Prenom</p><p className="text-[15px] font-medium text-[#1d2025]">{collab.prenom}</p></div>
+                        <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3"><p className="text-[12px] text-[#64748b]">Fonction SAP</p><p className="text-[15px] font-medium text-[#1d2025]">{collab.fonction}</p></div>
+                        <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3"><p className="text-[12px] text-[#64748b]">Centre de cout</p><p className="text-[15px] font-medium text-[#1d2025]">{collab.centre_cout}</p></div>
+                        <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3"><p className="text-[12px] text-[#64748b]">Groupe</p><p className="text-[15px] font-medium text-[#1d2025]">{collab.groupe || "-"}</p></div>
+                        <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3"><p className="text-[12px] text-[#64748b]">Segment</p><p className="text-[15px] font-medium text-[#1d2025]">{collab.segment || "-"}</p></div>
+                        <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3"><p className="text-[12px] text-[#64748b]">Date recrutement</p><p className="text-[15px] font-medium text-[#1d2025]">{collab.date_recrutement || "-"}</p></div>
+                        <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3"><p className="text-[12px] text-[#64748b]">Statut</p><div className="mt-1">{getStatusBadge(collab.statut)}</div></div>
+                      </div>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : null}
+            </Fragment>
           ))}
         </TableBody>
       </Table>
@@ -517,7 +556,7 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
   };
 
   const handleViewCollaborateur = (collab) => {
-    setSelectedCollaborateur(collab);
+    setSelectedCollaborateur((prev) => (prev?.id === collab.id ? null : collab));
   };
 
   const handleOpenFormationsDialog = async (collab) => {
@@ -763,77 +802,6 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
           ) : null}
         </Card>
 
-        {selectedCollaborateur && (
-          <Card className="rounded-[20px] border border-[#dfe5e2] bg-white p-4 shadow-sm">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <p className="text-[14px] text-[#5f6777]">{tr("Collaborateur selectionne", "Selected collaborator")}</p>
-                <p className="text-[18px] font-semibold text-[#171a1f]">
-                  {selectedCollaborateur.nom} ({selectedCollaborateur.matricule})
-                </p>
-                <div className="mt-2">{getStatusBadge(selectedCollaborateur.statut)}</div>
-              </div>
-              <Button variant="outline" className="rounded-xl" onClick={() => setSelectedCollaborateur(null)}>
-                {tr("Fermer", "Close")}
-              </Button>
-            </div>
-            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-              <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3">
-                <p className="text-[12px] text-[#64748b]">Matricule</p>
-                <p className="text-[15px] font-medium text-[#1d2025]">{selectedCollaborateur.matricule}</p>
-              </div>
-              <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3">
-                <p className="text-[12px] text-[#64748b]">Nom</p>
-                <p className="text-[15px] font-medium text-[#1d2025]">{selectedCollaborateur.nom}</p>
-              </div>
-              <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3">
-                <p className="text-[12px] text-[#64748b]">Prenom</p>
-                <p className="text-[15px] font-medium text-[#1d2025]">{selectedCollaborateur.prenom}</p>
-              </div>
-              <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3">
-                <p className="text-[12px] text-[#64748b]">Fonction SAP</p>
-                <p className="text-[15px] font-medium text-[#1d2025]">{selectedCollaborateur.fonction}</p>
-              </div>
-              <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3">
-                <p className="text-[12px] text-[#64748b]">Centre de cout</p>
-                <p className="text-[15px] font-medium text-[#1d2025]">{selectedCollaborateur.centre_cout}</p>
-              </div>
-              <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3">
-                <p className="text-[12px] text-[#64748b]">Groupe</p>
-                <p className="text-[15px] font-medium text-[#1d2025]">{selectedCollaborateur.groupe}</p>
-              </div>
-              <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3">
-                <p className="text-[12px] text-[#64748b]">Competence</p>
-                <p className="text-[15px] font-medium text-[#1d2025]">{selectedCollaborateur.competence}</p>
-              </div>
-              <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3">
-                <p className="text-[12px] text-[#64748b]">Contre maitre</p>
-                <p className="text-[15px] font-medium text-[#1d2025]">{selectedCollaborateur.contre_maitre}</p>
-              </div>
-              <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3">
-                <p className="text-[12px] text-[#64748b]">Segment</p>
-                <p className="text-[15px] font-medium text-[#1d2025]">{selectedCollaborateur.segment}</p>
-              </div>
-              <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3">
-                <p className="text-[12px] text-[#64748b]">Genre</p>
-                <p className="text-[15px] font-medium text-[#1d2025]">{selectedCollaborateur.gender}</p>
-              </div>
-              <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3">
-                <p className="text-[12px] text-[#64748b]">Telephone</p>
-                <p className="text-[15px] font-medium text-[#1d2025]">{selectedCollaborateur.num_tel}</p>
-              </div>
-              <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3">
-                <p className="text-[12px] text-[#64748b]">Date recrutement</p>
-                <p className="text-[15px] font-medium text-[#1d2025]">{selectedCollaborateur.date_recrutement}</p>
-              </div>
-              <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3">
-                <p className="text-[12px] text-[#64748b]">Anciennete</p>
-                <p className="text-[15px] font-medium text-[#1d2025]">{selectedCollaborateur.anciennete}</p>
-              </div>
-            </div>
-          </Card>
-        )}
-
         <TabsContent value="indection" className="m-0">
           <CollaborateursTable
             rows={filteredCollaborateurs}
@@ -841,6 +809,8 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
             onViewFormations={handleOpenFormationsDialog}
             onOpenStatusDialog={handleOpenStatusDialog}
             onAskDelete={handleAskDeleteCollaborateur}
+            selectedCollaborateur={selectedCollaborateur}
+            onCloseDetails={() => setSelectedCollaborateur(null)}
             canManage={!isObserver}
             labels={{
               viewDetails: tr("Voir details", "View details"),
@@ -858,6 +828,8 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
             onViewFormations={handleOpenFormationsDialog}
             onOpenStatusDialog={handleOpenStatusDialog}
             onAskDelete={handleAskDeleteCollaborateur}
+            selectedCollaborateur={selectedCollaborateur}
+            onCloseDetails={() => setSelectedCollaborateur(null)}
             canManage={!isObserver}
             labels={{
               viewDetails: tr("Voir details", "View details"),
@@ -919,6 +891,7 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
                   <TableHead>centre_cout</TableHead>
                   <TableHead>groupe</TableHead>
                   <TableHead>competence</TableHead>
+                  <TableHead>formateur</TableHead>
                   <TableHead>contre_maitre</TableHead>
                   <TableHead>segment</TableHead>
                   <TableHead>gender</TableHead>
@@ -938,6 +911,7 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
                     <TableCell>{row.centre_cout || "-"}</TableCell>
                     <TableCell>{row.groupe || "-"}</TableCell>
                     <TableCell>{row.competence || "-"}</TableCell>
+                    <TableCell>{row.formateur || "-"}</TableCell>
                     <TableCell>{row.contre_maitre || "-"}</TableCell>
                     <TableCell>{row.segment || "-"}</TableCell>
                     <TableCell>{row.gender || "-"}</TableCell>
