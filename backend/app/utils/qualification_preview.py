@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 import re
 import unicodedata
 from io import BytesIO
@@ -19,15 +20,16 @@ PREVIEW_FIELDS = [
     "contre_maitre",
     "segment",
     "num_tel",
-    "date_recrutement",
-    "anciennete",
     "formation_id",
     "formation_label",
     "statut",
+    "etat",
     "date_association_systeme",
     "date_completion",
     "etat_qualification",
     "score",
+    "date_recrutement",
+    "anciennete",
 ]
 
 SYNONYMS: dict[str, list[str]] = {
@@ -66,7 +68,8 @@ SYNONYMS: dict[str, list[str]] = {
         "Plugins - Name_competence",
     ],
     "formateur": ["formateur", "trainer", "instructor", "Plugins - Formateur"],
-    "statut": ["statut", "status", "Plugins - status", "training_status", "qualification_status"],
+    "statut": ["statut", "status", "Plugins - status", "training_status", "qualification_status", "etat"],
+    "etat": ["etat", "status", "Niveau de formation", "qualification_status", "etat_qualifie", "etatqualifies"],
     "date_association_systeme": [
         "date_association_systeme",
         "Plugins - date d'association systeme",
@@ -76,6 +79,42 @@ SYNONYMS: dict[str, list[str]] = {
     "date_completion": ["date_completion", "completion_date", "date_fin", "completed_at"],
     "score": ["score", "resultat", "note", "score_final"],
 }
+
+
+def _dedupe_aliases(values: Iterable[str]) -> list[str]:
+    deduped: list[str] = []
+    seen: set[str] = set()
+
+    for value in values:
+        if not isinstance(value, str):
+            continue
+        clean = value.strip()
+        if not clean:
+            continue
+        token = clean.casefold()
+        if token in seen:
+            continue
+        seen.add(token)
+        deduped.append(clean)
+
+    return deduped
+
+
+def _merge_synonyms(overrides: dict[str, list[str]] | None) -> dict[str, list[str]]:
+    merged = {field: list(aliases) for field, aliases in SYNONYMS.items()}
+    if not isinstance(overrides, dict):
+        return merged
+
+    for field, aliases in overrides.items():
+        if not isinstance(aliases, list):
+            continue
+        merged[field] = _dedupe_aliases([*merged.get(field, []), *aliases])
+
+    # Keep "etat" aliases in sync with qualification status matching.
+    etat_aliases = merged.get("etat", [])
+    if etat_aliases:
+        merged["statut"] = _dedupe_aliases([*merged.get("statut", []), *etat_aliases])
+    return merged
 
 
 def normalize_header(value: str) -> str:
@@ -204,6 +243,11 @@ def _as_optional_score(value: Any) -> float | None:
 def _as_iso_date(value: Any) -> str | None:
     if value is None or pd.isna(value):
         return None
+    if isinstance(value, pd.Timestamp):
+        return value.date().isoformat()
+    text = str(value).strip()
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", text):
+        return text
     parsed = pd.to_datetime(value, errors="coerce", dayfirst=True)
     if pd.isna(parsed):
         return None
@@ -262,7 +306,7 @@ def parse_excel_to_rows(
     engine = "openpyxl" if file_name.endswith(".xlsx") else "xlrd"
     dataframe = pd.read_excel(BytesIO(file_content), dtype=object, engine=engine)
     columns_detected = [str(column) for column in dataframe.columns.tolist()]
-    active_synonyms = synonyms or SYNONYMS
+    active_synonyms = _merge_synonyms(synonyms)
     mapping_used = infer_mapping(columns_detected, active_synonyms)
     mapping_used = _refine_name_mapping(dataframe, mapping_used, active_synonyms)
 
@@ -296,7 +340,11 @@ def parse_excel_to_rows(
         normalized_row["competence"] = formation_label
 
         statut_header = mapping_used.get("statut")
-        normalized_row["statut"] = _normalize_statut(source_row.get(statut_header)) if statut_header else None
+        statut_value = source_row.get(statut_header) if statut_header else None
+        if not _as_clean_string(statut_value):
+            etat_header = mapping_used.get("etat")
+            statut_value = source_row.get(etat_header) if etat_header else None
+        normalized_row["statut"] = _normalize_statut(statut_value)
 
         date_association_header = mapping_used.get("date_association_systeme")
         normalized_row["date_association_systeme"] = (

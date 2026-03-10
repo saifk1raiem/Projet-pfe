@@ -1,21 +1,16 @@
 import { useState } from "react";
 import { Moon, Sun } from "lucide-react";
 import { Sidebar } from "./Sidebar";
-import { TrainingDashboard } from "./TrainingDashboard";
-import { FormationPage } from "./FormationPage";
-import { FormateursList } from "./FormateursList";
-import { CollaborateursPage } from "./CollaborateursPage";
-import { QualificationPage } from "./QualificationPage";
-import { AdvisorsPage } from "./AdvisorsPage";
-import { ParametresPage } from "./ParametresPage";
+import { TrainingDashboard } from "./dashboard/TrainingDashboard";
+import { FormationPage } from "./formation/FormationPage";
+import { FormateursList } from "./formateurs/FormateursList";
+import { CollaborateursPage } from "./collaborateurs/CollaborateursPage";
+import { QualificationPage } from "./qualification/QualificationPage";
+import { AdvisorsPage } from "./advisors/AdvisorsPage";
+import { ParametresPage } from "./parametres/ParametresPage";
+import { RequalificationPage } from "./requalification/RequalificationPage";
+import { StatistiquesPage } from "./statistiques/StatistiquesPage";
 import { useAppPreferences } from "../context/AppPreferencesContext";
-
-const PlaceholderPage = ({ title, subtitle }) => (
-  <div className="rounded-[20px] bg-transparent px-2 py-1">
-    <h1 className="leoni-page-title">{title}</h1>
-    <p className="leoni-page-subtitle">{subtitle}</p>
-  </div>
-);
 
 export function Layout({ onSignOut, currentUser, accessToken }) {
   const { tr, theme, toggleTheme } = useAppPreferences();
@@ -35,7 +30,7 @@ export function Layout({ onSignOut, currentUser, accessToken }) {
   const renderContent = () => {
     switch (currentPage) {
       case "dashboard":
-        return <TrainingDashboard />;
+        return <TrainingDashboard accessToken={accessToken} />;
       case "formation":
         return <FormationPage openFormationId={formationDetailsId} currentUser={currentUser} accessToken={accessToken} />;
       case "qualification":
@@ -47,12 +42,7 @@ export function Layout({ onSignOut, currentUser, accessToken }) {
           />
         );
       case "requalification":
-        return (
-          <PlaceholderPage
-            title={tr("Gestion des Requalifications", "Requalification Management")}
-            subtitle={tr("Planification et suivi des requalifications...", "Planning and follow-up of requalifications...")}
-          />
-        );
+        return <RequalificationPage />;
       case "formateurs":
         return <FormateursList onNavigateToPage={handlePageChange} currentUser={currentUser} accessToken={accessToken} />;
       case "collaborateurs":
@@ -60,16 +50,11 @@ export function Layout({ onSignOut, currentUser, accessToken }) {
       case "advisors":
         return <AdvisorsPage accessToken={accessToken} />;
       case "statistiques":
-        return (
-          <PlaceholderPage
-            title={tr("Statistiques et Analyses", "Statistics and Analytics")}
-            subtitle={tr("Rapports detailles et analyses de performance...", "Detailed reports and performance analytics...")}
-          />
-        );
+        return <StatistiquesPage />;
       case "parametres":
         return <ParametresPage currentUser={currentUser} accessToken={accessToken} />;
       default:
-        return <TrainingDashboard />;
+        return <TrainingDashboard accessToken={accessToken} />;
     }
   };
 

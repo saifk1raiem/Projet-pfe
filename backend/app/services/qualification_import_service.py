@@ -128,6 +128,21 @@ def compute_etat_qualification(
     return "Non associee"
 
 
+def _normalize_import_statut(statut: Any, date_completion: Any) -> str:
+    if isinstance(statut, str):
+        normalized = statut.strip().lower().replace("-", "_").replace(" ", "_")
+    else:
+        normalized = ""
+
+    if normalized in {"completee", "complete", "completed", "terminee", "termine", "qualifie", "qualifiee"}:
+        return "Completee"
+    if normalized in {"en_cours", "encours", "in_progress", "ongoing", "depassement", "overdue"}:
+        return "En cours"
+    if date_completion not in (None, ""):
+        return "Completee"
+    return "En cours"
+
+
 def _changed_fields(existing: dict[str, Any], incoming: dict[str, Any]) -> dict[str, Any]:
     changed: dict[str, Any] = {}
     for key, value in incoming.items():
@@ -216,12 +231,14 @@ def import_qualification_rows(db: Session, rows: list[dict[str, Any]]) -> dict[s
         for row in _dedupe_rows(rows):
             matricule = row.get("matricule")
             formation_id = row.get("formation_id")
-            statut = row.get("statut")
-            if not matricule or formation_id is None or not statut:
+            if not matricule or formation_id is None:
                 skipped += 1
                 continue
 
-            collaborator_values = _build_collaborateur_values(row)
+            row_payload = dict(row)
+            row_payload["statut"] = _normalize_import_statut(row.get("statut"), row.get("date_completion"))
+
+            collaborator_values = _build_collaborateur_values(row_payload)
             existing_collaborateur = db.execute(
                 select(collaborateurs_table).where(collaborateurs_table.c.matricule == matricule)
             ).mappings().first()
@@ -242,15 +259,15 @@ def import_qualification_rows(db: Session, rows: list[dict[str, Any]]) -> dict[s
                 db.execute(insert(collaborateurs_table).values(**collaborator_values))
                 collaborator_inserted += 1
 
-            _ensure_formation(db, int(formation_id), row.get("formation_label"))
+            _ensure_formation(db, int(formation_id), row_payload.get("formation_label"))
             formation = _get_formation(db, int(formation_id))
-            formateur_id, formateur_was_created = _ensure_formateur(db, row.get("formateur"))
+            formateur_id, formateur_was_created = _ensure_formateur(db, row_payload.get("formateur"))
             if formateur_was_created:
                 formateurs_created += 1
             if formateur_id is not None:
                 linked_with_formateur += 1
 
-            qualification_values = _build_qualification_values(row)
+            qualification_values = _build_qualification_values(row_payload)
             qualification_values["formateur_id"] = formateur_id
             qualification_values["etat_qualification"] = compute_etat_qualification(
                 qualification_values.get("statut"),

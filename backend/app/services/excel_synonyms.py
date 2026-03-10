@@ -23,6 +23,7 @@ DEFAULT_EXCEL_SYNONYMS: dict[str, list[str]] = {
     "formateur": ["formateur", "trainer", "instructor", "Plugins - Formateur"],
     "contre_maitre": ["contre_maitre", "supervisor", "Contre maitre", "team_lead", "Rh seg"],
     "segment": ["segment", "department", "division", "seg"],
+    "gender": ["gender", "genre", "sexe"],
     "num_tel": ["num_tel", "telephone", "phone", "tel", "num tel"],
     "date_recrutement": [
         "date_recrutement",
@@ -35,6 +36,15 @@ DEFAULT_EXCEL_SYNONYMS: dict[str, list[str]] = {
         "date_association",
     ],
     "anciennete": ["anciennete", "seniority", "years", "years_of_service"],
+    "statut": ["statut", "status", "Plugins - status", "training_status", "qualification_status", "etat"],
+    "date_association_systeme": [
+        "date_association_systeme",
+        "Plugins - date d'association systeme",
+        "date_association",
+        "assigned_date",
+    ],
+    "date_completion": ["date_completion", "completion_date", "date_fin", "completed_at"],
+    "score": ["score", "resultat", "note", "score_final"],
     "etat": ["etat", "status", "Niveau de formation", "qualification_status", "etat_qualifie", "etatqualifies"],
 }
 
