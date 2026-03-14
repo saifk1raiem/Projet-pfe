@@ -10,7 +10,7 @@ class Settings(BaseSettings):
 
     APP_NAME: str = "Gestion des formations API"
     API_V1_PREFIX: str = "/api/v1"
-    DATABASE_URL: str = "postgresql+psycopg2://postgres:seef@localhost:5432/mydb"
+    DATABASE_URL: str = "postgresql://postgres:7KfGIThIqGKxR54v@db.aumsxytybherwugkotzk.supabase.co:5432/postgres"
     JWT_SECRET_KEY: str = "change-this-access-secret"
     JWT_REFRESH_SECRET_KEY: str = "change-this-refresh-secret"
     JWT_ALGORITHM: str = "HS256"
