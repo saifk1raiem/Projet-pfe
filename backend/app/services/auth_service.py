@@ -38,8 +38,9 @@ def authenticate_user(db: Session, email: str, password: str) -> User:
     is_valid = False
     try:
         is_valid = verify_password(password, user.password_hash)
-    except UnknownHashError:
-        # Backward compatibility for legacy plaintext passwords in DB.
+    except (UnknownHashError, ValueError):
+        # Backward compatibility for legacy plaintext passwords in DB,
+        # or malformed legacy hashes that passlib cannot parse.
         if password == user.password_hash:
             is_valid = True
             user.password_hash = hash_password(password)
