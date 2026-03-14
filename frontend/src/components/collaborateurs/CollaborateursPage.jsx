@@ -40,6 +40,7 @@ import {
   AlertDialogTitle,
 } from "../ui/alert-dialog";
 import { useAppPreferences } from "../../context/AppPreferencesContext";
+import { apiUrl } from "../../lib/api";
 import { EntityFiltersCard } from "../filters/EntityFiltersCard";
 import { CollaborateursStat } from "./CollaborateursStat";
 import { getStatusBadge } from "./statusBadge";
@@ -87,7 +88,7 @@ export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken 
 
     const loadCollaborateurs = async () => {
       try {
-        const response = await fetch("http://127.0.0.1:8000/api/v1/qualification", {
+        const response = await fetch(apiUrl("/api/v1/qualification"), {
           headers: {
             Authorization: `Bearer ${accessToken}`,
           },
@@ -186,7 +187,7 @@ export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken 
 
     setFormationsHistoryLoading(true);
     try {
-      const response = await fetch(`http://127.0.0.1:8000/api/v1/qualification/${collab.matricule}/formations`, {
+      const response = await fetch(apiUrl(`/api/v1/qualification/${collab.matricule}/formations`), {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },

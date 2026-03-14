@@ -5,6 +5,7 @@ import { Input } from "../ui/input";
 import { Badge } from "../ui/badge";
 import { Settings, Bell, Shield, UserRound, Sun, Moon, Plus, X, ChevronDown } from "lucide-react";
 import { useAppPreferences } from "../../context/AppPreferencesContext";
+import { apiUrl } from "../../lib/api";
 import { defaultCreateUserForm, defaultFormValues } from "./constants";
 
 export function ParametresPage({ currentUser, accessToken }) {
@@ -50,7 +51,7 @@ export function ParametresPage({ currentUser, accessToken }) {
     setIsCreatingUser(true);
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/api/v1/auth/register", {
+      const response = await fetch(apiUrl("/api/v1/auth/register"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -81,7 +82,7 @@ export function ParametresPage({ currentUser, accessToken }) {
       setIsLoadingSynonyms(true);
       setSynonymsError("");
       try {
-        const response = await fetch("http://127.0.0.1:8000/api/v1/settings/excel-synonyms", {
+        const response = await fetch(apiUrl("/api/v1/settings/excel-synonyms"), {
           headers: {
             Authorization: `Bearer ${accessToken}`,
           },
@@ -182,7 +183,7 @@ export function ParametresPage({ currentUser, accessToken }) {
     setSynonymDrafts({});
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/api/v1/settings/excel-synonyms", {
+      const response = await fetch(apiUrl("/api/v1/settings/excel-synonyms"), {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

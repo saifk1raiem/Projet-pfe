@@ -4,6 +4,7 @@ import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { BookOpen, Calendar, Clock3, CheckCircle2, Layers3, AlertCircle, Pencil } from "lucide-react";
 import { useAppPreferences } from "../../context/AppPreferencesContext";
+import { apiUrl } from "../../lib/api";
 import { FormationStat } from "./FormationStat";
 import { formatDuration } from "./formatDuration";
 
@@ -42,7 +43,7 @@ export function FormationPage({ openFormationId = null, currentUser, accessToken
 
     const loadFormations = async () => {
       try {
-        const response = await fetch("http://127.0.0.1:8000/api/v1/formations", {
+        const response = await fetch(apiUrl("/api/v1/formations"), {
           headers: {
             Authorization: `Bearer ${accessToken}`,
           },
@@ -126,7 +127,7 @@ export function FormationPage({ openFormationId = null, currentUser, accessToken
     setIsSubmittingCreate(true);
     setCreateError("");
     try {
-      const response = await fetch("http://127.0.0.1:8000/api/v1/formations", {
+      const response = await fetch(apiUrl("/api/v1/formations"), {
         method: "POST",
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -188,7 +189,7 @@ export function FormationPage({ openFormationId = null, currentUser, accessToken
     setIsSubmittingEdit(true);
     setEditError("");
     try {
-      const response = await fetch(`http://127.0.0.1:8000/api/v1/formations/${editingFormationId}`, {
+      const response = await fetch(apiUrl(`/api/v1/formations/${editingFormationId}`), {
         method: "PATCH",
         headers: {
           Authorization: `Bearer ${accessToken}`,

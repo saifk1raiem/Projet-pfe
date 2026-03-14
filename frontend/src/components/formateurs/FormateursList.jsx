@@ -4,6 +4,7 @@ import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { GraduationCap, Mail, Phone, BookOpen, AlertCircle } from "lucide-react";
 import { useAppPreferences } from "../../context/AppPreferencesContext";
+import { apiUrl } from "../../lib/api";
 import { FormateursStat } from "./FormateursStat";
 import { getInitials, getSpecialites } from "./formateursUtils";
 
@@ -36,7 +37,7 @@ export function FormateursList({ onNavigateToPage, currentUser, accessToken }) {
 
     const loadFormateurs = async () => {
       try {
-        const response = await fetch("http://127.0.0.1:8000/api/v1/formateurs", {
+        const response = await fetch(apiUrl("/api/v1/formateurs"), {
           headers: {
             Authorization: `Bearer ${accessToken}`,
           },
@@ -88,7 +89,7 @@ export function FormateursList({ onNavigateToPage, currentUser, accessToken }) {
     setIsSubmitting(true);
     setCreateError("");
     try {
-      const response = await fetch("http://127.0.0.1:8000/api/v1/formateurs", {
+      const response = await fetch(apiUrl("/api/v1/formateurs"), {
         method: "POST",
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -126,7 +127,7 @@ export function FormateursList({ onNavigateToPage, currentUser, accessToken }) {
 
     setFormationsLoading(true);
     try {
-      const response = await fetch(`http://127.0.0.1:8000/api/v1/formateurs/${formateur.id}/formations`, {
+      const response = await fetch(apiUrl(`/api/v1/formateurs/${formateur.id}/formations`), {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },

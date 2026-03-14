@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { useAppPreferences } from "../context/AppPreferencesContext";
+import { apiUrl } from "../lib/api";
 
 const showcasePassword = "password";
 
@@ -19,7 +20,7 @@ export function LoginPage({ onLogin }) {
 
     const loadUsers = async () => {
       try {
-        const response = await fetch("http://127.0.0.1:8000/api/v1/auth/login-users");
+        const response = await fetch(apiUrl("/api/v1/auth/login-users"));
         if (!response.ok) {
           throw new Error("Failed to load users");
         }
