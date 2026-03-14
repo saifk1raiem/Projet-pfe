@@ -4,6 +4,17 @@ from enum import Enum
 class UserRole(str, Enum):
     admin = "admin"
     observer = "observer"
+    user = "user"
+
+
+def normalize_user_role(role: UserRole | str | None) -> UserRole | None:
+    if role is None:
+        return None
+    if role == UserRole.user or role == "user":
+        return UserRole.observer
+    if isinstance(role, UserRole):
+        return role
+    return UserRole(role)
 
 
 class SessionStatus(str, Enum):

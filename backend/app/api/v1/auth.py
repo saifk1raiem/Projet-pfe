@@ -12,7 +12,7 @@ from app.core.security import (
     revoke_token_jti,
 )
 from app.db.session import get_db
-from app.models.enums import UserRole
+from app.models.enums import UserRole, normalize_user_role
 from app.models.user import User
 from app.schemas.auth import LoginRequest, LoginResponse, RefreshRequest, TokenPair
 from app.schemas.user import LoginUserOption, UserCreate, UserRead
@@ -35,8 +35,9 @@ def register_user(
 @router.post("/login", response_model=LoginResponse)
 def login(payload: LoginRequest, db: Session = Depends(get_db)):
     user = authenticate_user(db, payload.email, payload.password)
+    normalized_role = normalize_user_role(user.role) or UserRole.observer
     return LoginResponse(
-        access_token=create_access_token(subject=str(user.id), role=user.role.value),
+        access_token=create_access_token(subject=str(user.id), role=normalized_role.value),
         refresh_token=create_refresh_token(subject=str(user.id)),
         user=UserRead.model_validate(user),
     )
@@ -66,7 +67,8 @@ def refresh_tokens(payload: RefreshRequest, db: Session = Depends(get_db)):
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User is inactive")
 
-    access_token = create_access_token(subject=str(user_id), role=user.role.value)
+    normalized_role = normalize_user_role(user.role) or UserRole.observer
+    access_token = create_access_token(subject=str(user_id), role=normalized_role.value)
     refresh_token = create_refresh_token(subject=str(user_id))
     return TokenPair(access_token=access_token, refresh_token=refresh_token)
 
