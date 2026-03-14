@@ -1,8 +1,8 @@
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr
 
-from app.models.enums import UserRole, normalize_user_role
+from app.models.enums import UserRole
 
 
 class UserBase(BaseModel):
@@ -11,14 +11,6 @@ class UserBase(BaseModel):
     email: EmailStr
     role: UserRole
     is_active: bool = True
-
-    @field_validator("role", mode="before")
-    @classmethod
-    def normalize_role(cls, value: UserRole | str) -> UserRole:
-        normalized = normalize_user_role(value)
-        if normalized is None:
-            raise ValueError("Role is required")
-        return normalized
 
 
 class UserCreate(UserBase):
@@ -30,11 +22,6 @@ class UserUpdate(BaseModel):
     is_active: bool | None = None
     first_name: str | None = None
     last_name: str | None = None
-
-    @field_validator("role", mode="before")
-    @classmethod
-    def normalize_role(cls, value: UserRole | str | None) -> UserRole | None:
-        return normalize_user_role(value)
 
 
 class UserRead(UserBase):

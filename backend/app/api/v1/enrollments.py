@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import require_roles
 from app.db.session import get_db
 from app.models.enrollment import Enrollment
-from app.models.enums import UserRole, normalize_user_role
+from app.models.enums import UserRole
 from app.models.formation import Formation
 from app.models.training_session import TrainingSession
 from app.models.user import User
@@ -28,7 +28,7 @@ def enroll_collaborateur(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
 
     collaborator = db.get(User, payload.collaborateur_id)
-    if not collaborator or normalize_user_role(collaborator.role) != UserRole.observer:
+    if not collaborator or collaborator.role != UserRole.observer:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid observer user")
 
     enrollment = Enrollment(

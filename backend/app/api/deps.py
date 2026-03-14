@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.security import decode_token, is_token_revoked
 from app.db.session import get_db
-from app.models.enums import UserRole, normalize_user_role
+from app.models.enums import UserRole
 from app.models.user import User
 
 
@@ -38,8 +38,7 @@ def get_current_user(db: Session = Depends(get_db), token: str = Depends(oauth2_
 
 def require_roles(*allowed_roles: UserRole) -> Callable:
     def dependency(current_user: User = Depends(get_current_user)) -> User:
-        current_role = normalize_user_role(current_user.role)
-        if current_role not in allowed_roles:
+        if current_user.role not in allowed_roles:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
         return current_user
 

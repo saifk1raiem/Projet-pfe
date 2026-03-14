@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import require_roles
 from app.db.session import get_db
 from app.models.enrollment import Enrollment
-from app.models.enums import UserRole, normalize_user_role
+from app.models.enums import UserRole
 from app.models.evaluation import Evaluation
 from app.models.training_session import TrainingSession
 from app.models.user import User
@@ -77,7 +77,7 @@ def list_session_evaluations(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
 
     stmt = select(Evaluation).where(Evaluation.session_id == session_id).order_by(Evaluation.id.asc())
-    if normalize_user_role(current_user.role) == UserRole.observer:
+    if current_user.role == UserRole.observer:
         stmt = stmt.where(Evaluation.collaborateur_id == current_user.id)
     return list(db.scalars(stmt).all())
 
