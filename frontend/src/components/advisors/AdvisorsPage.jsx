@@ -167,10 +167,10 @@ export function AdvisorsPage({ accessToken }) {
 
       try {
         const [qualificationResponse, formationsResponse] = await Promise.all([
-          fetch(apiUrl("/api/v1/qualification"), {
+          fetch(apiUrl("/qualification"), {
             headers: { Authorization: `Bearer ${accessToken}` },
           }),
-          fetch(apiUrl("/api/v1/formations"), {
+          fetch(apiUrl("/formations"), {
             headers: { Authorization: `Bearer ${accessToken}` },
           }),
         ]);

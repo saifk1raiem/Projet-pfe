@@ -74,7 +74,7 @@ export function QualificationStatusChart({ accessToken }) {
       }
 
       try {
-        const response = await fetch(apiUrl("/api/v1/qualification"), {
+        const response = await fetch(apiUrl("/qualification"), {
           headers: {
             Authorization: `Bearer ${accessToken}`,
           },

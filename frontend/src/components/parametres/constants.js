@@ -1,7 +1,9 @@
+import { appConfig } from "../../lib/config";
+
 export const defaultFormValues = {
-  entreprise: "LEONI",
-  emailAdmin: "admin@leoni.example",
-  fuseau: "Africa/Tunis",
+  entreprise: appConfig.companyName,
+  emailAdmin: appConfig.adminEmail,
+  fuseau: appConfig.defaultTimezone,
   notifEmail: true,
   notifRappels: false,
   doubleAuth: false,

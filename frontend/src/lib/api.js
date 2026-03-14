@@ -1,12 +1,27 @@
-const configuredBaseUrl =
-  import.meta.env.VITE_API_BASE_URL || "https://projet-pfe-production-d47f.up.railway.app/";
+import { appConfig } from "./config";
 
-export const API_BASE_URL = configuredBaseUrl.replace(/\/$/, "");
+function normalizePrefix(prefix) {
+  if (!prefix || prefix === "/") {
+    return "";
+  }
+
+  const trimmedPrefix = prefix.replace(/\/$/, "");
+  return trimmedPrefix.startsWith("/") ? trimmedPrefix : `/${trimmedPrefix}`;
+}
+
+export const API_BASE_URL = appConfig.apiBaseUrl.replace(/\/$/, "");
+export const API_PREFIX = normalizePrefix(appConfig.apiPrefix);
 
 export function apiUrl(path) {
   if (!path) {
-    return API_BASE_URL;
+    return `${API_BASE_URL}${API_PREFIX}`;
   }
 
-  return `${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  const apiPath =
+    API_PREFIX && normalizedPath !== API_PREFIX && !normalizedPath.startsWith(`${API_PREFIX}/`)
+      ? `${API_PREFIX}${normalizedPath}`
+      : normalizedPath;
+
+  return `${API_BASE_URL}${apiPath}`;
 }

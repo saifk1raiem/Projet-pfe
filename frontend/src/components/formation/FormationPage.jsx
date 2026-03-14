@@ -43,7 +43,7 @@ export function FormationPage({ openFormationId = null, currentUser, accessToken
 
     const loadFormations = async () => {
       try {
-        const response = await fetch(apiUrl("/api/v1/formations"), {
+        const response = await fetch(apiUrl("/formations"), {
           headers: {
             Authorization: `Bearer ${accessToken}`,
           },
@@ -127,7 +127,7 @@ export function FormationPage({ openFormationId = null, currentUser, accessToken
     setIsSubmittingCreate(true);
     setCreateError("");
     try {
-      const response = await fetch(apiUrl("/api/v1/formations"), {
+      const response = await fetch(apiUrl("/formations"), {
         method: "POST",
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -189,7 +189,7 @@ export function FormationPage({ openFormationId = null, currentUser, accessToken
     setIsSubmittingEdit(true);
     setEditError("");
     try {
-      const response = await fetch(apiUrl(`/api/v1/formations/${editingFormationId}`), {
+      const response = await fetch(apiUrl(`/formations/${editingFormationId}`), {
         method: "PATCH",
         headers: {
           Authorization: `Bearer ${accessToken}`,

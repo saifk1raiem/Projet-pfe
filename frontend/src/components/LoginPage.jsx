@@ -3,8 +3,9 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { useAppPreferences } from "../context/AppPreferencesContext";
 import { apiUrl } from "../lib/api";
+import { appConfig } from "../lib/config";
 
-const showcasePassword = "password";
+const showcasePassword = appConfig.showcasePassword;
 
 export function LoginPage({ onLogin }) {
   const { tr } = useAppPreferences();
@@ -20,7 +21,7 @@ export function LoginPage({ onLogin }) {
 
     const loadUsers = async () => {
       try {
-        const response = await fetch(apiUrl("/api/v1/auth/login-users"));
+        const response = await fetch(apiUrl("/auth/login-users"));
         if (!response.ok) {
           throw new Error("Failed to load users");
         }
@@ -67,7 +68,7 @@ export function LoginPage({ onLogin }) {
           <div className="relative hidden overflow-hidden bg-[linear-gradient(160deg,#004681_0%,#005ca9_45%,#52a7e8_100%)] p-10 text-white md:block">
             <div className="relative z-10">
               <p className="text-sm font-medium uppercase tracking-[0.28em] text-white/80">
-                LEONI Training
+                {appConfig.applicationName}
               </p>
               <h1 className="mt-5 text-3xl font-semibold leading-tight">
                 {tr("Bon retour", "Welcome back")}
@@ -95,9 +96,10 @@ export function LoginPage({ onLogin }) {
                   </p>
                   <p className="mt-1 text-xs text-[#5d7088]">
                     {tr(
-                      "Cliquez sur un utilisateur pour remplir automatiquement son email. Mot de passe de demonstration: password.",
-                      "Click a user to autofill the email. Showcase password: password.",
-                    )}
+                      "Cliquez sur un utilisateur pour remplir automatiquement son email. Mot de passe de demonstration:",
+                      "Click a user to autofill the email. Showcase password:",
+                    )}{" "}
+                    {showcasePassword}.
                   </p>
                 </div>
               </div>

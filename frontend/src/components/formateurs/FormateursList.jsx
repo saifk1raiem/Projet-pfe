@@ -37,7 +37,7 @@ export function FormateursList({ onNavigateToPage, currentUser, accessToken }) {
 
     const loadFormateurs = async () => {
       try {
-        const response = await fetch(apiUrl("/api/v1/formateurs"), {
+        const response = await fetch(apiUrl("/formateurs"), {
           headers: {
             Authorization: `Bearer ${accessToken}`,
           },
@@ -89,7 +89,7 @@ export function FormateursList({ onNavigateToPage, currentUser, accessToken }) {
     setIsSubmitting(true);
     setCreateError("");
     try {
-      const response = await fetch(apiUrl("/api/v1/formateurs"), {
+      const response = await fetch(apiUrl("/formateurs"), {
         method: "POST",
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -127,7 +127,7 @@ export function FormateursList({ onNavigateToPage, currentUser, accessToken }) {
 
     setFormationsLoading(true);
     try {
-      const response = await fetch(apiUrl(`/api/v1/formateurs/${formateur.id}/formations`), {
+      const response = await fetch(apiUrl(`/formateurs/${formateur.id}/formations`), {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },

@@ -51,7 +51,7 @@ export function ParametresPage({ currentUser, accessToken }) {
     setIsCreatingUser(true);
 
     try {
-      const response = await fetch(apiUrl("/api/v1/auth/register"), {
+      const response = await fetch(apiUrl("/auth/register"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -82,7 +82,7 @@ export function ParametresPage({ currentUser, accessToken }) {
       setIsLoadingSynonyms(true);
       setSynonymsError("");
       try {
-        const response = await fetch(apiUrl("/api/v1/settings/excel-synonyms"), {
+        const response = await fetch(apiUrl("/settings/excel-synonyms"), {
           headers: {
             Authorization: `Bearer ${accessToken}`,
           },
@@ -183,7 +183,7 @@ export function ParametresPage({ currentUser, accessToken }) {
     setSynonymDrafts({});
 
     try {
-      const response = await fetch(apiUrl("/api/v1/settings/excel-synonyms"), {
+      const response = await fetch(apiUrl("/settings/excel-synonyms"), {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

@@ -1,16 +1,20 @@
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import field_validator
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+BACKEND_DIR = Path(__file__).resolve().parents[2]
+
+
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(env_file=BACKEND_DIR / ".env", env_file_encoding="utf-8", extra="ignore")
 
     APP_NAME: str = "Gestion des formations API"
     API_V1_PREFIX: str = "/api/v1"
-    DATABASE_URL: str = "postgresql://postgres:7KfGIThIqGKxR54v@db.aumsxytybherwugkotzk.supabase.co:5432/postgres"
+    DATABASE_URL: str = "postgresql://postgres:password@localhost:5432/postgres"
     JWT_SECRET_KEY: str = "change-this-access-secret"
     JWT_REFRESH_SECRET_KEY: str = "change-this-refresh-secret"
     JWT_ALGORITHM: str = "HS256"
@@ -18,6 +22,9 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7
     CORS_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173"
     CORS_ORIGIN_REGEX: str = r"https?://(localhost|127\.0\.0\.1)(:\d+)?$"
+    SEED_ADMIN_EMAIL: str = "saif.kraiem@leoni.com"
+    SEED_DEFAULT_PASSWORD: str = "ChangeMe123!"
+    SEED_EMAIL_DOMAIN: str = "leoni.com"
 
     @field_validator("DATABASE_URL", mode="before")
     @classmethod

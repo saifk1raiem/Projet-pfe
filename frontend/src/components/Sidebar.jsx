@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { cn } from "./ui/utils";
 import { useAppPreferences } from "../context/AppPreferencesContext";
+import { appConfig } from "../lib/config";
 
 const navigationItems = [
   {
@@ -149,7 +150,7 @@ export function Sidebar({
               <GraduationCap className="h-7 w-7" />
             </div>
             <p className="leoni-display-lg text-[31px] font-semibold tracking-[0.01em] text-[#f2f8f4]">
-              LEONI
+              {appConfig.companyName}
             </p>
             <p className="mt-1 text-[13px] text-[#cde0d6]">{tr("Gestion de Formation", "Training Management")}</p>
           </div>

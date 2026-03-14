@@ -29,7 +29,7 @@ async function readJsonResponse(url, options = {}) {
 }
 
 async function fetchQualifications(accessToken) {
-  return readJsonResponse(apiUrl("/api/v1/qualification"), {
+  return readJsonResponse(apiUrl("/qualification"), {
     headers: getAuthHeaders(accessToken),
   });
 }
@@ -38,7 +38,7 @@ async function previewQualificationFiles(accessToken, files) {
   const formData = new FormData();
   files.forEach((file) => formData.append("files", file));
 
-  return readJsonResponse(apiUrl("/api/v1/qualification/preview"), {
+  return readJsonResponse(apiUrl("/qualification/preview"), {
     method: "POST",
     headers: getAuthHeaders(accessToken),
     body: formData,
@@ -46,7 +46,7 @@ async function previewQualificationFiles(accessToken, files) {
 }
 
 async function importQualificationRows(accessToken, rows) {
-  return readJsonResponse(apiUrl("/api/v1/qualification/import"), {
+  return readJsonResponse(apiUrl("/qualification/import"), {
     method: "POST",
     headers: getAuthHeaders(accessToken, {
       "Content-Type": "application/json",
@@ -57,7 +57,7 @@ async function importQualificationRows(accessToken, rows) {
 
 async function fetchCollaboratorFormations(accessToken, matricule) {
   return readJsonResponse(
-    apiUrl(`/api/v1/qualification/${encodeURIComponent(matricule)}/formations`),
+    apiUrl(`/qualification/${encodeURIComponent(matricule)}/formations`),
     {
       headers: getAuthHeaders(accessToken),
     },
@@ -66,7 +66,7 @@ async function fetchCollaboratorFormations(accessToken, matricule) {
 
 async function deleteCollaborator(accessToken, matricule) {
   const response = await fetch(
-    apiUrl(`/api/v1/qualification/${encodeURIComponent(matricule)}`),
+    apiUrl(`/qualification/${encodeURIComponent(matricule)}`),
     {
       method: "DELETE",
       headers: getAuthHeaders(accessToken),

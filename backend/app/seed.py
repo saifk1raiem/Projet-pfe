@@ -2,6 +2,8 @@ from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import select
 
+from app.core.config import settings
+from app.core.security import hash_password
 from app.db.session import SessionLocal
 from app.models.enrollment import Enrollment
 from app.models.enums import EtatQualifies, SessionStatus, UserRole
@@ -10,10 +12,14 @@ from app.models.training_session import TrainingSession
 from app.models.user import User
 
 
+def default_password_hash() -> str:
+    return hash_password(settings.SEED_DEFAULT_PASSWORD)
+
+
 def seed() -> None:
     db = SessionLocal()
     try:
-        existing_admin = db.scalar(select(User).where(User.email == "saif.kraiem@leoni.com"))
+        existing_admin = db.scalar(select(User).where(User.email == settings.SEED_ADMIN_EMAIL))
         if existing_admin:
             print("Seed skipped: admin already exists")
             return
@@ -21,8 +27,8 @@ def seed() -> None:
         admin = User(
             first_name="Saif",
             last_name="Kraiem",
-            email="saif.kraiem@leoni.com",
-            password_hash="ChangeMe123!",
+            email=settings.SEED_ADMIN_EMAIL,
+            password_hash=default_password_hash(),
             role=UserRole.admin,
             is_active=True,
         )
@@ -32,8 +38,8 @@ def seed() -> None:
             User(
                 first_name=fn,
                 last_name=ln,
-                email=f"{fn.lower()}.{ln.lower()}@leoni.com",
-                password_hash="ChangeMe123!",
+                email=f"{fn.lower()}.{ln.lower()}@{settings.SEED_EMAIL_DOMAIN}",
+                password_hash=default_password_hash(),
                 role=UserRole.observer,
                 is_active=True,
             )
@@ -45,8 +51,8 @@ def seed() -> None:
             User(
                 first_name=f"Collab{i}",
                 last_name="Leoni",
-                email=f"collab{i}@leoni.com",
-                password_hash="ChangeMe123!",
+                email=f"collab{i}@{settings.SEED_EMAIL_DOMAIN}",
+                password_hash=default_password_hash(),
                 role=UserRole.observer,
                 is_active=True,
             )

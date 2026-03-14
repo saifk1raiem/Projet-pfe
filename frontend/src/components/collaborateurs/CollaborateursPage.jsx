@@ -88,7 +88,7 @@ export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken 
 
     const loadCollaborateurs = async () => {
       try {
-        const response = await fetch(apiUrl("/api/v1/qualification"), {
+        const response = await fetch(apiUrl("/qualification"), {
           headers: {
             Authorization: `Bearer ${accessToken}`,
           },
@@ -187,7 +187,7 @@ export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken 
 
     setFormationsHistoryLoading(true);
     try {
-      const response = await fetch(apiUrl(`/api/v1/qualification/${collab.matricule}/formations`), {
+      const response = await fetch(apiUrl(`/qualification/${collab.matricule}/formations`), {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
