@@ -4,7 +4,12 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, require_roles
 from app.models.enums import UserRole
-from app.services.qualification_import_service import collaborateur_formations_table, formateurs_table, formations_table
+from app.services.qualification_import_service import (
+    collaborateur_formations_table,
+    collaborateurs_table,
+    formateurs_table,
+    formations_table,
+)
 
 
 router = APIRouter(prefix="/formateurs", tags=["formateurs"])
@@ -161,4 +166,83 @@ def list_formateur_formations(
         )
 
     result.sort(key=lambda item: (item["titre"] or "").lower())
+    return result
+
+
+@router.get("/{formateur_id}/collaborateurs")
+def list_formateur_collaborateurs(
+    formateur_id: int,
+    db: Session = Depends(get_db),
+    _: object = Depends(require_roles(UserRole.admin, UserRole.observer)),
+):
+    exists = db.execute(
+        select(formateurs_table.c.id).where(formateurs_table.c.id == formateur_id)
+    ).first()
+    if not exists:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Trainer not found")
+
+    stmt = (
+        select(
+            collaborateur_formations_table.c.id.label("association_id"),
+            collaborateur_formations_table.c.matricule,
+            collaborateur_formations_table.c.statut,
+            collaborateur_formations_table.c.date_association_systeme,
+            collaborateur_formations_table.c.date_completion,
+            collaborateur_formations_table.c.etat_qualification,
+            collaborateurs_table.c.nom,
+            collaborateurs_table.c.prenom,
+            collaborateurs_table.c.fonction,
+            collaborateurs_table.c.segment,
+            collaborateurs_table.c.groupe,
+            collaborateurs_table.c.centre_cout,
+            formations_table.c.id.label("formation_id"),
+            formations_table.c.code_formation,
+            formations_table.c.nom_formation,
+        )
+        .select_from(
+            collaborateur_formations_table.join(
+                collaborateurs_table,
+                collaborateurs_table.c.matricule == collaborateur_formations_table.c.matricule,
+            ).outerjoin(
+                formations_table,
+                formations_table.c.id == collaborateur_formations_table.c.formation_id,
+            )
+        )
+        .where(collaborateur_formations_table.c.formateur_id == formateur_id)
+        .order_by(
+            collaborateurs_table.c.nom.asc(),
+            collaborateurs_table.c.prenom.asc(),
+            collaborateur_formations_table.c.date_association_systeme.desc(),
+            collaborateur_formations_table.c.id.desc(),
+        )
+    )
+
+    rows = db.execute(stmt).mappings().all()
+    result = []
+    for row in rows:
+        statut = row["etat_qualification"]
+        if not statut:
+            statut = "Qualifie" if row["statut"] == "Completee" else row["statut"] or "Non associee"
+
+        result.append(
+            {
+                "id": row["association_id"],
+                "matricule": row["matricule"],
+                "nom": row["nom"],
+                "prenom": row["prenom"],
+                "poste": row["fonction"],
+                "departement": row["segment"] or row["groupe"] or row["centre_cout"],
+                "statut": statut,
+                "date_association": row["date_association_systeme"].isoformat()
+                if row["date_association_systeme"]
+                else None,
+                "date_completion": row["date_completion"].isoformat() if row["date_completion"] else None,
+                "formation_id": row["formation_id"],
+                "formation_code": row["code_formation"] or (str(row["formation_id"]) if row["formation_id"] else None),
+                "formation_titre": row["nom_formation"] or (
+                    f"Formation {row['formation_id']}" if row["formation_id"] else None
+                ),
+            }
+        )
+
     return result

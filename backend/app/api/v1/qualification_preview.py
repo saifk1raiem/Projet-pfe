@@ -6,12 +6,13 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, require_roles
 from app.models.enums import UserRole
-from app.schemas.qualification import CollaborateurCreate
+from app.schemas.qualification import CollaborateurCreate, CollaborateurFormationCreate
 from app.services.excel_synonyms import get_excel_synonyms
 from app.services.qualification_import_service import (
     collaborateur_formations_table,
     collaborateurs_table,
     compute_etat_qualification,
+    formateurs_table,
     formations_table,
     import_qualification_rows,
 )
@@ -223,15 +224,22 @@ def list_collaborateur_formations(
             collaborateur_formations_table.c.date_completion,
             collaborateur_formations_table.c.etat_qualification,
             collaborateur_formations_table.c.score,
+            collaborateur_formations_table.c.formateur_id,
             formations_table.c.code_formation,
             formations_table.c.nom_formation,
             formations_table.c.domaine,
             formations_table.c.duree_jours,
+            formateurs_table.c.nom_formateur,
         )
         .select_from(
-            collaborateur_formations_table.outerjoin(
+            collaborateur_formations_table
+            .outerjoin(
                 formations_table,
                 formations_table.c.id == collaborateur_formations_table.c.formation_id,
+            )
+            .outerjoin(
+                formateurs_table,
+                formateurs_table.c.id == collaborateur_formations_table.c.formateur_id,
             )
         )
         .where(collaborateur_formations_table.c.matricule == matricule)
@@ -253,9 +261,106 @@ def list_collaborateur_formations(
             "resultat": item["etat_qualification"] or item["statut"],
             "statut": item["statut"],
             "score": float(item["score"]) if item["score"] is not None else None,
+            "formateur_id": item["formateur_id"],
+            "formateur": item["nom_formateur"],
         }
         for item in rows
     ]
+
+
+@router.post("/{matricule}/formations", status_code=status.HTTP_201_CREATED)
+def associate_formation_to_collaborateur(
+    matricule: str,
+    payload: CollaborateurFormationCreate,
+    db: Session = Depends(get_db),
+    _: object = Depends(require_roles(UserRole.admin)),
+):
+    collaborator = db.execute(
+        select(collaborateurs_table.c.matricule).where(collaborateurs_table.c.matricule == matricule)
+    ).first()
+    if not collaborator:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Collaborateur not found")
+
+    formation = db.execute(
+        select(
+            formations_table.c.id,
+            formations_table.c.code_formation,
+            formations_table.c.nom_formation,
+            formations_table.c.domaine,
+            formations_table.c.duree_jours,
+        ).where(formations_table.c.id == payload.formation_id)
+    ).mappings().first()
+    if not formation:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Formation not found")
+
+    formateur = None
+    if payload.formateur_id is not None:
+        formateur = db.execute(
+            select(
+                formateurs_table.c.id,
+                formateurs_table.c.nom_formateur,
+            ).where(formateurs_table.c.id == payload.formateur_id)
+        ).mappings().first()
+        if not formateur:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Formateur not found")
+
+    existing = db.execute(
+        select(collaborateur_formations_table.c.id)
+        .where(collaborateur_formations_table.c.matricule == matricule)
+        .where(collaborateur_formations_table.c.formation_id == payload.formation_id)
+    ).first()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Collaborateur already associated to this formation",
+        )
+
+    association_date = payload.date_association_systeme or date.today()
+    qualification_result = compute_etat_qualification(
+        "En cours",
+        association_date,
+        formation["duree_jours"],
+    )
+
+    inserted = db.execute(
+        insert(collaborateur_formations_table)
+        .values(
+            matricule=matricule,
+            formation_id=payload.formation_id,
+            statut="En cours",
+            date_association_systeme=association_date,
+            date_completion=None,
+            etat_qualification=qualification_result,
+            score=None,
+            formateur_id=payload.formateur_id,
+        )
+        .returning(
+            collaborateur_formations_table.c.id,
+            collaborateur_formations_table.c.formation_id,
+            collaborateur_formations_table.c.statut,
+            collaborateur_formations_table.c.date_association_systeme,
+            collaborateur_formations_table.c.date_completion,
+            collaborateur_formations_table.c.etat_qualification,
+            collaborateur_formations_table.c.score,
+            collaborateur_formations_table.c.formateur_id,
+        )
+    ).mappings().one()
+    db.commit()
+
+    return {
+        "id": inserted["id"],
+        "formation_id": inserted["formation_id"],
+        "code": formation["code_formation"] or str(inserted["formation_id"]),
+        "titre": formation["nom_formation"] or f"Formation {inserted['formation_id']}",
+        "type": formation["domaine"] or "Formation",
+        "date": association_date.isoformat(),
+        "duree": formation["duree_jours"],
+        "resultat": qualification_result,
+        "statut": inserted["statut"],
+        "score": float(inserted["score"]) if inserted["score"] is not None else None,
+        "formateur_id": inserted["formateur_id"],
+        "formateur": formateur["nom_formateur"] if formateur else None,
+    }
 
 
 @router.post("/preview")

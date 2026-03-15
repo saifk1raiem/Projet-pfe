@@ -5,6 +5,7 @@ import { Button } from "../ui/button";
 import { GraduationCap, Mail, Phone, BookOpen, AlertCircle } from "lucide-react";
 import { useAppPreferences } from "../../context/AppPreferencesContext";
 import { apiUrl } from "../../lib/api";
+import { CollaborateursDialog } from "./CollaborateursDialog";
 import { FormateursStat } from "./FormateursStat";
 import { getInitials, getSpecialites } from "./formateursUtils";
 
@@ -17,6 +18,10 @@ export function FormateursList({ onNavigateToPage, currentUser, accessToken }) {
   const [formateurFormations, setFormateurFormations] = useState([]);
   const [formationsLoading, setFormationsLoading] = useState(false);
   const [formationsError, setFormationsError] = useState("");
+  const [collaborateursDialogFormateur, setCollaborateursDialogFormateur] = useState(null);
+  const [formateurCollaborateurs, setFormateurCollaborateurs] = useState([]);
+  const [collaborateursLoading, setCollaborateursLoading] = useState(false);
+  const [collaborateursError, setCollaborateursError] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createError, setCreateError] = useState("");
@@ -157,6 +162,42 @@ export function FormateursList({ onNavigateToPage, currentUser, accessToken }) {
     onNavigateToPage?.("formation", { formationId: formation.formation_id });
   };
 
+  const handleOpenCollaborateursDialog = async (formateur) => {
+    setCollaborateursDialogFormateur(formateur);
+    setFormateurCollaborateurs([]);
+    setCollaborateursError("");
+
+    if (!accessToken || !formateur?.id) {
+      setCollaborateursError(tr("Impossible de charger les collaborateurs.", "Failed to load collaborators."));
+      return;
+    }
+
+    setCollaborateursLoading(true);
+    try {
+      const response = await fetch(apiUrl(`/formateurs/${formateur.id}/collaborateurs`), {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      const data = await response.json().catch(() => []);
+      if (!response.ok) {
+        setCollaborateursError(tr("Impossible de charger les collaborateurs.", "Failed to load collaborators."));
+        return;
+      }
+      setFormateurCollaborateurs(Array.isArray(data) ? data : []);
+    } catch {
+      setCollaborateursError(tr("Impossible de charger les collaborateurs.", "Failed to load collaborators."));
+    } finally {
+      setCollaborateursLoading(false);
+    }
+  };
+
+  const closeCollaborateursDialog = () => {
+    setCollaborateursDialogFormateur(null);
+    setFormateurCollaborateurs([]);
+    setCollaborateursError("");
+  };
+
   return (
     <div className="space-y-5 pb-6">
       <div className="flex items-start justify-between">
@@ -250,9 +291,9 @@ export function FormateursList({ onNavigateToPage, currentUser, accessToken }) {
                 </Button>
                 <Button
                   className="h-9 flex-1 rounded-xl bg-[#005ca9] text-[16px] font-medium text-white hover:bg-[#004a87]"
-                  disabled={isObserver}
+                  onClick={() => handleOpenCollaborateursDialog(formateur)}
                 >
-                  {tr("Planifier", "Schedule")}
+                  {tr("Voir liste collaborateurs", "View collaborator list")}
                 </Button>
               </div>
             </Card>
@@ -343,6 +384,16 @@ export function FormateursList({ onNavigateToPage, currentUser, accessToken }) {
           </div>
         </div>
       ) : null}
+
+      <CollaborateursDialog
+        tr={tr}
+        isOpen={Boolean(collaborateursDialogFormateur)}
+        formateur={collaborateursDialogFormateur}
+        collaborateurs={formateurCollaborateurs}
+        collaborateursLoading={collaborateursLoading}
+        collaborateursError={collaborateursError}
+        onClose={closeCollaborateursDialog}
+      />
 
       {!isObserver && isCreateOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setIsCreateOpen(false)}>

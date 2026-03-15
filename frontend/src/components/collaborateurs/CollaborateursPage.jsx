@@ -1,76 +1,31 @@
-import { Fragment, useEffect, useState } from "react";
-import { Card } from "../ui/card";
-import { Badge } from "../ui/badge";
-import { Button } from "../ui/button";
+import { useEffect, useState } from "react";
 import {
-  Users,
-  CheckCircle2,
   AlertCircle,
-  XCircle,
-  MoreVertical,
   AlertTriangle,
-  Eye,
-  Pencil,
-  Trash2,
-  BookOpen,
+  CheckCircle2,
+  Users,
+  XCircle,
 } from "lucide-react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "../ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "../ui/dropdown-menu";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "../ui/alert-dialog";
+
+import { Button } from "../ui/button";
+import { Card } from "../ui/card";
 import { useAppPreferences } from "../../context/AppPreferencesContext";
 import { apiUrl } from "../../lib/api";
 import { EntityFiltersCard } from "../filters/EntityFiltersCard";
+import { AssociateFormationDialog } from "./AssociateFormationDialog";
 import { CollaborateursStat } from "./CollaborateursStat";
-import { getStatusBadge } from "./statusBadge";
-
-const statutOptions = ["Non associe", "En cours", "Qualifie", "Depassement"];
-
-function formatDisplayDate(value) {
-  if (!value) return "-";
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return String(value);
-  const day = String(parsed.getDate()).padStart(2, "0");
-  const month = String(parsed.getMonth() + 1).padStart(2, "0");
-  const year = parsed.getFullYear();
-  return `${day}/${month}/${year}`;
-}
-
-function mapCollaborateur(item) {
-  return {
-    id: item.id ?? item.matricule,
-    matricule: item.matricule ?? "-",
-    nom: item.nom ?? "-",
-    prenom: item.prenom ?? "-",
-    departement: item.segment || item.groupe || item.centre_cout || "-",
-    poste: item.fonction || "-",
-    dateEntree: formatDisplayDate(item.date_recrutement),
-    statut: item.statut || "Non associee",
-    formations: Number.isFinite(item.formations) ? item.formations : 0,
-    derniereFormation: formatDisplayDate(item.derniereFormation),
-  };
-}
+import { CollaborateursTable } from "./CollaborateursTable";
+import { CreateCollaborateurDialog } from "./CreateCollaborateurDialog";
+import { DeleteCollaborateurDialog } from "./DeleteCollaborateurDialog";
+import { FormationsDialog } from "./FormationsDialog";
+import {
+  formatDisplayDate,
+  getTodayDateInputValue,
+  mapCollaborateur,
+  statusRank,
+  statutOptions,
+} from "./helpers";
+import { StatusDialog } from "./StatusDialog";
 
 export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken }) {
   const { tr } = useAppPreferences();
@@ -92,6 +47,18 @@ export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken 
   const [formationsHistory, setFormationsHistory] = useState([]);
   const [formationsHistoryLoading, setFormationsHistoryLoading] = useState(false);
   const [formationsHistoryError, setFormationsHistoryError] = useState("");
+  const [isAssociateDialogOpen, setIsAssociateDialogOpen] = useState(false);
+  const [isSubmittingAssociation, setIsSubmittingAssociation] = useState(false);
+  const [associateError, setAssociateError] = useState("");
+  const [associationFormations, setAssociationFormations] = useState([]);
+  const [associationFormationsLoading, setAssociationFormationsLoading] = useState(false);
+  const [associationFormateurs, setAssociationFormateurs] = useState([]);
+  const [collaborateurToAssociate, setCollaborateurToAssociate] = useState(null);
+  const [newAssociation, setNewAssociation] = useState({
+    formationId: "",
+    formateurId: "",
+    dateAssociation: getTodayDateInputValue(),
+  });
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isSubmittingCreate, setIsSubmittingCreate] = useState(false);
   const [createError, setCreateError] = useState("");
@@ -118,6 +85,28 @@ export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken 
     setCreateError("");
   };
 
+  const closeAssociateDialog = () => {
+    setIsAssociateDialogOpen(false);
+    setCollaborateurToAssociate(null);
+    setAssociationFormations([]);
+    setAssociationFormateurs([]);
+    setAssociationFormationsLoading(false);
+    setIsSubmittingAssociation(false);
+    setAssociateError("");
+    setNewAssociation({
+      formationId: "",
+      formateurId: "",
+      dateAssociation: getTodayDateInputValue(),
+    });
+  };
+
+  const closeFormationsDialog = () => {
+    setIsFormationsDialogOpen(false);
+    setFormationsCollaborateur(null);
+    setFormationsHistory([]);
+    setFormationsHistoryError("");
+  };
+
   useEffect(() => {
     if (!accessToken) {
       setCollaborateursData([]);
@@ -141,10 +130,8 @@ export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken 
           return;
         }
 
-        const mapped = Array.isArray(data) ? data.map(mapCollaborateur) : [];
-
         if (!cancelled) {
-          setCollaborateursData(mapped);
+          setCollaborateursData(Array.isArray(data) ? data.map(mapCollaborateur) : []);
           setLoadError("");
         }
       } catch {
@@ -242,15 +229,60 @@ export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken 
     }
   };
 
-  const handleViewCollaborateur = (collab) => {
-    setSelectedCollaborateur((prev) => (prev?.id === collab.id ? null : collab));
-  };
+  const handleOpenAssociateDialog = async (collab) => {
+    if (isObserver || !accessToken) return;
 
-  const handleOpenStatusDialog = (collab) => {
-    if (isObserver) return;
-    setCollaborateurToUpdateStatus(collab);
-    setStatusDraft(collab.statut);
-    setIsStatusDialogOpen(true);
+    setCollaborateurToAssociate(collab);
+    setIsAssociateDialogOpen(true);
+    setAssociationFormations([]);
+    setAssociationFormateurs([]);
+    setAssociationFormationsLoading(true);
+    setAssociateError("");
+    setNewAssociation({
+      formationId: "",
+      formateurId: "",
+      dateAssociation: getTodayDateInputValue(),
+    });
+
+    try {
+      const [formationsResponse, formateursResponse] = await Promise.all([
+        fetch(apiUrl("/formations"), {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }),
+        fetch(apiUrl("/formateurs"), {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }),
+      ]);
+      const [formationsData, formateursData] = await Promise.all([
+        formationsResponse.json().catch(() => []),
+        formateursResponse.json().catch(() => []),
+      ]);
+      if (!formationsResponse.ok) {
+        setAssociateError(tr("Impossible de charger les formations.", "Failed to load trainings."));
+        return;
+      }
+
+      if (!formateursResponse.ok) {
+        setAssociateError(tr("Impossible de charger les formateurs.", "Failed to load trainers."));
+        return;
+      }
+
+      const formations = Array.isArray(formationsData) ? formationsData : [];
+      const formateurs = Array.isArray(formateursData) ? formateursData : [];
+      setAssociationFormations(formations);
+      setAssociationFormateurs(formateurs);
+      if (formations.length === 0) {
+        setAssociateError(tr("Aucune formation disponible.", "No training is available."));
+      }
+    } catch {
+      setAssociateError(tr("Impossible de charger les formations.", "Failed to load trainings."));
+    } finally {
+      setAssociationFormationsLoading(false);
+    }
   };
 
   const handleOpenFormationsDialog = async (collab) => {
@@ -284,16 +316,99 @@ export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken 
     }
   };
 
-  const closeFormationsDialog = () => {
-    setIsFormationsDialogOpen(false);
-    setFormationsCollaborateur(null);
-    setFormationsHistory([]);
-    setFormationsHistoryError("");
-  };
+  const handleAssociateFormation = async () => {
+    if (!accessToken || !collaborateurToAssociate) {
+      setAssociateError(tr("Token manquant. Reconnectez-vous.", "Missing access token. Please sign in again."));
+      return;
+    }
 
-  const handleGoToFormationSection = (formation) => {
-    closeFormationsDialog();
-    onNavigateToPage?.("formation", { formationId: formation.formation_id });
+    const formationId = Number(newAssociation.formationId);
+    const formateurIdRaw = String(newAssociation.formateurId || "").trim();
+    if (!Number.isFinite(formationId) || formationId <= 0) {
+      setAssociateError(tr("Selectionnez une formation.", "Select a training."));
+      return;
+    }
+
+    setIsSubmittingAssociation(true);
+    setAssociateError("");
+    try {
+      const response = await fetch(
+        apiUrl(`/qualification/${encodeURIComponent(collaborateurToAssociate.matricule)}/formations`),
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            formation_id: formationId,
+            formateur_id: formateurIdRaw ? Number(formateurIdRaw) : null,
+            date_association_systeme: newAssociation.dateAssociation || null,
+          }),
+        },
+      );
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setAssociateError(
+          data?.detail || tr("Impossible d'associer la formation.", "Failed to associate the training."),
+        );
+        return;
+      }
+
+      const latestDate = formatDisplayDate(data.date);
+      const nextStatus = statusRank(data.resultat) > statusRank(collaborateurToAssociate.statut)
+        ? data.resultat
+        : collaborateurToAssociate.statut;
+
+      setCollaborateursData((prev) =>
+        prev.map((collab) => {
+          if (collab.id !== collaborateurToAssociate.id) {
+            return collab;
+          }
+          return {
+            ...collab,
+            formations: (collab.formations || 0) + 1,
+            derniereFormation: latestDate,
+            statut: statusRank(data.resultat) > statusRank(collab.statut) ? data.resultat : collab.statut,
+          };
+        }),
+      );
+
+      setSelectedCollaborateur((prev) => {
+        if (!prev || prev.id !== collaborateurToAssociate.id) {
+          return prev;
+        }
+        return {
+          ...prev,
+          formations: (prev.formations || 0) + 1,
+          derniereFormation: latestDate,
+          statut: nextStatus,
+        };
+      });
+
+      setFormationsCollaborateur((prev) => {
+        if (!prev || prev.id !== collaborateurToAssociate.id) {
+          return prev;
+        }
+        return {
+          ...prev,
+          formations: (prev.formations || 0) + 1,
+          derniereFormation: latestDate,
+          statut: nextStatus,
+        };
+      });
+
+      if (formationsCollaborateur?.id === collaborateurToAssociate.id) {
+        setFormationsHistory((prev) => [data, ...prev]);
+      }
+
+      closeAssociateDialog();
+    } catch {
+      setAssociateError(tr("Impossible d'associer la formation.", "Failed to associate the training."));
+    } finally {
+      setIsSubmittingAssociation(false);
+    }
   };
 
   const handleUpdateStatus = () => {
@@ -319,29 +434,30 @@ export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken 
     setCollaborateurToUpdateStatus(null);
   };
 
-  const handleAskDeleteCollaborateur = (collab) => {
-    if (isObserver) return;
-    setCollaborateurToDelete(collab);
-    setIsDeleteDialogOpen(true);
-  };
-
   const handleDeleteCollaborateur = () => {
     if (!collaborateurToDelete) return;
 
     setCollaborateursData((prev) => prev.filter((collab) => collab.id !== collaborateurToDelete.id));
-    setSelectedCollaborateur((prev) =>
-      prev?.id === collaborateurToDelete.id ? null : prev,
-    );
+    setSelectedCollaborateur((prev) => (prev?.id === collaborateurToDelete.id ? null : prev));
     setIsDeleteDialogOpen(false);
     setCollaborateurToDelete(null);
+  };
+
+  const handleGoToFormationSection = (formation) => {
+    closeFormationsDialog();
+    onNavigateToPage?.("formation", { formationId: formation.formation_id });
   };
 
   return (
     <div className="space-y-5 pb-6">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="leoni-display-xl text-[40px] font-semibold leading-tight text-[#171a1f]">{tr("Gestion des Collaborateurs", "Collaborator Management")}</h1>
-          <p className="leoni-subtitle mt-1 text-[18px] text-[#5d6574]">{tr("Liste et suivi des collaborateurs", "Collaborator list and tracking")}</p>
+          <h1 className="leoni-display-xl text-[40px] font-semibold leading-tight text-[#171a1f]">
+            {tr("Gestion des Collaborateurs", "Collaborator Management")}
+          </h1>
+          <p className="leoni-subtitle mt-1 text-[18px] text-[#5d6574]">
+            {tr("Liste et suivi des collaborateurs", "Collaborator list and tracking")}
+          </p>
         </div>
         <Button
           className="h-10 rounded-[10px] bg-[#005ca9] px-5 text-[16px] font-medium text-white hover:bg-[#004a87]"
@@ -407,357 +523,97 @@ export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken 
         filtersGridClassName="md:grid-cols-3"
       />
 
-      <Card className="rounded-[20px] border border-[#dfe5e2] bg-white shadow-sm">
-        <Table>
-          <TableHeader>
-            <TableRow className="hover:bg-transparent">
-              <TableHead className="text-[15px] font-semibold text-[#252930]">Matricule</TableHead>
-              <TableHead className="text-[15px] font-semibold text-[#252930]">Nom & Prenom</TableHead>
-              <TableHead className="text-[15px] font-semibold text-[#252930]">Departement</TableHead>
-              <TableHead className="text-[15px] font-semibold text-[#252930]">Poste</TableHead>
-              <TableHead className="text-[15px] font-semibold text-[#252930]">Date d'entree</TableHead>
-              <TableHead className="text-[15px] font-semibold text-[#252930]">Statut</TableHead>
-              <TableHead className="text-[15px] font-semibold text-[#252930]">Formations</TableHead>
-              <TableHead className="text-[15px] font-semibold text-[#252930]">Derniere formation</TableHead>
-              <TableHead className="text-right text-[15px] font-semibold text-[#252930]">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredCollaborateurs.map((collab) => (
-              <Fragment key={collab.id}>
-                <TableRow key={`${collab.id}-row`} className="h-16">
-                  <TableCell className="text-[15px] font-semibold text-[#1d2025]">{collab.matricule}</TableCell>
-                  <TableCell>
-                    <div className="text-[15px] font-medium text-[#1d2025]">{collab.nom}</div>
-                    <div className="text-[13px] text-[#6b7280]">{collab.prenom}</div>
-                  </TableCell>
-                  <TableCell className="text-[15px]">{collab.departement}</TableCell>
-                  <TableCell className="text-[15px]">{collab.poste}</TableCell>
-                  <TableCell className="text-[15px]">{collab.dateEntree}</TableCell>
-                  <TableCell>{getStatusBadge(collab.statut)}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="rounded-xl border-[#d5dce0] bg-[#f7f8f9] text-[14px]">
-                      {collab.formations} formations
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-[15px]">{collab.derniereFormation}</TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 rounded-lg p-0">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-44">
-                        <DropdownMenuItem onClick={() => handleViewCollaborateur(collab)}>
-                          <Eye className="h-4 w-4" />
-                          {tr("Voir details", "View details")}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleOpenFormationsDialog(collab)}>
-                          <BookOpen className="h-4 w-4" />
-                          {tr("Voir formations", "View trainings")}
-                        </DropdownMenuItem>
-                        {!isObserver ? (
-                          <>
-                            <DropdownMenuItem onClick={() => handleOpenStatusDialog(collab)}>
-                              <Pencil className="h-4 w-4" />
-                              {tr("Changer statut", "Change status")}
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              variant="destructive"
-                              onClick={() => handleAskDeleteCollaborateur(collab)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                              {tr("Supprimer", "Delete")}
-                            </DropdownMenuItem>
-                          </>
-                        ) : null}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-                {selectedCollaborateur?.id === collab.id ? (
-                  <TableRow key={`${collab.id}-details`} className="bg-[#f8fbff]">
-                    <TableCell colSpan={9}>
-                      <div className="rounded-xl border border-[#dfe5e2] bg-white p-4">
-                        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                          <p className="text-[16px] font-semibold text-[#171a1f]">
-                            {collab.nom} ({collab.matricule})
-                          </p>
-                          <Button variant="outline" className="h-8 rounded-xl px-3" onClick={() => setSelectedCollaborateur(null)}>
-                            {tr("Fermer", "Close")}
-                          </Button>
-                        </div>
-                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-                          <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3"><p className="text-[12px] text-[#64748b]">Matricule</p><p className="text-[15px] font-medium text-[#1d2025]">{collab.matricule}</p></div>
-                          <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3"><p className="text-[12px] text-[#64748b]">Nom</p><p className="text-[15px] font-medium text-[#1d2025]">{collab.nom}</p></div>
-                          <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3"><p className="text-[12px] text-[#64748b]">Prenom</p><p className="text-[15px] font-medium text-[#1d2025]">{collab.prenom}</p></div>
-                          <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3"><p className="text-[12px] text-[#64748b]">Departement</p><p className="text-[15px] font-medium text-[#1d2025]">{collab.departement}</p></div>
-                          <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3"><p className="text-[12px] text-[#64748b]">Poste</p><p className="text-[15px] font-medium text-[#1d2025]">{collab.poste}</p></div>
-                          <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3"><p className="text-[12px] text-[#64748b]">Date d'entree</p><p className="text-[15px] font-medium text-[#1d2025]">{collab.dateEntree}</p></div>
-                          <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3"><p className="text-[12px] text-[#64748b]">Formations</p><p className="text-[15px] font-medium text-[#1d2025]">{collab.formations}</p></div>
-                          <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3"><p className="text-[12px] text-[#64748b]">Derniere formation</p><p className="text-[15px] font-medium text-[#1d2025]">{collab.derniereFormation}</p></div>
-                          <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3"><p className="text-[12px] text-[#64748b]">Statut</p><div className="mt-1">{getStatusBadge(collab.statut)}</div></div>
-                        </div>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : null}
-              </Fragment>
-            ))}
-          </TableBody>
-        </Table>
-      </Card>
+      <CollaborateursTable
+        rows={filteredCollaborateurs}
+        selectedCollaborateur={selectedCollaborateur}
+        onViewDetails={(collab) => setSelectedCollaborateur((prev) => (prev?.id === collab.id ? null : collab))}
+        onCloseDetails={() => setSelectedCollaborateur(null)}
+        onViewFormations={handleOpenFormationsDialog}
+        onOpenAssociate={handleOpenAssociateDialog}
+        onOpenStatus={(collab) => {
+          if (isObserver) return;
+          setCollaborateurToUpdateStatus(collab);
+          setStatusDraft(collab.statut);
+          setIsStatusDialogOpen(true);
+        }}
+        onAskDelete={(collab) => {
+          if (isObserver) return;
+          setCollaborateurToDelete(collab);
+          setIsDeleteDialogOpen(true);
+        }}
+        canManage={!isObserver}
+        tr={tr}
+      />
 
-      {!isObserver && isCreateOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setIsCreateOpen(false)}>
-          <div
-            className="w-full max-w-[700px] rounded-[24px] border border-[#dfe5e2] bg-white p-6 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-[28px] font-semibold text-[#171a1f]">{tr("Nouveau Collaborateur", "New Collaborator")}</h2>
-                <p className="mt-1 text-[15px] text-[#5d6574]">
-                  {tr("Ajoutez un collaborateur manuellement.", "Add a collaborator manually.")}
-                </p>
-              </div>
-              <Button variant="outline" className="rounded-xl" onClick={() => setIsCreateOpen(false)}>
-                {tr("Fermer", "Close")}
-              </Button>
-            </div>
+      <CreateCollaborateurDialog
+        tr={tr}
+        isOpen={!isObserver && isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        newCollaborateur={newCollaborateur}
+        onChange={(field, value) => setNewCollaborateur((prev) => ({ ...prev, [field]: value }))}
+        createError={createError}
+        isSubmitting={isSubmittingCreate}
+        onSubmit={handleCreateCollaborateur}
+      />
 
-            <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-[#252930]">Matricule</label>
-                <input
-                  className="h-11 w-full rounded-xl border border-[#d5dce0] bg-white px-3 text-[15px] outline-none focus:border-[#0f63f2]"
-                  value={newCollaborateur.matricule}
-                  onChange={(e) => setNewCollaborateur((prev) => ({ ...prev, matricule: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-[#252930]">{tr("Date d'entree", "Start date")}</label>
-                <input
-                  type="date"
-                  className="h-11 w-full rounded-xl border border-[#d5dce0] bg-white px-3 text-[15px] outline-none focus:border-[#0f63f2]"
-                  value={newCollaborateur.date_recrutement}
-                  onChange={(e) => setNewCollaborateur((prev) => ({ ...prev, date_recrutement: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-[#252930]">{tr("Nom", "Last name")}</label>
-                <input
-                  className="h-11 w-full rounded-xl border border-[#d5dce0] bg-white px-3 text-[15px] outline-none focus:border-[#0f63f2]"
-                  value={newCollaborateur.nom}
-                  onChange={(e) => setNewCollaborateur((prev) => ({ ...prev, nom: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-[#252930]">{tr("Prenom", "First name")}</label>
-                <input
-                  className="h-11 w-full rounded-xl border border-[#d5dce0] bg-white px-3 text-[15px] outline-none focus:border-[#0f63f2]"
-                  value={newCollaborateur.prenom}
-                  onChange={(e) => setNewCollaborateur((prev) => ({ ...prev, prenom: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-[#252930]">{tr("Poste", "Position")}</label>
-                <input
-                  className="h-11 w-full rounded-xl border border-[#d5dce0] bg-white px-3 text-[15px] outline-none focus:border-[#0f63f2]"
-                  value={newCollaborateur.fonction}
-                  onChange={(e) => setNewCollaborateur((prev) => ({ ...prev, fonction: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-[#252930]">{tr("Departement", "Department")}</label>
-                <input
-                  className="h-11 w-full rounded-xl border border-[#d5dce0] bg-white px-3 text-[15px] outline-none focus:border-[#0f63f2]"
-                  value={newCollaborateur.segment}
-                  onChange={(e) => setNewCollaborateur((prev) => ({ ...prev, segment: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <label className="text-sm font-medium text-[#252930]">{tr("Telephone", "Phone")}</label>
-                <input
-                  className="h-11 w-full rounded-xl border border-[#d5dce0] bg-white px-3 text-[15px] outline-none focus:border-[#0f63f2]"
-                  value={newCollaborateur.num_tel}
-                  onChange={(e) => setNewCollaborateur((prev) => ({ ...prev, num_tel: e.target.value }))}
-                />
-              </div>
-            </div>
+      <AssociateFormationDialog
+        tr={tr}
+        isOpen={!isObserver && isAssociateDialogOpen}
+        onClose={closeAssociateDialog}
+        collaborateur={collaborateurToAssociate}
+        formations={associationFormations}
+        formateurs={associationFormateurs}
+        isLoading={associationFormationsLoading}
+        error={associateError}
+        newAssociation={newAssociation}
+        onAssociationChange={(field, value) => setNewAssociation((prev) => ({ ...prev, [field]: value }))}
+        onSubmit={handleAssociateFormation}
+        isSubmitting={isSubmittingAssociation}
+      />
 
-            {createError ? (
-              <div className="mt-4 rounded-xl border border-[#f2c4c4] bg-[#fdeeee] p-3 text-sm text-[#8a1d1d]">
-                {createError}
-              </div>
-            ) : null}
+      <FormationsDialog
+        tr={tr}
+        isOpen={isFormationsDialogOpen}
+        collaborateur={formationsCollaborateur}
+        formationsHistory={formationsHistory}
+        formationsHistoryLoading={formationsHistoryLoading}
+        formationsHistoryError={formationsHistoryError}
+        onClose={closeFormationsDialog}
+        onOpenFormationDetails={handleGoToFormationSection}
+      />
 
-            <div className="mt-6 flex justify-end gap-3">
-              <Button variant="outline" className="rounded-xl" onClick={() => setIsCreateOpen(false)}>
-                {tr("Annuler", "Cancel")}
-              </Button>
-              <Button
-                className="rounded-xl bg-[#005ca9] text-white hover:bg-[#004a87]"
-                onClick={handleCreateCollaborateur}
-                disabled={isSubmittingCreate}
-              >
-                {isSubmittingCreate ? tr("Enregistrement...", "Saving...") : tr("Enregistrer", "Save")}
-              </Button>
-            </div>
-          </div>
-        </div>
+      {!isObserver ? (
+        <StatusDialog
+          tr={tr}
+          isOpen={isStatusDialogOpen}
+          onOpenChange={(open) => {
+            setIsStatusDialogOpen(open);
+            if (!open) {
+              setCollaborateurToUpdateStatus(null);
+            }
+          }}
+          collaborateur={collaborateurToUpdateStatus}
+          statusDraft={statusDraft}
+          onStatusDraftChange={setStatusDraft}
+          onSubmit={handleUpdateStatus}
+          statutOptions={statutOptions}
+        />
       ) : null}
 
-      {isFormationsDialogOpen && formationsCollaborateur && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={closeFormationsDialog}>
-          <div
-            className="leoni-rise-up flex h-[88vh] w-full max-w-[1200px] flex-col overflow-hidden rounded-[24px] border border-[#dfe5e2] bg-white shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between border-b border-[#e2e8f0] px-7 py-5">
-              <div>
-                <h2 className="leoni-display-lg text-[30px] font-semibold leading-tight text-[#171a1f]">
-                  {tr("Formations du collaborateur", "Collaborator training history")}
-                </h2>
-                <p className="mt-1 text-[15px] text-[#64748b]">
-                  {formationsCollaborateur.nom} ({formationsCollaborateur.matricule}) • {formationsCollaborateur.formations} formations
-                </p>
-              </div>
-              <Button variant="outline" className="rounded-xl" onClick={closeFormationsDialog}>
-                {tr("Fermer", "Close")}
-              </Button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto px-7 py-6">
-              {formationsHistoryError ? (
-                <div className="rounded-xl border border-[#f2c4c4] bg-[#fdeeee] p-3 text-sm text-[#8a1d1d]">
-                  {formationsHistoryError}
-                </div>
-              ) : null}
-
-              {formationsHistoryLoading ? (
-                <div className="flex items-center gap-2 text-sm text-[#5f6777]">
-                  <AlertCircle className="h-4 w-4" />
-                  {tr("Chargement des formations...", "Loading trainings...")}
-                </div>
-              ) : null}
-
-              {!formationsHistoryLoading && !formationsHistoryError && formationsHistory.length === 0 ? (
-                <p className="text-sm text-[#5f6777]">
-                  {tr("Aucune formation trouvee pour ce collaborateur.", "No trainings found for this collaborator.")}
-                </p>
-              ) : null}
-
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                {formationsHistory.map((formation) => (
-                  <Card key={formation.id} className="rounded-2xl border border-[#dfe5e2] bg-[#fbfdff] p-5 shadow-sm">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <h3 className="text-[20px] font-semibold text-[#191c20]">
-                          {formation.code} - {formation.titre}
-                        </h3>
-                        <p className="mt-1 text-[14px] text-[#64748b]">{formation.type}</p>
-                      </div>
-                      <Badge className="rounded-lg border border-[#b9d3ea] bg-[#e8f1fb] px-3 py-1 text-[13px] font-medium text-[#005ca9]">
-                        {formation.resultat}
-                      </Badge>
-                    </div>
-                    <div className="mt-4 grid grid-cols-2 gap-3">
-                      <div className="rounded-xl border border-[#e2e8f0] bg-white p-3">
-                        <p className="text-[12px] text-[#64748b]">{tr("Date", "Date")}</p>
-                        <p className="text-[14px] font-medium text-[#1d2025]">{formation.date || "-"}</p>
-                      </div>
-                      <div className="rounded-xl border border-[#e2e8f0] bg-white p-3">
-                        <p className="text-[12px] text-[#64748b]">{tr("Duree", "Duration")}</p>
-                        <p className="text-[14px] font-medium text-[#1d2025]">
-                          {formation.duree ? tr(`${formation.duree} jours`, `${formation.duree} days`) : "-"}
-                        </p>
-                      </div>
-                    </div>
-                    <Button className="mt-4 h-10 rounded-xl bg-[#005ca9] text-white hover:bg-[#004a87]" onClick={() => handleGoToFormationSection(formation)}>
-                      {tr("Voir details formation", "Open training details")}
-                    </Button>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {!isObserver ? <AlertDialog
-        open={isStatusDialogOpen}
-        onOpenChange={(open) => {
-          setIsStatusDialogOpen(open);
-          if (!open) {
-            setCollaborateurToUpdateStatus(null);
-          }
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{tr("Changer le statut", "Change status")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {collaborateurToUpdateStatus
-                ? `Selectionnez le nouveau statut pour ${collaborateurToUpdateStatus.nom}.`
-                : tr("Selectionnez un statut.", "Select a status.")}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="space-y-2">
-            <label htmlFor="status-select" className="text-sm font-medium text-[#252930]">
-              {tr("Statut", "Status")}
-            </label>
-            <select
-              id="status-select"
-              className="h-10 w-full rounded-md border border-[#d5dce0] bg-white px-3 text-sm outline-none focus:border-[#0f63f2]"
-              value={statusDraft}
-              onChange={(e) => setStatusDraft(e.target.value)}
-            >
-              {statutOptions.map((status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
-              ))}
-            </select>
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{tr("Annuler", "Cancel")}</AlertDialogCancel>
-            <AlertDialogAction onClick={handleUpdateStatus}>{tr("Enregistrer", "Save")}</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog> : null}
-
-      {!isObserver ? <AlertDialog
-        open={isDeleteDialogOpen}
-        onOpenChange={(open) => {
-          setIsDeleteDialogOpen(open);
-          if (!open) {
-            setCollaborateurToDelete(null);
-          }
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{tr("Supprimer ce collaborateur ?", "Delete this collaborator?")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {collaborateurToDelete
-                ? `Cette action supprimera ${collaborateurToDelete.nom} de la liste.`
-                : tr("Cette action est irreversible.", "This action is irreversible.")}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{tr("Annuler", "Cancel")}</AlertDialogCancel>
-            <AlertDialogAction className="bg-[#ea3737] hover:bg-[#d12f2f]" onClick={handleDeleteCollaborateur}>
-              {tr("Supprimer", "Delete")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog> : null}
+      {!isObserver ? (
+        <DeleteCollaborateurDialog
+          tr={tr}
+          isOpen={isDeleteDialogOpen}
+          onOpenChange={(open) => {
+            setIsDeleteDialogOpen(open);
+            if (!open) {
+              setCollaborateurToDelete(null);
+            }
+          }}
+          collaborateurToDelete={collaborateurToDelete}
+          onDeleteCollaborateur={handleDeleteCollaborateur}
+        />
+      ) : null}
     </div>
   );
 }
-
-
-

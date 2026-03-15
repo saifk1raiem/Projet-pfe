@@ -76,3 +76,11 @@ class CollaborateurCreate(BaseModel):
     anciennete: int | None = None
 
     model_config = {"extra": "ignore", "str_strip_whitespace": True}
+
+
+class CollaborateurFormationCreate(BaseModel):
+    formation_id: int
+    formateur_id: int | None = None
+    date_association_systeme: date | None = None
+
+    model_config = {"extra": "ignore"}
