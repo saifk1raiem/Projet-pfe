@@ -1,11 +1,12 @@
 from datetime import date
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
-from sqlalchemy import select
+from sqlalchemy import insert, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, require_roles
 from app.models.enums import UserRole
+from app.schemas.qualification import CollaborateurCreate
 from app.services.excel_synonyms import get_excel_synonyms
 from app.services.qualification_import_service import (
     collaborateur_formations_table,
@@ -127,6 +128,84 @@ def list_qualification_rows(
         collaborator.pop("_latest_association_date", None)
         result.append(collaborator)
     return result
+
+
+@router.post("", status_code=status.HTTP_201_CREATED)
+def create_collaborateur(
+    payload: CollaborateurCreate,
+    db: Session = Depends(get_db),
+    _: object = Depends(require_roles(UserRole.admin)),
+):
+    matricule = payload.matricule.strip()
+    nom = payload.nom.strip()
+    prenom = payload.prenom.strip()
+
+    if not matricule:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="matricule is required")
+    if not nom:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="nom is required")
+    if not prenom:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="prenom is required")
+
+    existing = db.execute(
+        select(collaborateurs_table.c.matricule).where(collaborateurs_table.c.matricule == matricule)
+    ).first()
+    if existing:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Collaborateur already exists")
+
+    inserted = db.execute(
+        insert(collaborateurs_table)
+        .values(
+            matricule=matricule,
+            nom=nom,
+            prenom=prenom,
+            fonction=payload.fonction,
+            centre_cout=payload.centre_cout,
+            groupe=payload.groupe,
+            contre_maitre=payload.contre_maitre,
+            segment=payload.segment,
+            gender=payload.gender,
+            num_tel=payload.num_tel,
+            date_recrutement=payload.date_recrutement,
+            anciennete=payload.anciennete,
+        )
+        .returning(
+            collaborateurs_table.c.matricule,
+            collaborateurs_table.c.nom,
+            collaborateurs_table.c.prenom,
+            collaborateurs_table.c.fonction,
+            collaborateurs_table.c.centre_cout,
+            collaborateurs_table.c.groupe,
+            collaborateurs_table.c.contre_maitre,
+            collaborateurs_table.c.segment,
+            collaborateurs_table.c.gender,
+            collaborateurs_table.c.num_tel,
+            collaborateurs_table.c.date_recrutement,
+            collaborateurs_table.c.anciennete,
+        )
+    ).mappings().one()
+    db.commit()
+
+    return {
+        "id": inserted["matricule"],
+        "phase": "qualification",
+        "matricule": inserted["matricule"],
+        "nom": inserted["nom"],
+        "prenom": inserted["prenom"],
+        "fonction": inserted["fonction"],
+        "centre_cout": inserted["centre_cout"],
+        "groupe": inserted["groupe"],
+        "competence": None,
+        "contre_maitre": inserted["contre_maitre"],
+        "segment": inserted["segment"],
+        "gender": inserted["gender"],
+        "num_tel": inserted["num_tel"],
+        "date_recrutement": inserted["date_recrutement"].isoformat() if inserted["date_recrutement"] else None,
+        "anciennete": inserted["anciennete"],
+        "statut": "Non associee",
+        "formations": 0,
+        "derniereFormation": None,
+    }
 
 
 @router.get("/{matricule}/formations")

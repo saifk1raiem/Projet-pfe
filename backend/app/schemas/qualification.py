@@ -1,3 +1,5 @@
+from datetime import date
+
 from pydantic import BaseModel, Field
 
 
@@ -57,3 +59,20 @@ class QualificationImportSummary(BaseModel):
 
 class QualificationImportResponse(BaseModel):
     import_summary: QualificationImportSummary
+
+
+class CollaborateurCreate(BaseModel):
+    matricule: str
+    nom: str
+    prenom: str
+    fonction: str | None = None
+    centre_cout: str | None = None
+    groupe: str | None = None
+    contre_maitre: str | None = None
+    segment: str | None = None
+    gender: str | None = None
+    num_tel: str | None = None
+    date_recrutement: date | None = None
+    anciennete: int | None = None
+
+    model_config = {"extra": "ignore", "str_strip_whitespace": True}

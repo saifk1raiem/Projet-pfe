@@ -47,6 +47,31 @@ import { getStatusBadge } from "./statusBadge";
 
 const statutOptions = ["Non associe", "En cours", "Qualifie", "Depassement"];
 
+function formatDisplayDate(value) {
+  if (!value) return "-";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return String(value);
+  const day = String(parsed.getDate()).padStart(2, "0");
+  const month = String(parsed.getMonth() + 1).padStart(2, "0");
+  const year = parsed.getFullYear();
+  return `${day}/${month}/${year}`;
+}
+
+function mapCollaborateur(item) {
+  return {
+    id: item.id ?? item.matricule,
+    matricule: item.matricule ?? "-",
+    nom: item.nom ?? "-",
+    prenom: item.prenom ?? "-",
+    departement: item.segment || item.groupe || item.centre_cout || "-",
+    poste: item.fonction || "-",
+    dateEntree: formatDisplayDate(item.date_recrutement),
+    statut: item.statut || "Non associee",
+    formations: Number.isFinite(item.formations) ? item.formations : 0,
+    derniereFormation: formatDisplayDate(item.derniereFormation),
+  };
+}
+
 export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken }) {
   const { tr } = useAppPreferences();
   const isObserver = currentUser?.role === "observer";
@@ -67,6 +92,31 @@ export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken 
   const [formationsHistory, setFormationsHistory] = useState([]);
   const [formationsHistoryLoading, setFormationsHistoryLoading] = useState(false);
   const [formationsHistoryError, setFormationsHistoryError] = useState("");
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isSubmittingCreate, setIsSubmittingCreate] = useState(false);
+  const [createError, setCreateError] = useState("");
+  const [newCollaborateur, setNewCollaborateur] = useState({
+    matricule: "",
+    nom: "",
+    prenom: "",
+    fonction: "",
+    segment: "",
+    num_tel: "",
+    date_recrutement: "",
+  });
+
+  const resetCreateForm = () => {
+    setNewCollaborateur({
+      matricule: "",
+      nom: "",
+      prenom: "",
+      fonction: "",
+      segment: "",
+      num_tel: "",
+      date_recrutement: "",
+    });
+    setCreateError("");
+  };
 
   useEffect(() => {
     if (!accessToken) {
@@ -75,16 +125,6 @@ export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken 
     }
 
     let cancelled = false;
-
-    const formatDate = (value) => {
-      if (!value) return "-";
-      const parsed = new Date(value);
-      if (Number.isNaN(parsed.getTime())) return String(value);
-      const day = String(parsed.getDate()).padStart(2, "0");
-      const month = String(parsed.getMonth() + 1).padStart(2, "0");
-      const year = parsed.getFullYear();
-      return `${day}/${month}/${year}`;
-    };
 
     const loadCollaborateurs = async () => {
       try {
@@ -101,20 +141,7 @@ export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken 
           return;
         }
 
-        const mapped = Array.isArray(data)
-          ? data.map((item) => ({
-              id: item.id ?? item.matricule,
-              matricule: item.matricule ?? "-",
-              nom: item.nom ?? "-",
-              prenom: item.prenom ?? "-",
-              departement: item.segment || item.groupe || item.centre_cout || "-",
-              poste: item.fonction || "-",
-              dateEntree: formatDate(item.date_recrutement),
-              statut: item.statut || "Non associee",
-              formations: Number.isFinite(item.formations) ? item.formations : 0,
-              derniereFormation: formatDate(item.derniereFormation),
-            }))
-          : [];
+        const mapped = Array.isArray(data) ? data.map(mapCollaborateur) : [];
 
         if (!cancelled) {
           setCollaborateursData(mapped);
@@ -162,6 +189,58 @@ export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken 
 
     return matchesSearch && matchesStatus && matchesDepartment;
   });
+
+  const handleCreateCollaborateur = async () => {
+    if (!accessToken) {
+      setCreateError(tr("Token manquant. Reconnectez-vous.", "Missing access token. Please sign in again."));
+      return;
+    }
+
+    const payload = {
+      matricule: String(newCollaborateur.matricule || "").trim(),
+      nom: String(newCollaborateur.nom || "").trim(),
+      prenom: String(newCollaborateur.prenom || "").trim(),
+      fonction: String(newCollaborateur.fonction || "").trim() || null,
+      segment: String(newCollaborateur.segment || "").trim() || null,
+      num_tel: String(newCollaborateur.num_tel || "").trim() || null,
+      date_recrutement: String(newCollaborateur.date_recrutement || "").trim() || null,
+    };
+
+    if (!payload.matricule || !payload.nom || !payload.prenom) {
+      setCreateError(tr("Matricule, nom et prenom sont obligatoires.", "ID, last name, and first name are required."));
+      return;
+    }
+
+    setIsSubmittingCreate(true);
+    setCreateError("");
+    try {
+      const response = await fetch(apiUrl("/qualification"), {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setCreateError(data?.detail || tr("Impossible de creer le collaborateur.", "Failed to create collaborator."));
+        return;
+      }
+
+      const createdCollaborateur = mapCollaborateur(data);
+      setCollaborateursData((prev) =>
+        [...prev, createdCollaborateur].sort((a, b) => a.matricule.localeCompare(b.matricule)),
+      );
+      setIsCreateOpen(false);
+      resetCreateForm();
+    } catch {
+      setCreateError(tr("Impossible de creer le collaborateur.", "Failed to create collaborator."));
+    } finally {
+      setIsSubmittingCreate(false);
+    }
+  };
 
   const handleViewCollaborateur = (collab) => {
     setSelectedCollaborateur((prev) => (prev?.id === collab.id ? null : collab));
@@ -267,6 +346,10 @@ export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken 
         <Button
           className="h-10 rounded-[10px] bg-[#005ca9] px-5 text-[16px] font-medium text-white hover:bg-[#004a87]"
           disabled={isObserver}
+          onClick={() => {
+            resetCreateForm();
+            setIsCreateOpen(true);
+          }}
         >
           <Users className="mr-2 h-4 w-4" />
           {tr("Nouveau Collaborateur", "New Collaborator")}
@@ -426,6 +509,106 @@ export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken 
           </TableBody>
         </Table>
       </Card>
+
+      {!isObserver && isCreateOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setIsCreateOpen(false)}>
+          <div
+            className="w-full max-w-[700px] rounded-[24px] border border-[#dfe5e2] bg-white p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-[28px] font-semibold text-[#171a1f]">{tr("Nouveau Collaborateur", "New Collaborator")}</h2>
+                <p className="mt-1 text-[15px] text-[#5d6574]">
+                  {tr("Ajoutez un collaborateur manuellement.", "Add a collaborator manually.")}
+                </p>
+              </div>
+              <Button variant="outline" className="rounded-xl" onClick={() => setIsCreateOpen(false)}>
+                {tr("Fermer", "Close")}
+              </Button>
+            </div>
+
+            <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-[#252930]">Matricule</label>
+                <input
+                  className="h-11 w-full rounded-xl border border-[#d5dce0] bg-white px-3 text-[15px] outline-none focus:border-[#0f63f2]"
+                  value={newCollaborateur.matricule}
+                  onChange={(e) => setNewCollaborateur((prev) => ({ ...prev, matricule: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-[#252930]">{tr("Date d'entree", "Start date")}</label>
+                <input
+                  type="date"
+                  className="h-11 w-full rounded-xl border border-[#d5dce0] bg-white px-3 text-[15px] outline-none focus:border-[#0f63f2]"
+                  value={newCollaborateur.date_recrutement}
+                  onChange={(e) => setNewCollaborateur((prev) => ({ ...prev, date_recrutement: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-[#252930]">{tr("Nom", "Last name")}</label>
+                <input
+                  className="h-11 w-full rounded-xl border border-[#d5dce0] bg-white px-3 text-[15px] outline-none focus:border-[#0f63f2]"
+                  value={newCollaborateur.nom}
+                  onChange={(e) => setNewCollaborateur((prev) => ({ ...prev, nom: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-[#252930]">{tr("Prenom", "First name")}</label>
+                <input
+                  className="h-11 w-full rounded-xl border border-[#d5dce0] bg-white px-3 text-[15px] outline-none focus:border-[#0f63f2]"
+                  value={newCollaborateur.prenom}
+                  onChange={(e) => setNewCollaborateur((prev) => ({ ...prev, prenom: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-[#252930]">{tr("Poste", "Position")}</label>
+                <input
+                  className="h-11 w-full rounded-xl border border-[#d5dce0] bg-white px-3 text-[15px] outline-none focus:border-[#0f63f2]"
+                  value={newCollaborateur.fonction}
+                  onChange={(e) => setNewCollaborateur((prev) => ({ ...prev, fonction: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-[#252930]">{tr("Departement", "Department")}</label>
+                <input
+                  className="h-11 w-full rounded-xl border border-[#d5dce0] bg-white px-3 text-[15px] outline-none focus:border-[#0f63f2]"
+                  value={newCollaborateur.segment}
+                  onChange={(e) => setNewCollaborateur((prev) => ({ ...prev, segment: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-sm font-medium text-[#252930]">{tr("Telephone", "Phone")}</label>
+                <input
+                  className="h-11 w-full rounded-xl border border-[#d5dce0] bg-white px-3 text-[15px] outline-none focus:border-[#0f63f2]"
+                  value={newCollaborateur.num_tel}
+                  onChange={(e) => setNewCollaborateur((prev) => ({ ...prev, num_tel: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            {createError ? (
+              <div className="mt-4 rounded-xl border border-[#f2c4c4] bg-[#fdeeee] p-3 text-sm text-[#8a1d1d]">
+                {createError}
+              </div>
+            ) : null}
+
+            <div className="mt-6 flex justify-end gap-3">
+              <Button variant="outline" className="rounded-xl" onClick={() => setIsCreateOpen(false)}>
+                {tr("Annuler", "Cancel")}
+              </Button>
+              <Button
+                className="rounded-xl bg-[#005ca9] text-white hover:bg-[#004a87]"
+                onClick={handleCreateCollaborateur}
+                disabled={isSubmittingCreate}
+              >
+                {isSubmittingCreate ? tr("Enregistrement...", "Saving...") : tr("Enregistrer", "Save")}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {isFormationsDialogOpen && formationsCollaborateur && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={closeFormationsDialog}>
