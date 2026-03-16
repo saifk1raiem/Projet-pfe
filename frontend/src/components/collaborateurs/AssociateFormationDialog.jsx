@@ -88,18 +88,6 @@ export function AssociateFormationDialog({
               disabled={isSubmitting}
             />
           </div>
-          <div className="rounded-2xl border border-[#dfe5e2] bg-[#f8fafc] p-4">
-            <p className="text-[12px] uppercase tracking-[0.12em] text-[#64748b]">
-              {tr("Statut initial", "Initial status")}
-            </p>
-            <p className="mt-2 text-[18px] font-medium text-[#1d2025]">{tr("En cours", "In progress")}</p>
-            <p className="mt-1 text-[13px] text-[#64748b]">
-              {tr(
-                "La qualification demarre des que la formation est associee.",
-                "Qualification starts as soon as the training is assigned.",
-              )}
-            </p>
-          </div>
         </div>
 
         {isLoading ? (

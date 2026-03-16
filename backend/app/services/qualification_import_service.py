@@ -331,3 +331,43 @@ def import_qualification_rows(db: Session, rows: list[dict[str, Any]]) -> dict[s
         "qualification_rows_with_formateur": linked_with_formateur,
         "skipped": skipped,
     }
+
+
+def recalculate_qualification_rows(db: Session) -> dict[str, int]:
+    rows = db.execute(
+        select(
+            collaborateur_formations_table.c.id,
+            collaborateur_formations_table.c.statut,
+            collaborateur_formations_table.c.date_association_systeme,
+            collaborateur_formations_table.c.etat_qualification,
+            formations_table.c.duree_jours,
+        )
+        .select_from(
+            collaborateur_formations_table.outerjoin(
+                formations_table,
+                formations_table.c.id == collaborateur_formations_table.c.formation_id,
+            )
+        )
+    ).mappings().all()
+
+    updated_rows = 0
+    for row in rows:
+        next_status = resolve_qualification_status(
+            row["statut"],
+            row["date_association_systeme"],
+            row["duree_jours"],
+            etat_qualification=row["etat_qualification"],
+        )
+        if row["etat_qualification"] != next_status:
+            db.execute(
+                update(collaborateur_formations_table)
+                .where(collaborateur_formations_table.c.id == row["id"])
+                .values(etat_qualification=next_status)
+            )
+            updated_rows += 1
+
+    db.commit()
+    return {
+        "total_rows": len(rows),
+        "updated_rows": updated_rows,
+    }

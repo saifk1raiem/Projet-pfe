@@ -3,6 +3,8 @@ import {
   AlertCircle,
   AlertTriangle,
   CheckCircle2,
+  Loader2,
+  RefreshCcw,
   Users,
   XCircle,
 } from "lucide-react";
@@ -23,9 +25,38 @@ import {
   getTodayDateInputValue,
   mapCollaborateur,
   statusRank,
-  statutOptions,
 } from "./helpers";
-import { StatusDialog } from "./StatusDialog";
+
+const getAuthHeaders = (accessToken, headers = {}) =>
+  accessToken ? { ...headers, Authorization: `Bearer ${accessToken}` } : headers;
+
+async function readJsonResponse(url, options = {}) {
+  const response = await fetch(url, options);
+  const data = response.status === 204 ? {} : await response.json().catch(() => ({}));
+  return { response, data };
+}
+
+async function fetchCollaborateurs(accessToken) {
+  return readJsonResponse(apiUrl("/qualification"), {
+    headers: getAuthHeaders(accessToken),
+  });
+}
+
+async function fetchCollaborateurFormations(accessToken, matricule) {
+  return readJsonResponse(
+    apiUrl(`/qualification/${encodeURIComponent(matricule)}/formations`),
+    {
+      headers: getAuthHeaders(accessToken),
+    },
+  );
+}
+
+async function recalculateQualificationStatuses(accessToken) {
+  return readJsonResponse(apiUrl("/qualification/recalculate"), {
+    method: "POST",
+    headers: getAuthHeaders(accessToken),
+  });
+}
 
 export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken }) {
   const { tr } = useAppPreferences();
@@ -36,12 +67,12 @@ export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken 
   const [departmentFilter, setDepartmentFilter] = useState("all");
   const [collaborateursData, setCollaborateursData] = useState([]);
   const [loadError, setLoadError] = useState("");
+  const [pageError, setPageError] = useState("");
+  const [isRefreshingData, setIsRefreshingData] = useState(false);
   const [selectedCollaborateur, setSelectedCollaborateur] = useState(null);
   const [collaborateurToDelete, setCollaborateurToDelete] = useState(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [collaborateurToUpdateStatus, setCollaborateurToUpdateStatus] = useState(null);
-  const [statusDraft, setStatusDraft] = useState(statutOptions[0]);
-  const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
+  const [isDeletingCollaborateur, setIsDeletingCollaborateur] = useState(false);
   const [isFormationsDialogOpen, setIsFormationsDialogOpen] = useState(false);
   const [formationsCollaborateur, setFormationsCollaborateur] = useState(null);
   const [formationsHistory, setFormationsHistory] = useState([]);
@@ -107,6 +138,31 @@ export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken 
     setFormationsHistoryError("");
   };
 
+  const applyCollaborateursData = (rows) => {
+    setCollaborateursData(rows);
+    setSelectedCollaborateur((prev) => {
+      if (!prev) return prev;
+      return rows.find((item) => item.id === prev.id) ?? null;
+    });
+    setFormationsCollaborateur((prev) => {
+      if (!prev) return prev;
+      return rows.find((item) => item.id === prev.id) ?? null;
+    });
+  };
+
+  const loadCollaborateurs = async () => {
+    const { response, data } = await fetchCollaborateurs(accessToken);
+    if (!response.ok) {
+      throw new Error("load_failed");
+    }
+
+    const mappedRows = Array.isArray(data) ? data.map(mapCollaborateur) : [];
+    applyCollaborateursData(mappedRows);
+    setLoadError("");
+    setPageError("");
+    return mappedRows;
+  };
+
   useEffect(() => {
     if (!accessToken) {
       setCollaborateursData([]);
@@ -115,24 +171,10 @@ export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken 
 
     let cancelled = false;
 
-    const loadCollaborateurs = async () => {
+    const initializeCollaborateurs = async () => {
       try {
-        const response = await fetch(apiUrl("/qualification"), {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        });
-        const data = await response.json().catch(() => []);
-        if (!response.ok) {
-          if (!cancelled) {
-            setLoadError(tr("Impossible de charger les collaborateurs.", "Failed to load collaborators."));
-          }
-          return;
-        }
-
         if (!cancelled) {
-          setCollaborateursData(Array.isArray(data) ? data.map(mapCollaborateur) : []);
-          setLoadError("");
+          await loadCollaborateurs();
         }
       } catch {
         if (!cancelled) {
@@ -141,7 +183,7 @@ export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken 
       }
     };
 
-    loadCollaborateurs();
+    initializeCollaborateurs();
 
     return () => {
       cancelled = true;
@@ -411,36 +453,88 @@ export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken 
     }
   };
 
-  const handleUpdateStatus = () => {
-    if (!collaborateurToUpdateStatus) return;
-
-    setCollaborateursData((prev) =>
-      prev.map((collab) => {
-        if (collab.id !== collaborateurToUpdateStatus.id) {
-          return collab;
-        }
-        return { ...collab, statut: statusDraft };
-      }),
-    );
-
-    setSelectedCollaborateur((prev) => {
-      if (!prev || prev.id !== collaborateurToUpdateStatus.id) {
-        return prev;
-      }
-      return { ...prev, statut: statusDraft };
-    });
-
-    setIsStatusDialogOpen(false);
-    setCollaborateurToUpdateStatus(null);
-  };
-
   const handleDeleteCollaborateur = () => {
     if (!collaborateurToDelete) return;
 
-    setCollaborateursData((prev) => prev.filter((collab) => collab.id !== collaborateurToDelete.id));
-    setSelectedCollaborateur((prev) => (prev?.id === collaborateurToDelete.id ? null : prev));
-    setIsDeleteDialogOpen(false);
-    setCollaborateurToDelete(null);
+    const deleteCollaborateur = async () => {
+      const matricule = collaborateurToDelete.matricule;
+      setIsDeletingCollaborateur(true);
+      setPageError("");
+
+      try {
+        const response = await fetch(
+          apiUrl(`/qualification/${encodeURIComponent(matricule)}`),
+          {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          },
+        );
+
+        const data = response.status === 204 ? {} : await response.json().catch(() => ({}));
+        if (!response.ok) {
+          setPageError(
+            data?.detail || tr("Impossible de supprimer le collaborateur.", "Failed to delete collaborator."),
+          );
+          return;
+        }
+
+        setCollaborateursData((prev) => prev.filter((collab) => collab.id !== collaborateurToDelete.id));
+        setSelectedCollaborateur((prev) => (prev?.id === collaborateurToDelete.id ? null : prev));
+        setIsDeleteDialogOpen(false);
+        setCollaborateurToDelete(null);
+      } catch {
+        setPageError(tr("Impossible de supprimer le collaborateur.", "Failed to delete collaborator."));
+      } finally {
+        setIsDeletingCollaborateur(false);
+      }
+    };
+
+    if (!accessToken) {
+      setPageError(tr("Token manquant. Reconnectez-vous.", "Missing access token. Please sign in again."));
+      return;
+    }
+
+    deleteCollaborateur();
+  };
+
+  const handleRefreshData = async () => {
+    if (!accessToken) {
+      setPageError(tr("Token manquant. Reconnectez-vous.", "Missing access token. Please sign in again."));
+      return;
+    }
+
+    setIsRefreshingData(true);
+    setPageError("");
+
+    try {
+      if (!isObserver) {
+        const { response, data } = await recalculateQualificationStatuses(accessToken);
+        if (!response.ok) {
+          setPageError(
+            data?.detail || tr("Impossible de recalculer les etats.", "Failed to recalculate statuses."),
+          );
+          return;
+        }
+      }
+
+      await loadCollaborateurs();
+
+      if (formationsCollaborateur?.matricule) {
+        const { response, data } = await fetchCollaborateurFormations(accessToken, formationsCollaborateur.matricule);
+        if (!response.ok) {
+          setFormationsHistoryError(tr("Impossible de charger les formations.", "Failed to load trainings."));
+        } else {
+          setFormationsHistory(Array.isArray(data) ? data : []);
+          setFormationsHistoryError("");
+        }
+      }
+    } catch {
+      setPageError(tr("Impossible d'actualiser les collaborateurs.", "Failed to refresh collaborators."));
+    } finally {
+      setIsRefreshingData(false);
+    }
   };
 
   const handleGoToFormationSection = (formation) => {
@@ -459,17 +553,32 @@ export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken 
             {tr("Liste et suivi des collaborateurs", "Collaborator list and tracking")}
           </p>
         </div>
-        <Button
-          className="h-10 rounded-[10px] bg-[#005ca9] px-5 text-[16px] font-medium text-white hover:bg-[#004a87]"
-          disabled={isObserver}
-          onClick={() => {
-            resetCreateForm();
-            setIsCreateOpen(true);
-          }}
-        >
-          <Users className="mr-2 h-4 w-4" />
-          {tr("Nouveau Collaborateur", "New Collaborator")}
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            className="h-10 rounded-[10px] border-[#ccd4d8] px-5 text-[16px]"
+            disabled={isRefreshingData}
+            onClick={handleRefreshData}
+          >
+            {isRefreshingData ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCcw className="mr-2 h-4 w-4" />
+            )}
+            {tr("Actualiser", "Refresh")}
+          </Button>
+          <Button
+            className="h-10 rounded-[10px] bg-[#005ca9] px-5 text-[16px] font-medium text-white hover:bg-[#004a87]"
+            disabled={isObserver}
+            onClick={() => {
+              resetCreateForm();
+              setIsCreateOpen(true);
+            }}
+          >
+            <Users className="mr-2 h-4 w-4" />
+            {tr("Nouveau Collaborateur", "New Collaborator")}
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
@@ -483,6 +592,12 @@ export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken 
       {loadError ? (
         <Card className="rounded-[20px] border border-[#f2c4c4] bg-[#fdeeee] p-4 text-sm text-[#8a1d1d] shadow-sm">
           {loadError}
+        </Card>
+      ) : null}
+
+      {pageError ? (
+        <Card className="rounded-[20px] border border-[#f2c4c4] bg-[#fdeeee] p-4 text-sm text-[#8a1d1d] shadow-sm">
+          {pageError}
         </Card>
       ) : null}
 
@@ -530,12 +645,6 @@ export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken 
         onCloseDetails={() => setSelectedCollaborateur(null)}
         onViewFormations={handleOpenFormationsDialog}
         onOpenAssociate={handleOpenAssociateDialog}
-        onOpenStatus={(collab) => {
-          if (isObserver) return;
-          setCollaborateurToUpdateStatus(collab);
-          setStatusDraft(collab.statut);
-          setIsStatusDialogOpen(true);
-        }}
         onAskDelete={(collab) => {
           if (isObserver) return;
           setCollaborateurToDelete(collab);
@@ -583,24 +692,6 @@ export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken 
       />
 
       {!isObserver ? (
-        <StatusDialog
-          tr={tr}
-          isOpen={isStatusDialogOpen}
-          onOpenChange={(open) => {
-            setIsStatusDialogOpen(open);
-            if (!open) {
-              setCollaborateurToUpdateStatus(null);
-            }
-          }}
-          collaborateur={collaborateurToUpdateStatus}
-          statusDraft={statusDraft}
-          onStatusDraftChange={setStatusDraft}
-          onSubmit={handleUpdateStatus}
-          statutOptions={statutOptions}
-        />
-      ) : null}
-
-      {!isObserver ? (
         <DeleteCollaborateurDialog
           tr={tr}
           isOpen={isDeleteDialogOpen}
@@ -612,6 +703,7 @@ export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken 
           }}
           collaborateurToDelete={collaborateurToDelete}
           onDeleteCollaborateur={handleDeleteCollaborateur}
+          isDeleting={isDeletingCollaborateur}
         />
       ) : null}
     </div>

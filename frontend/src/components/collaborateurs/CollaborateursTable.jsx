@@ -1,5 +1,5 @@
 import { Fragment } from "react";
-import { BookOpen, Eye, Link2, MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { BookOpen, Eye, Link2, MoreVertical, Trash2 } from "lucide-react";
 
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
@@ -28,7 +28,6 @@ export function CollaborateursTable({
   onCloseDetails,
   onViewFormations,
   onOpenAssociate,
-  onOpenStatus,
   onAskDelete,
   canManage,
   tr,
@@ -89,10 +88,6 @@ export function CollaborateursTable({
                           <DropdownMenuItem onClick={() => onOpenAssociate(collab)}>
                             <Link2 className="h-4 w-4" />
                             {tr("Associer formation", "Assign training")}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => onOpenStatus(collab)}>
-                            <Pencil className="h-4 w-4" />
-                            {tr("Changer statut", "Change status")}
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem variant="destructive" onClick={() => onAskDelete(collab)}>

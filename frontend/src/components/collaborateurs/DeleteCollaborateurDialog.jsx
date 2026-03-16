@@ -15,6 +15,7 @@ export function DeleteCollaborateurDialog({
   onOpenChange,
   collaborateurToDelete,
   onDeleteCollaborateur,
+  isDeleting,
 }) {
   return (
     <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
@@ -28,9 +29,13 @@ export function DeleteCollaborateurDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>{tr("Annuler", "Cancel")}</AlertDialogCancel>
-          <AlertDialogAction className="bg-[#ea3737] hover:bg-[#d12f2f]" onClick={onDeleteCollaborateur}>
-            {tr("Supprimer", "Delete")}
+          <AlertDialogCancel disabled={isDeleting}>{tr("Annuler", "Cancel")}</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-[#ea3737] hover:bg-[#d12f2f]"
+            disabled={isDeleting}
+            onClick={onDeleteCollaborateur}
+          >
+            {isDeleting ? tr("Suppression...", "Deleting...") : tr("Supprimer", "Delete")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

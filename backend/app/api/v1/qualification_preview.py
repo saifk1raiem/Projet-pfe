@@ -1,7 +1,7 @@
 from datetime import date
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
-from sqlalchemy import insert, select
+from sqlalchemy import delete, insert, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, require_roles
@@ -11,10 +11,10 @@ from app.services.excel_synonyms import get_excel_synonyms
 from app.services.qualification_import_service import (
     collaborateur_formations_table,
     collaborateurs_table,
-    compute_etat_qualification,
     formateurs_table,
     formations_table,
     import_qualification_rows,
+    recalculate_qualification_rows,
     resolve_qualification_status,
 )
 from app.utils.qualification_preview import parse_excel_to_rows
@@ -256,6 +256,35 @@ def create_collaborateur(
     }
 
 
+@router.post("/recalculate")
+def recalculate_collaborateur_qualification_statuses(
+    db: Session = Depends(get_db),
+    _: object = Depends(require_roles(UserRole.admin)),
+):
+    return recalculate_qualification_rows(db)
+
+
+@router.delete("/{matricule}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_collaborateur(
+    matricule: str,
+    db: Session = Depends(get_db),
+    _: object = Depends(require_roles(UserRole.admin)),
+):
+    collaborator = db.execute(
+        select(collaborateurs_table.c.matricule).where(collaborateurs_table.c.matricule == matricule)
+    ).first()
+    if not collaborator:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Collaborateur not found")
+
+    db.execute(
+        delete(collaborateur_formations_table).where(collaborateur_formations_table.c.matricule == matricule)
+    )
+    db.execute(
+        delete(collaborateurs_table).where(collaborateurs_table.c.matricule == matricule)
+    )
+    db.commit()
+
+
 @router.get("/{matricule}/formations")
 def list_collaborateur_formations(
     matricule: str,
@@ -368,7 +397,7 @@ def associate_formation_to_collaborateur(
         )
 
     association_date = payload.date_association_systeme or date.today()
-    qualification_result = compute_etat_qualification(
+    qualification_result = resolve_qualification_status(
         "En cours",
         association_date,
         formation["duree_jours"],
