@@ -9,6 +9,7 @@ from app.services.qualification_import_service import (
     collaborateurs_table,
     formateurs_table,
     formations_table,
+    resolve_qualification_status,
 )
 
 
@@ -198,6 +199,7 @@ def list_formateur_collaborateurs(
             formations_table.c.id.label("formation_id"),
             formations_table.c.code_formation,
             formations_table.c.nom_formation,
+            formations_table.c.duree_jours,
         )
         .select_from(
             collaborateur_formations_table.join(
@@ -220,9 +222,12 @@ def list_formateur_collaborateurs(
     rows = db.execute(stmt).mappings().all()
     result = []
     for row in rows:
-        statut = row["etat_qualification"]
-        if not statut:
-            statut = "Qualifie" if row["statut"] == "Completee" else row["statut"] or "Non associee"
+        statut = resolve_qualification_status(
+            row["statut"],
+            row["date_association_systeme"],
+            row["duree_jours"],
+            etat_qualification=row["etat_qualification"],
+        )
 
         result.append(
             {

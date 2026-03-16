@@ -128,6 +128,29 @@ def compute_etat_qualification(
     return "Non associee"
 
 
+def resolve_qualification_status(
+    statut: str | None,
+    date_association_systeme: date | None,
+    duree_jours: int | None,
+    *,
+    etat_qualification: str | None = None,
+    today: date | None = None,
+) -> str:
+    computed = compute_etat_qualification(
+        statut,
+        date_association_systeme,
+        duree_jours,
+        today=today,
+    )
+    if computed != "Non associee":
+        return computed
+
+    if etat_qualification in {"Qualifie", "En cours", "Depassement", "Non associee", "Non associe"}:
+        return "Non associee" if etat_qualification == "Non associe" else etat_qualification
+
+    return "Non associee"
+
+
 def _normalize_import_statut(statut: Any, date_completion: Any) -> str:
     if isinstance(statut, str):
         normalized = statut.strip().lower().replace("-", "_").replace(" ", "_")

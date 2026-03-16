@@ -15,6 +15,7 @@ from app.services.qualification_import_service import (
     formateurs_table,
     formations_table,
     import_qualification_rows,
+    resolve_qualification_status,
 )
 from app.utils.qualification_preview import parse_excel_to_rows
 
@@ -27,6 +28,51 @@ def resolve_phase(date_association_systeme) -> str:
         return "qualification"
     days_since_association = (date.today() - date_association_systeme).days
     return "indection" if days_since_association <= 5 else "qualification"
+
+
+def build_preview_rows_with_live_status(db: Session, rows: list[dict]) -> list[dict]:
+    formation_ids = {
+        int(row["formation_id"])
+        for row in rows
+        if row.get("formation_id") not in (None, "")
+    }
+    durations_by_formation_id: dict[int, int | None] = {}
+    if formation_ids:
+        formation_rows = db.execute(
+            select(formations_table.c.id, formations_table.c.duree_jours).where(formations_table.c.id.in_(formation_ids))
+        ).mappings().all()
+        durations_by_formation_id = {
+            item["id"]: item["duree_jours"]
+            for item in formation_rows
+        }
+
+    enriched_rows = []
+    for row in rows:
+        normalized_status = row.get("statut")
+        if normalized_status not in {"Completee", "En cours"}:
+            normalized_status = "Completee" if row.get("date_completion") else "En cours"
+
+        association_date = None
+        if row.get("date_association_systeme"):
+            association_date = date.fromisoformat(str(row["date_association_systeme"]))
+
+        qualification_status = resolve_qualification_status(
+            normalized_status,
+            association_date,
+            durations_by_formation_id.get(int(row["formation_id"])) if row.get("formation_id") not in (None, "") else None,
+            etat_qualification=row.get("etat_qualification"),
+        )
+
+        enriched_rows.append(
+            {
+                **row,
+                "statut": normalized_status,
+                "etat_qualification": qualification_status,
+                "etat": qualification_status,
+            }
+        )
+
+    return enriched_rows
 
 
 @router.get("")
@@ -82,10 +128,11 @@ def list_qualification_rows(
     for item in raw_rows:
         matricule = item["matricule"]
         current = collaborators_by_matricule.get(matricule)
-        qualification_status = compute_etat_qualification(
+        qualification_status = resolve_qualification_status(
             item["qualification_statut"],
             item["date_association_systeme"],
             item["duree_jours"],
+            etat_qualification=item["etat_qualification"],
         ) if item["qualification_row_id"] is not None else "Non associee"
 
         if current is None:
@@ -258,7 +305,12 @@ def list_collaborateur_formations(
                 item["date_association_systeme"].isoformat() if item["date_association_systeme"] else None
             ),
             "duree": item["duree_jours"],
-            "resultat": item["etat_qualification"] or item["statut"],
+            "resultat": resolve_qualification_status(
+                item["statut"],
+                item["date_association_systeme"],
+                item["duree_jours"],
+                etat_qualification=item["etat_qualification"],
+            ),
             "statut": item["statut"],
             "score": float(item["score"]) if item["score"] is not None else None,
             "formateur_id": item["formateur_id"],
@@ -439,7 +491,7 @@ async def preview_qualification_file(
     return {
         "columns_detected": merged_columns,
         "mapping_used": merged_mapping,
-        "rows": merged_rows,
+        "rows": build_preview_rows_with_live_status(db, merged_rows),
         "rows_count": len(merged_rows),
         "file_errors": file_errors,
         "import_summary": import_summary,
