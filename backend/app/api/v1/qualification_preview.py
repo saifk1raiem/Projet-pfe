@@ -1,23 +1,24 @@
 from datetime import date
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
-from sqlalchemy import delete, insert, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, require_roles
 from app.models.enums import UserRole
-from app.schemas.qualification import CollaborateurCreate, CollaborateurFormationCreate
+from app.schemas.qualification import QualificationImportRequest
+from app.services.collaborateur_import_service import detect_collaborateur_conflicts
 from app.services.excel_synonyms import get_excel_synonyms
 from app.services.qualification_import_service import (
-    collaborateur_formations_table,
     collaborateurs_table,
     formateurs_table,
     formations_table,
     import_qualification_rows,
+    qualification_table,
     recalculate_qualification_rows,
     resolve_qualification_status,
 )
-from app.utils.qualification_preview import parse_excel_to_rows
+from app.utils.qualification_preview import SUPPORTED_UPLOAD_EXTENSIONS, parse_excel_to_rows
 
 
 router = APIRouter(prefix="/qualification", tags=["qualification"])
@@ -94,36 +95,35 @@ def list_qualification_rows(
             collaborateurs_table.c.num_tel,
             collaborateurs_table.c.date_recrutement,
             collaborateurs_table.c.anciennete,
-            collaborateur_formations_table.c.id.label("qualification_row_id"),
-            collaborateur_formations_table.c.formation_id,
-            collaborateur_formations_table.c.statut.label("qualification_statut"),
-            collaborateur_formations_table.c.date_association_systeme,
-            collaborateur_formations_table.c.date_completion,
-            collaborateur_formations_table.c.etat_qualification,
+            qualification_table.c.id.label("qualification_row_id"),
+            qualification_table.c.formation_id,
+            qualification_table.c.statut.label("qualification_statut"),
+            qualification_table.c.date_association_systeme,
+            qualification_table.c.date_completion,
+            qualification_table.c.etat_qualification,
+            qualification_table.c.formateur_id,
+            formations_table.c.nom_formation,
             formations_table.c.duree_jours,
+            formateurs_table.c.nom_formateur,
         )
         .select_from(
             collaborateurs_table
-            .outerjoin(
-                collaborateur_formations_table,
-                collaborateurs_table.c.matricule == collaborateur_formations_table.c.matricule,
+            .join(
+                qualification_table,
+                collaborateurs_table.c.matricule == qualification_table.c.matricule,
             )
-            .outerjoin(formations_table, formations_table.c.id == collaborateur_formations_table.c.formation_id)
+            .outerjoin(formations_table, formations_table.c.id == qualification_table.c.formation_id)
+            .outerjoin(formateurs_table, formateurs_table.c.id == qualification_table.c.formateur_id)
         )
-        .order_by(collaborateurs_table.c.matricule.asc())
+        .order_by(
+            collaborateurs_table.c.matricule.asc(),
+            qualification_table.c.date_association_systeme.desc(),
+            qualification_table.c.id.desc(),
+        )
     )
 
     raw_rows = db.execute(stmt).mappings().all()
     collaborators_by_matricule: dict[str, dict] = {}
-
-    def status_rank(value: str) -> int:
-        if value == "Depassement":
-            return 3
-        if value == "En cours":
-            return 2
-        if value == "Qualifie":
-            return 1
-        return 0
 
     for item in raw_rows:
         matricule = item["matricule"]
@@ -133,127 +133,41 @@ def list_qualification_rows(
             item["date_association_systeme"],
             item["duree_jours"],
             etat_qualification=item["etat_qualification"],
-        ) if item["qualification_row_id"] is not None else "Non associee"
+        )
 
         if current is None:
             current = {
                 "id": matricule,
-                "phase": "indection",
+                "phase": "qualification",
                 "matricule": matricule,
                 "nom": item["nom"],
                 "prenom": item["prenom"],
                 "fonction": item["fonction"],
                 "centre_cout": item["centre_cout"],
                 "groupe": item["groupe"],
-                "competence": None,
+                "competence": item["nom_formation"],
+                "formateur": item["nom_formateur"],
                 "contre_maitre": item["contre_maitre"],
                 "segment": item["segment"],
                 "gender": item["gender"],
                 "num_tel": item["num_tel"],
                 "date_recrutement": item["date_recrutement"].isoformat() if item["date_recrutement"] else None,
                 "anciennete": item["anciennete"],
-                "statut": "Non associee",
+                "date_association_systeme": item["date_association_systeme"].isoformat() if item["date_association_systeme"] else None,
+                "date_completion": item["date_completion"].isoformat() if item["date_completion"] else None,
+                "statut": qualification_status,
+                "etat": qualification_status,
+                "formation_id": item["formation_id"],
                 "formations": 0,
-                "derniereFormation": None,
-                "_latest_association_date": None,
             }
             collaborators_by_matricule[matricule] = current
 
-        if item["qualification_row_id"] is not None:
-            current["formations"] += 1
-            if item["date_association_systeme"] and (
-                current["derniereFormation"] is None or item["date_association_systeme"].isoformat() > current["derniereFormation"]
-            ):
-                current["derniereFormation"] = item["date_association_systeme"].isoformat()
-            if status_rank(qualification_status) > status_rank(current["statut"]):
-                current["statut"] = qualification_status
-            if current["_latest_association_date"] is None or item["date_association_systeme"] > current["_latest_association_date"]:
-                current["_latest_association_date"] = item["date_association_systeme"]
-                current["phase"] = resolve_phase(item["date_association_systeme"])
+        current["formations"] += 1
 
     result = []
     for collaborator in collaborators_by_matricule.values():
-        collaborator.pop("_latest_association_date", None)
         result.append(collaborator)
     return result
-
-
-@router.post("", status_code=status.HTTP_201_CREATED)
-def create_collaborateur(
-    payload: CollaborateurCreate,
-    db: Session = Depends(get_db),
-    _: object = Depends(require_roles(UserRole.admin)),
-):
-    matricule = payload.matricule.strip()
-    nom = payload.nom.strip()
-    prenom = payload.prenom.strip()
-
-    if not matricule:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="matricule is required")
-    if not nom:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="nom is required")
-    if not prenom:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="prenom is required")
-
-    existing = db.execute(
-        select(collaborateurs_table.c.matricule).where(collaborateurs_table.c.matricule == matricule)
-    ).first()
-    if existing:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Collaborateur already exists")
-
-    inserted = db.execute(
-        insert(collaborateurs_table)
-        .values(
-            matricule=matricule,
-            nom=nom,
-            prenom=prenom,
-            fonction=payload.fonction,
-            centre_cout=payload.centre_cout,
-            groupe=payload.groupe,
-            contre_maitre=payload.contre_maitre,
-            segment=payload.segment,
-            gender=payload.gender,
-            num_tel=payload.num_tel,
-            date_recrutement=payload.date_recrutement,
-            anciennete=payload.anciennete,
-        )
-        .returning(
-            collaborateurs_table.c.matricule,
-            collaborateurs_table.c.nom,
-            collaborateurs_table.c.prenom,
-            collaborateurs_table.c.fonction,
-            collaborateurs_table.c.centre_cout,
-            collaborateurs_table.c.groupe,
-            collaborateurs_table.c.contre_maitre,
-            collaborateurs_table.c.segment,
-            collaborateurs_table.c.gender,
-            collaborateurs_table.c.num_tel,
-            collaborateurs_table.c.date_recrutement,
-            collaborateurs_table.c.anciennete,
-        )
-    ).mappings().one()
-    db.commit()
-
-    return {
-        "id": inserted["matricule"],
-        "phase": "qualification",
-        "matricule": inserted["matricule"],
-        "nom": inserted["nom"],
-        "prenom": inserted["prenom"],
-        "fonction": inserted["fonction"],
-        "centre_cout": inserted["centre_cout"],
-        "groupe": inserted["groupe"],
-        "competence": None,
-        "contre_maitre": inserted["contre_maitre"],
-        "segment": inserted["segment"],
-        "gender": inserted["gender"],
-        "num_tel": inserted["num_tel"],
-        "date_recrutement": inserted["date_recrutement"].isoformat() if inserted["date_recrutement"] else None,
-        "anciennete": inserted["anciennete"],
-        "statut": "Non associee",
-        "formations": 0,
-        "derniereFormation": None,
-    }
 
 
 @router.post("/recalculate")
@@ -264,27 +178,6 @@ def recalculate_collaborateur_qualification_statuses(
     return recalculate_qualification_rows(db)
 
 
-@router.delete("/{matricule}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_collaborateur(
-    matricule: str,
-    db: Session = Depends(get_db),
-    _: object = Depends(require_roles(UserRole.admin)),
-):
-    collaborator = db.execute(
-        select(collaborateurs_table.c.matricule).where(collaborateurs_table.c.matricule == matricule)
-    ).first()
-    if not collaborator:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Collaborateur not found")
-
-    db.execute(
-        delete(collaborateur_formations_table).where(collaborateur_formations_table.c.matricule == matricule)
-    )
-    db.execute(
-        delete(collaborateurs_table).where(collaborateurs_table.c.matricule == matricule)
-    )
-    db.commit()
-
-
 @router.get("/{matricule}/formations")
 def list_collaborateur_formations(
     matricule: str,
@@ -293,14 +186,14 @@ def list_collaborateur_formations(
 ):
     stmt = (
         select(
-            collaborateur_formations_table.c.id,
-            collaborateur_formations_table.c.formation_id,
-            collaborateur_formations_table.c.statut,
-            collaborateur_formations_table.c.date_association_systeme,
-            collaborateur_formations_table.c.date_completion,
-            collaborateur_formations_table.c.etat_qualification,
-            collaborateur_formations_table.c.score,
-            collaborateur_formations_table.c.formateur_id,
+            qualification_table.c.id,
+            qualification_table.c.formation_id,
+            qualification_table.c.statut,
+            qualification_table.c.date_association_systeme,
+            qualification_table.c.date_completion,
+            qualification_table.c.etat_qualification,
+            qualification_table.c.score,
+            qualification_table.c.formateur_id,
             formations_table.c.code_formation,
             formations_table.c.nom_formation,
             formations_table.c.domaine,
@@ -308,18 +201,18 @@ def list_collaborateur_formations(
             formateurs_table.c.nom_formateur,
         )
         .select_from(
-            collaborateur_formations_table
+            qualification_table
             .outerjoin(
                 formations_table,
-                formations_table.c.id == collaborateur_formations_table.c.formation_id,
+                formations_table.c.id == qualification_table.c.formation_id,
             )
             .outerjoin(
                 formateurs_table,
-                formateurs_table.c.id == collaborateur_formations_table.c.formateur_id,
+                formateurs_table.c.id == qualification_table.c.formateur_id,
             )
         )
-        .where(collaborateur_formations_table.c.matricule == matricule)
-        .order_by(collaborateur_formations_table.c.date_association_systeme.desc(), collaborateur_formations_table.c.id.desc())
+        .where(qualification_table.c.matricule == matricule)
+        .order_by(qualification_table.c.date_association_systeme.desc(), qualification_table.c.id.desc())
     )
 
     rows = db.execute(stmt).mappings().all()
@@ -349,101 +242,6 @@ def list_collaborateur_formations(
     ]
 
 
-@router.post("/{matricule}/formations", status_code=status.HTTP_201_CREATED)
-def associate_formation_to_collaborateur(
-    matricule: str,
-    payload: CollaborateurFormationCreate,
-    db: Session = Depends(get_db),
-    _: object = Depends(require_roles(UserRole.admin)),
-):
-    collaborator = db.execute(
-        select(collaborateurs_table.c.matricule).where(collaborateurs_table.c.matricule == matricule)
-    ).first()
-    if not collaborator:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Collaborateur not found")
-
-    formation = db.execute(
-        select(
-            formations_table.c.id,
-            formations_table.c.code_formation,
-            formations_table.c.nom_formation,
-            formations_table.c.domaine,
-            formations_table.c.duree_jours,
-        ).where(formations_table.c.id == payload.formation_id)
-    ).mappings().first()
-    if not formation:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Formation not found")
-
-    formateur = None
-    if payload.formateur_id is not None:
-        formateur = db.execute(
-            select(
-                formateurs_table.c.id,
-                formateurs_table.c.nom_formateur,
-            ).where(formateurs_table.c.id == payload.formateur_id)
-        ).mappings().first()
-        if not formateur:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Formateur not found")
-
-    existing = db.execute(
-        select(collaborateur_formations_table.c.id)
-        .where(collaborateur_formations_table.c.matricule == matricule)
-        .where(collaborateur_formations_table.c.formation_id == payload.formation_id)
-    ).first()
-    if existing:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Collaborateur already associated to this formation",
-        )
-
-    association_date = payload.date_association_systeme or date.today()
-    qualification_result = resolve_qualification_status(
-        "En cours",
-        association_date,
-        formation["duree_jours"],
-    )
-
-    inserted = db.execute(
-        insert(collaborateur_formations_table)
-        .values(
-            matricule=matricule,
-            formation_id=payload.formation_id,
-            statut="En cours",
-            date_association_systeme=association_date,
-            date_completion=None,
-            etat_qualification=qualification_result,
-            score=None,
-            formateur_id=payload.formateur_id,
-        )
-        .returning(
-            collaborateur_formations_table.c.id,
-            collaborateur_formations_table.c.formation_id,
-            collaborateur_formations_table.c.statut,
-            collaborateur_formations_table.c.date_association_systeme,
-            collaborateur_formations_table.c.date_completion,
-            collaborateur_formations_table.c.etat_qualification,
-            collaborateur_formations_table.c.score,
-            collaborateur_formations_table.c.formateur_id,
-        )
-    ).mappings().one()
-    db.commit()
-
-    return {
-        "id": inserted["id"],
-        "formation_id": inserted["formation_id"],
-        "code": formation["code_formation"] or str(inserted["formation_id"]),
-        "titre": formation["nom_formation"] or f"Formation {inserted['formation_id']}",
-        "type": formation["domaine"] or "Formation",
-        "date": association_date.isoformat(),
-        "duree": formation["duree_jours"],
-        "resultat": qualification_result,
-        "statut": inserted["statut"],
-        "score": float(inserted["score"]) if inserted["score"] is not None else None,
-        "formateur_id": inserted["formateur_id"],
-        "formateur": formateur["nom_formateur"] if formateur else None,
-    }
-
-
 @router.post("/preview")
 async def preview_qualification_file(
     files: list[UploadFile] = File(...),
@@ -460,8 +258,10 @@ async def preview_qualification_file(
 
     for upload in files:
         filename = (upload.filename or "").lower()
-        if not (filename.endswith(".xlsx") or filename.endswith(".xls")):
-            file_errors.append({"file": upload.filename or "", "error": "Only .xlsx and .xls files are accepted"})
+        if not any(filename.endswith(extension) for extension in SUPPORTED_UPLOAD_EXTENSIONS):
+            file_errors.append(
+                {"file": upload.filename or "", "error": "Only .xlsx, .xls, and .csv files are accepted"}
+            )
             continue
 
         content = await upload.read()
@@ -478,10 +278,10 @@ async def preview_qualification_file(
         except ImportError as exc:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Excel support dependencies are missing (openpyxl/xlrd)",
+                detail="Spreadsheet support dependencies are missing (openpyxl/xlrd)",
             ) from exc
         except Exception as exc:
-            file_errors.append({"file": upload.filename or "", "error": f"Invalid Excel file: {exc}"})
+            file_errors.append({"file": upload.filename or "", "error": f"Invalid upload file: {exc}"})
             continue
 
         has_matricule = "matricule" in mapping_used
@@ -491,6 +291,15 @@ async def preview_qualification_file(
                 {
                     "file": upload.filename or "",
                     "error": "Missing required columns: need matricule or a name column",
+                }
+            )
+            continue
+
+        if "competence" not in mapping_used:
+            file_errors.append(
+                {
+                    "file": upload.filename or "",
+                    "error": "This file contains collaborator data but no qualification column. Use the Collaborateurs Excel import instead.",
                 }
             )
             continue
@@ -509,13 +318,7 @@ async def preview_qualification_file(
             detail={"message": "No valid files to preview", "file_errors": file_errors},
         )
 
-    import_summary = import_qualification_rows(db, merged_rows) if merged_rows else {
-        "collaborators_inserted": 0,
-        "collaborators_updated": 0,
-        "qualifications_inserted": 0,
-        "qualifications_updated": 0,
-        "skipped": 0,
-    }
+    conflicts = detect_collaborateur_conflicts(db, merged_rows)
 
     return {
         "columns_detected": merged_columns,
@@ -523,5 +326,21 @@ async def preview_qualification_file(
         "rows": build_preview_rows_with_live_status(db, merged_rows),
         "rows_count": len(merged_rows),
         "file_errors": file_errors,
-        "import_summary": import_summary,
+        "conflicts": [conflict.model_dump() for conflict in conflicts],
     }
+
+
+@router.post("/import")
+def import_qualification_preview_rows(
+    payload: QualificationImportRequest,
+    db: Session = Depends(get_db),
+    _: object = Depends(require_roles(UserRole.admin)),
+):
+    if not payload.rows:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No qualification rows provided for import",
+        )
+
+    summary = import_qualification_rows(db, [row.model_dump() for row in payload.rows])
+    return {"import_summary": summary}

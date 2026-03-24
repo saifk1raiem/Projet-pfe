@@ -2,11 +2,9 @@ import { Fragment } from "react";
 import {
   AlertCircle,
   AlertTriangle,
-  BookOpen,
   CheckCircle2,
   Eye,
   MoreVertical,
-  Trash2,
   XCircle,
 } from "lucide-react";
 import { Badge } from "../ui/badge";
@@ -66,10 +64,6 @@ const getStatusBadge = (statut) => {
 export function CollaborateursTable({
   rows,
   onViewDetails,
-  onViewFormations,
-  onAskDelete,
-  labels,
-  canManage,
   selectedCollaborateur,
   onCloseDetails,
 }) {
@@ -81,11 +75,9 @@ export function CollaborateursTable({
             <TableHead className="text-[15px] font-semibold text-[#252930]">Matricule</TableHead>
             <TableHead className="text-[15px] font-semibold text-[#252930]">Nom & Prenom</TableHead>
             <TableHead className="text-[15px] font-semibold text-[#252930]">Fonction SAP</TableHead>
-            <TableHead className="text-[15px] font-semibold text-[#252930]">Centre de cout</TableHead>
-            <TableHead className="text-[15px] font-semibold text-[#252930]">Date recrutement</TableHead>
-            <TableHead className="text-[15px] font-semibold text-[#252930]">Statut</TableHead>
-            <TableHead className="text-[15px] font-semibold text-[#252930]">Formations</TableHead>
-            <TableHead className="text-[15px] font-semibold text-[#252930]">Derniere formation</TableHead>
+            <TableHead className="text-[15px] font-semibold text-[#252930]">Qualification</TableHead>
+            <TableHead className="text-[15px] font-semibold text-[#252930]">Date association</TableHead>
+            <TableHead className="text-[15px] font-semibold text-[#252930]">Etat</TableHead>
             <TableHead className="text-right text-[15px] font-semibold text-[#252930]">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -99,15 +91,9 @@ export function CollaborateursTable({
                   <div className="text-[13px] text-[#6b7280]">{collab.prenom}</div>
                 </TableCell>
                 <TableCell className="text-[15px]">{collab.fonction}</TableCell>
-                <TableCell className="text-[15px]">{collab.centre_cout}</TableCell>
-                <TableCell className="text-[15px]">{collab.date_recrutement}</TableCell>
+                <TableCell className="text-[15px]">{collab.competence || "-"}</TableCell>
+                <TableCell className="text-[15px]">{collab.date_association_systeme || "-"}</TableCell>
                 <TableCell>{getStatusBadge(collab.statut)}</TableCell>
-                <TableCell>
-                  <Badge variant="outline" className="rounded-xl border-[#d5dce0] bg-[#f7f8f9] text-[14px]">
-                    {collab.formations} formations
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-[15px]">{collab.derniereFormation}</TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -118,27 +104,15 @@ export function CollaborateursTable({
                     <DropdownMenuContent align="end" className="w-44">
                       <DropdownMenuItem onClick={() => onViewDetails(collab)}>
                         <Eye className="h-4 w-4" />
-                        {labels.viewDetails}
+                        Voir details
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => onViewFormations(collab)}>
-                        <BookOpen className="h-4 w-4" />
-                        {labels.viewFormations}
-                      </DropdownMenuItem>
-                      {canManage ? (
-                        <>
-                          <DropdownMenuItem variant="destructive" onClick={() => onAskDelete(collab)}>
-                            <Trash2 className="h-4 w-4" />
-                            {labels.delete}
-                          </DropdownMenuItem>
-                        </>
-                      ) : null}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>
               </TableRow>
               {selectedCollaborateur?.id === collab.id ? (
                 <TableRow className="bg-[#f8fbff]">
-                  <TableCell colSpan={9}>
+                  <TableCell colSpan={7}>
                     <div className="rounded-xl border border-[#dfe5e2] bg-white p-4">
                       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                         <p className="text-[16px] font-semibold text-[#171a1f]">
@@ -155,9 +129,12 @@ export function CollaborateursTable({
                         <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3"><p className="text-[12px] text-[#64748b]">Fonction SAP</p><p className="text-[15px] font-medium text-[#1d2025]">{collab.fonction}</p></div>
                         <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3"><p className="text-[12px] text-[#64748b]">Centre de cout</p><p className="text-[15px] font-medium text-[#1d2025]">{collab.centre_cout}</p></div>
                         <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3"><p className="text-[12px] text-[#64748b]">Groupe</p><p className="text-[15px] font-medium text-[#1d2025]">{collab.groupe || "-"}</p></div>
+                        <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3"><p className="text-[12px] text-[#64748b]">Qualification</p><p className="text-[15px] font-medium text-[#1d2025]">{collab.competence || "-"}</p></div>
+                        <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3"><p className="text-[12px] text-[#64748b]">Formateur</p><p className="text-[15px] font-medium text-[#1d2025]">{collab.formateur || "-"}</p></div>
+                        <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3"><p className="text-[12px] text-[#64748b]">Date association</p><p className="text-[15px] font-medium text-[#1d2025]">{collab.date_association_systeme || "-"}</p></div>
+                        <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3"><p className="text-[12px] text-[#64748b]">Date completion</p><p className="text-[15px] font-medium text-[#1d2025]">{collab.date_completion || "-"}</p></div>
                         <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3"><p className="text-[12px] text-[#64748b]">Segment</p><p className="text-[15px] font-medium text-[#1d2025]">{collab.segment || "-"}</p></div>
-                        <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3"><p className="text-[12px] text-[#64748b]">Date recrutement</p><p className="text-[15px] font-medium text-[#1d2025]">{collab.date_recrutement || "-"}</p></div>
-                        <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3"><p className="text-[12px] text-[#64748b]">Statut</p><div className="mt-1">{getStatusBadge(collab.statut)}</div></div>
+                        <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3"><p className="text-[12px] text-[#64748b]">Etat</p><div className="mt-1">{getStatusBadge(collab.statut)}</div></div>
                       </div>
                     </div>
                   </TableCell>

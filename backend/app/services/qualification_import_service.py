@@ -48,8 +48,8 @@ formateurs_table = Table(
     Column("specialite", String(100)),
 )
 
-collaborateur_formations_table = Table(
-    "collaborateur_formations",
+qualification_table = Table(
+    "qualification",
     metadata,
     Column("id", Integer, primary_key=True),
     Column("matricule", String(20), nullable=False),
@@ -151,7 +151,7 @@ def resolve_qualification_status(
     return "Non associee"
 
 
-def _normalize_import_statut(statut: Any, date_completion: Any) -> str:
+def _normalize_import_statut(statut: Any, date_completion: Any, etat_qualification: Any = None) -> str:
     if isinstance(statut, str):
         normalized = statut.strip().lower().replace("-", "_").replace(" ", "_")
     else:
@@ -161,6 +161,14 @@ def _normalize_import_statut(statut: Any, date_completion: Any) -> str:
         return "Completee"
     if normalized in {"en_cours", "encours", "in_progress", "ongoing", "depassement", "overdue"}:
         return "En cours"
+
+    if isinstance(etat_qualification, str):
+        normalized_etat = etat_qualification.strip().lower().replace("-", "_").replace(" ", "_")
+        if normalized_etat in {"qualifie", "qualifiee"}:
+            return "Completee"
+        if normalized_etat in {"en_cours", "encours", "depassement", "overdue"}:
+            return "En cours"
+
     if date_completion not in (None, ""):
         return "Completee"
     return "En cours"
@@ -259,7 +267,11 @@ def import_qualification_rows(db: Session, rows: list[dict[str, Any]]) -> dict[s
                 continue
 
             row_payload = dict(row)
-            row_payload["statut"] = _normalize_import_statut(row.get("statut"), row.get("date_completion"))
+            row_payload["statut"] = _normalize_import_statut(
+                row.get("statut"),
+                row.get("date_completion"),
+                row.get("etat_qualification"),
+            )
 
             collaborator_values = _build_collaborateur_values(row_payload)
             existing_collaborateur = db.execute(
@@ -298,23 +310,23 @@ def import_qualification_rows(db: Session, rows: list[dict[str, Any]]) -> dict[s
                 formation.get("duree_jours") if formation else None,
             )
             existing_qualification = db.execute(
-                select(collaborateur_formations_table)
-                .where(collaborateur_formations_table.c.matricule == matricule)
-                .where(collaborateur_formations_table.c.formation_id == formation_id)
-                .order_by(collaborateur_formations_table.c.id.desc())
+                select(qualification_table)
+                .where(qualification_table.c.matricule == matricule)
+                .where(qualification_table.c.formation_id == formation_id)
+                .order_by(qualification_table.c.id.desc())
             ).mappings().first()
 
             if existing_qualification:
                 qualification_changes = _changed_fields(existing_qualification, qualification_values)
                 if qualification_changes:
                     db.execute(
-                        update(collaborateur_formations_table)
-                        .where(collaborateur_formations_table.c.id == existing_qualification["id"])
+                        update(qualification_table)
+                        .where(qualification_table.c.id == existing_qualification["id"])
                         .values(**qualification_changes)
                     )
                     qualification_updated += 1
             else:
-                db.execute(insert(collaborateur_formations_table).values(**qualification_values))
+                db.execute(insert(qualification_table).values(**qualification_values))
                 qualification_inserted += 1
 
         db.commit()
@@ -336,16 +348,16 @@ def import_qualification_rows(db: Session, rows: list[dict[str, Any]]) -> dict[s
 def recalculate_qualification_rows(db: Session) -> dict[str, int]:
     rows = db.execute(
         select(
-            collaborateur_formations_table.c.id,
-            collaborateur_formations_table.c.statut,
-            collaborateur_formations_table.c.date_association_systeme,
-            collaborateur_formations_table.c.etat_qualification,
+            qualification_table.c.id,
+            qualification_table.c.statut,
+            qualification_table.c.date_association_systeme,
+            qualification_table.c.etat_qualification,
             formations_table.c.duree_jours,
         )
         .select_from(
-            collaborateur_formations_table.outerjoin(
+            qualification_table.outerjoin(
                 formations_table,
-                formations_table.c.id == collaborateur_formations_table.c.formation_id,
+                formations_table.c.id == qualification_table.c.formation_id,
             )
         )
     ).mappings().all()
@@ -360,8 +372,8 @@ def recalculate_qualification_rows(db: Session) -> dict[str, int]:
         )
         if row["etat_qualification"] != next_status:
             db.execute(
-                update(collaborateur_formations_table)
-                .where(collaborateur_formations_table.c.id == row["id"])
+                update(qualification_table)
+                .where(qualification_table.c.id == row["id"])
                 .values(etat_qualification=next_status)
             )
             updated_rows += 1

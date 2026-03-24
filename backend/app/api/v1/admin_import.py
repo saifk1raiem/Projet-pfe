@@ -1,18 +1,18 @@
-from io import BytesIO
-
-import pandas as pd
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
-from sqlalchemy import select
-from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import MetaData, Table, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_roles
 from app.db.session import get_db
 from app.models.collaborateur import Collaborateur
 from app.models.enums import UserRole
-from app.services.excel_synonyms import get_excel_synonyms
-from app.utils.collaborateur_import import REQUIRED_FIELDS, SYNONYMS, clean_row, infer_mapping
+from app.schemas.extraction_contract import ExtractedCollaboratorImportRequest, ExtractedCollaboratorRow
+from app.services.collaborateur_import_service import (
+    detect_collaborateur_conflicts,
+    extract_rows_from_uploads,
+    serialize_extracted_row,
+    upsert_collaborateur_rows,
+)
 
 
 router = APIRouter(prefix="/admin/collaborateurs", tags=["admin"])
@@ -23,24 +23,66 @@ def list_collaborateurs(
     db: Session = Depends(get_db),
     _: object = Depends(require_roles(UserRole.admin, UserRole.observer)),
 ):
-    records = db.scalars(select(Collaborateur).order_by(Collaborateur.matricule.asc())).all()
+    collaborateur_table = Table(Collaborateur.__tablename__, MetaData(), autoload_with=db.get_bind())
+    records = db.execute(select(collaborateur_table).order_by(collaborateur_table.c.matricule.asc())).mappings().all()
     return [
         {
-            "matricule": record.matricule,
-            "nom": record.nom,
-            "prenom": record.prenom,
-            "fonction": record.fonction,
-            "centre_cout": record.centre_cout,
-            "groupe": record.groupe,
-            "competence": record.competence,
-            "contre_maitre": record.contre_maitre,
-            "segment": record.segment,
-            "num_tel": record.num_tel,
-            "date_recrutement": record.date_recrutement,
-            "anciennete": record.anciennete,
+            "matricule": record.get("matricule"),
+            "nom": record.get("nom"),
+            "prenom": record.get("prenom"),
+            "fonction_sap": record.get("fonction"),
+            "centre_cout": record.get("centre_cout"),
+            "groupe": record.get("groupe"),
+            "competence": record.get("competence"),
+            "formateur": record.get("formateur"),
+            "contre_maitre": record.get("contre_maitre"),
+            "segment": record.get("segment"),
+            "gender": record.get("gender"),
+            "num_tel": record.get("num_tel"),
+            "date_recrutement": record.get("date_recrutement"),
+            "anciennete": record.get("anciennete"),
         }
         for record in records
     ]
+
+
+@router.post("/preview")
+async def preview_collaborateurs(
+    files: list[UploadFile] = File(...),
+    db: Session = Depends(get_db),
+    _: object = Depends(require_roles(UserRole.admin)),
+):
+    if not files:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No files uploaded")
+
+    columns_detected, mapping_used, rows, file_errors = await extract_rows_from_uploads(files)
+    if file_errors and not rows:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"message": "No valid files to preview", "file_errors": file_errors},
+        )
+
+    serialized_rows = [serialize_extracted_row(row) for row in rows]
+    conflicts = detect_collaborateur_conflicts(db, serialized_rows)
+
+    return {
+        "columns_detected": columns_detected,
+        "mapping_used": mapping_used,
+        "rows": serialized_rows,
+        "rows_count": len(rows),
+        "file_errors": file_errors,
+        "conflicts": [conflict.model_dump() for conflict in conflicts],
+    }
+
+
+@router.post("/import-rows")
+def import_collaborateur_rows(
+    payload: ExtractedCollaboratorImportRequest,
+    db: Session = Depends(get_db),
+    _: object = Depends(require_roles(UserRole.admin)),
+):
+    summary = upsert_collaborateur_rows(db, payload.rows)
+    return summary
 
 
 @router.post("/import")
@@ -49,104 +91,17 @@ async def import_collaborateurs(
     db: Session = Depends(get_db),
     _: object = Depends(require_roles(UserRole.admin)),
 ):
-    filename = (file.filename or "").lower()
-    if not (filename.endswith(".xlsx") or filename.endswith(".xls")):
+    columns_detected, mapping_used, rows, file_errors = await extract_rows_from_uploads([file])
+    if file_errors and not rows:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only .xlsx and .xls files are accepted",
+            detail={"message": "No valid files to import", "file_errors": file_errors},
         )
 
-    engine = "openpyxl" if filename.endswith(".xlsx") else "xlrd"
-
-    try:
-        content = await file.read()
-        if not content:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded file is empty")
-
-        dataframe = pd.read_excel(BytesIO(content), dtype=object, engine=engine)
-    except HTTPException:
-        raise
-    except ImportError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Excel support dependencies are missing (openpyxl/xlrd)",
-        ) from exc
-    except Exception as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid Excel file: {exc}") from exc
-
-    headers = [str(column) for column in dataframe.columns.tolist()]
-    mapping, unmapped_headers = infer_mapping(headers, get_excel_synonyms() or SYNONYMS)
-    has_name_fields = ("nom" in mapping and "prenom" in mapping) or ("nomprenom" in mapping)
-    missing_required_fields = []
-    if "matricule" not in mapping:
-        missing_required_fields.append("matricule")
-    if not has_name_fields:
-        missing_required_fields.extend(["nom", "prenom"])
-
-    if missing_required_fields:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "message": "Missing required columns in Excel file",
-                "missing_required_fields": missing_required_fields,
-                "unmapped_headers": unmapped_headers,
-            },
-        )
-
-    rows = dataframe.to_dict(orient="records")
-    cleaned_rows = []
-    skipped = 0
-
-    for row in rows:
-        cleaned = clean_row(row, mapping)
-        if not all(cleaned.get(field) for field in REQUIRED_FIELDS):
-            skipped += 1
-            continue
-        cleaned_rows.append(cleaned)
-
-    existing_matricules = set()
-    if cleaned_rows:
-        matricules = {row["matricule"] for row in cleaned_rows}
-        existing_matricules = set(
-            db.scalars(
-                select(Collaborateur.matricule).where(Collaborateur.matricule.in_(matricules))
-            ).all()
-        )
-
-    inserted = 0
-    updated = 0
-    seen_matricules: set[str] = set()
-
-    try:
-        for cleaned in cleaned_rows:
-            matricule = cleaned["matricule"]
-            if matricule in existing_matricules or matricule in seen_matricules:
-                updated += 1
-            else:
-                inserted += 1
-
-            seen_matricules.add(matricule)
-            stmt = insert(Collaborateur).values(**cleaned)
-            update_values = {key: value for key, value in cleaned.items() if key != "matricule"}
-            stmt = stmt.on_conflict_do_update(
-                index_elements=[Collaborateur.matricule],
-                set_=update_values,
-            )
-            db.execute(stmt)
-
-        db.commit()
-    except SQLAlchemyError as exc:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to import collaborators",
-        ) from exc
-
+    summary = upsert_collaborateur_rows(db, rows)
     return {
-        "rows_processed": len(rows),
-        "rows_inserted": inserted,
-        "rows_updated": updated,
-        "rows_skipped": skipped,
-        "missing_required_fields": missing_required_fields,
-        "unmapped_headers": unmapped_headers,
+        **summary,
+        "columns_detected": columns_detected,
+        "mapping_used": mapping_used,
+        "file_errors": file_errors,
     }

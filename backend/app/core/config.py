@@ -1,5 +1,6 @@
 from functools import lru_cache
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from pydantic import field_validator
 
@@ -38,6 +39,19 @@ class Settings(BaseSettings):
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
+
+    @property
+    def database_host(self) -> str:
+        return urlsplit(self.DATABASE_URL).hostname or ""
+
+    @property
+    def database_target(self) -> str:
+        host = self.database_host.lower()
+        if host in {"localhost", "127.0.0.1"}:
+            return "local"
+        if "supabase" in host:
+            return "supabase"
+        return "custom"
 
 
 @lru_cache

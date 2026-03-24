@@ -4,51 +4,34 @@ import json
 from pathlib import Path
 from typing import Any
 
+from app.services.extraction_mapper import DEFAULT_EXTRACTION_SYNONYMS
 
 DEFAULT_EXCEL_SYNONYMS: dict[str, list[str]] = {
-    "matricule": ["matricule", "mat", "id", "code", "Plugins - matricule", "emp_id"],
-    "nom": ["nom", "Plugins - name", "surname", "family_name"],
-    "prenom": ["prenom", "first_name", "Plugins - first name"],
-    "nomprenom": [
-        "nom_prenom",
-        "nom_&_prenom",
-        "nom_prenom2",
-        "collaborateur_nom_&_prenom",
-        "collaborateur_nom_prenom",
-    ],
-    "fonction": ["fonction", "job", "role", "position", "Fonction SAP"],
-    "centre_cout": ["centre_cout", "cc", "cost_center", "costcentre"],
-    "groupe": ["groupe", "group", "gr"],
-    "competence": ["competence", "skill", "qualification", "competency"],
-    "formateur": ["formateur", "trainer", "instructor", "Plugins - Formateur"],
-    "contre_maitre": ["contre_maitre", "supervisor", "Contre maitre", "team_lead", "Rh seg"],
-    "segment": ["segment", "department", "division", "seg"],
-    "gender": ["gender", "genre", "sexe"],
-    "num_tel": ["num_tel", "telephone", "phone", "tel", "num tel"],
-    "date_recrutement": [
-        "date_recrutement",
-        "Date recrutement",
-        "date_embauche",
-        "recruitment_date",
-        "date_entree",
-        "date_dentree",
-        "date_d'association",
-        "date_association",
-    ],
-    "anciennete": ["anciennete", "seniority", "years", "years_of_service"],
-    "statut": ["statut", "status", "Plugins - status", "training_status", "qualification_status", "etat"],
-    "date_association_systeme": [
-        "date_association_systeme",
-        "Plugins - date d'association systeme",
-        "date_association",
-        "assigned_date",
-    ],
-    "date_completion": ["date_completion", "completion_date", "date_fin", "completed_at"],
-    "score": ["score", "resultat", "note", "score_final"],
-    "etat": ["etat", "status", "Niveau de formation", "qualification_status", "etat_qualifie", "etatqualifies"],
+    field: list(aliases) for field, aliases in DEFAULT_EXTRACTION_SYNONYMS.items()
+}
+LEGACY_FIELD_MAP = {
+    "fonction": "fonction_sap",
+    "nomprenom": "full_name",
 }
 
 _SYNONYMS_FILE = Path(__file__).resolve().parents[2] / "data" / "excel_synonyms.json"
+
+
+def _dedupe_aliases(values: list[str]) -> list[str]:
+    deduped: list[str] = []
+    seen: set[str] = set()
+
+    for value in values:
+        clean = value.strip()
+        if not clean:
+            continue
+        token = clean.casefold()
+        if token in seen:
+            continue
+        seen.add(token)
+        deduped.append(clean)
+
+    return deduped
 
 
 def _sanitize_synonyms(payload: Any) -> dict[str, list[str]]:
@@ -68,6 +51,17 @@ def _sanitize_synonyms(payload: Any) -> dict[str, list[str]]:
         if not aliases:
             aliases = list(defaults)
         sanitized[field] = aliases
+
+    for legacy_field, target_field in LEGACY_FIELD_MAP.items():
+        raw_aliases = source.get(legacy_field, [])
+        if not isinstance(raw_aliases, list):
+            continue
+        merged = [*sanitized.get(target_field, [])]
+        for alias in raw_aliases:
+            if isinstance(alias, str):
+                merged.append(alias)
+        sanitized[target_field] = _dedupe_aliases(merged)
+
     return sanitized
 
 

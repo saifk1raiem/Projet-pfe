@@ -2,14 +2,14 @@ import { useEffect, useState } from "react";
 import { Card } from "../ui/card";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
-import { GraduationCap, Mail, Phone, BookOpen, AlertCircle } from "lucide-react";
+import { GraduationCap, Mail, BookOpen, AlertCircle } from "lucide-react";
 import { useAppPreferences } from "../../context/AppPreferencesContext";
 import { apiUrl } from "../../lib/api";
 import { CollaborateursDialog } from "./CollaborateursDialog";
 import { FormateursStat } from "./FormateursStat";
 import { getInitials, getSpecialites } from "./formateursUtils";
 
-export function FormateursList({ onNavigateToPage, currentUser, accessToken }) {
+export function FormateursList({ onNavigateToPage, accessToken }) {
   const { tr } = useAppPreferences();
   const [selectedFormateur, setSelectedFormateur] = useState(null);
   const [formateurs, setFormateurs] = useState([]);
@@ -22,16 +22,6 @@ export function FormateursList({ onNavigateToPage, currentUser, accessToken }) {
   const [formateurCollaborateurs, setFormateurCollaborateurs] = useState([]);
   const [collaborateursLoading, setCollaborateursLoading] = useState(false);
   const [collaborateursError, setCollaborateursError] = useState("");
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [createError, setCreateError] = useState("");
-  const [newFormateur, setNewFormateur] = useState({
-    nom_formateur: "",
-    telephone: "",
-    email: "",
-    specialite: "",
-  });
-  const isObserver = currentUser?.role === "observer";
 
   useEffect(() => {
     if (!accessToken) {
@@ -77,47 +67,6 @@ export function FormateursList({ onNavigateToPage, currentUser, accessToken }) {
   const activeFormateurs = formateurs.filter((formateur) => formateur.formations > 0).length;
   const totalAssignedFormations = formateurs.reduce((sum, formateur) => sum + (formateur.formations || 0), 0);
   const withContactInfo = formateurs.filter((formateur) => formateur.telephone || formateur.email).length;
-
-  const resetCreateForm = () => {
-    setNewFormateur({
-      nom_formateur: "",
-      telephone: "",
-      email: "",
-      specialite: "",
-    });
-    setCreateError("");
-  };
-
-  const handleCreateFormateur = async () => {
-    if (!accessToken) return;
-
-    setIsSubmitting(true);
-    setCreateError("");
-    try {
-      const response = await fetch(apiUrl("/formateurs"), {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(newFormateur),
-      });
-
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        setCreateError(data?.detail || tr("Impossible de creer le formateur.", "Failed to create trainer."));
-        return;
-      }
-
-      setFormateurs((prev) => [...prev, data].sort((a, b) => a.nom.localeCompare(b.nom)));
-      setIsCreateOpen(false);
-      resetCreateForm();
-    } catch {
-      setCreateError(tr("Impossible de creer le formateur.", "Failed to create trainer."));
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   const handleOpenDetailsDialog = async (formateur) => {
     setSelectedFormateur(formateur);
@@ -200,22 +149,11 @@ export function FormateursList({ onNavigateToPage, currentUser, accessToken }) {
 
   return (
     <div className="space-y-5 pb-6">
-      <div className="flex items-start justify-between">
+      <div>
         <div>
           <h1 className="leoni-display-xl text-[40px] font-semibold leading-tight text-[#171a1f]">{tr("Gestion des Formateurs", "Trainer Management")}</h1>
           <p className="leoni-subtitle mt-1 text-[18px] text-[#5d6574]">{tr("Liste et disponibilite des formateurs", "Trainer list and availability")}</p>
         </div>
-        <Button
-          className="h-10 rounded-[10px] bg-[#005ca9] px-5 text-[16px] font-medium text-white hover:bg-[#004a87]"
-          disabled={isObserver}
-          onClick={() => {
-            resetCreateForm();
-            setIsCreateOpen(true);
-          }}
-        >
-          <GraduationCap className="mr-2 h-4 w-4" />
-          {tr("Nouveau Formateur", "New Trainer")}
-        </Button>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
@@ -394,79 +332,6 @@ export function FormateursList({ onNavigateToPage, currentUser, accessToken }) {
         collaborateursError={collaborateursError}
         onClose={closeCollaborateursDialog}
       />
-
-      {!isObserver && isCreateOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setIsCreateOpen(false)}>
-          <div
-            className="w-full max-w-[640px] rounded-[24px] border border-[#dfe5e2] bg-white p-6 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-[28px] font-semibold text-[#171a1f]">{tr("Nouveau Formateur", "New Trainer")}</h2>
-                <p className="mt-1 text-[15px] text-[#5d6574]">{tr("Ajoutez un formateur manuellement.", "Add a trainer manually.")}</p>
-              </div>
-              <Button variant="outline" className="rounded-xl" onClick={() => setIsCreateOpen(false)}>
-                {tr("Fermer", "Close")}
-              </Button>
-            </div>
-
-            <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="space-y-2 md:col-span-2">
-                <label className="text-sm font-medium text-[#252930]">Nom</label>
-                <input
-                  className="h-11 w-full rounded-xl border border-[#d5dce0] bg-white px-3 text-[15px] outline-none focus:border-[#0f63f2]"
-                  value={newFormateur.nom_formateur}
-                  onChange={(e) => setNewFormateur((prev) => ({ ...prev, nom_formateur: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-[#252930]">Telephone</label>
-                <input
-                  className="h-11 w-full rounded-xl border border-[#d5dce0] bg-white px-3 text-[15px] outline-none focus:border-[#0f63f2]"
-                  value={newFormateur.telephone}
-                  onChange={(e) => setNewFormateur((prev) => ({ ...prev, telephone: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-[#252930]">Email</label>
-                <input
-                  className="h-11 w-full rounded-xl border border-[#d5dce0] bg-white px-3 text-[15px] outline-none focus:border-[#0f63f2]"
-                  value={newFormateur.email}
-                  onChange={(e) => setNewFormateur((prev) => ({ ...prev, email: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <label className="text-sm font-medium text-[#252930]">{tr("Specialite", "Specialty")}</label>
-                <input
-                  className="h-11 w-full rounded-xl border border-[#d5dce0] bg-white px-3 text-[15px] outline-none focus:border-[#0f63f2]"
-                  value={newFormateur.specialite}
-                  onChange={(e) => setNewFormateur((prev) => ({ ...prev, specialite: e.target.value }))}
-                />
-              </div>
-            </div>
-
-            {createError ? (
-              <div className="mt-4 rounded-xl border border-[#f2c4c4] bg-[#fdeeee] p-3 text-sm text-[#8a1d1d]">
-                {createError}
-              </div>
-            ) : null}
-
-            <div className="mt-6 flex justify-end gap-3">
-              <Button variant="outline" className="rounded-xl" onClick={() => setIsCreateOpen(false)}>
-                {tr("Annuler", "Cancel")}
-              </Button>
-              <Button
-                className="rounded-xl bg-[#005ca9] text-white hover:bg-[#004a87]"
-                onClick={handleCreateFormateur}
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? tr("Enregistrement...", "Saving...") : tr("Enregistrer", "Save")}
-              </Button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }

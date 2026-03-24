@@ -2,100 +2,116 @@
   "matricule": [
     "matricule",
     "mat",
+    "matr",
     "id",
-    "code",
-    "Plugins - matricule",
-    "emp_id"
+    "id employe",
+    "employee id",
+    "emp id",
+    "code employe",
+    "code"
   ],
   "nom": [
     "nom",
-    "Plugins - name"
+    "surname",
+    "last name",
+    "family name"
   ],
   "prenom": [
     "prenom",
-    "first_name",
-    "Plugins - first name"
+    "first name",
+    "given name"
   ],
-  "nomprenom": [
-    "nom_prenom",
-    "nom_&_prenom",
-    "nom_prenom2",
-    "collaborateur_nom_&_prenom",
-    "collaborateur_nom_prenom"
+  "full_name": [
+    "nom & prenom",
+    "nom et prenom",
+    "nom prenom",
+    "full name",
+    "employee name",
+    "collaborateur",
+    "collaborator"
   ],
-  "fonction": [
+  "fonction_sap": [
+    "fonction sap",
     "fonction",
+    "poste",
     "job",
     "role",
     "position",
-    "Fonction SAP",
-    "Plugins - Fonction selon PF"
+    "sap function",
+    "job title"
   ],
   "centre_cout": [
-    "centre_cout",
+    "centre cout",
+    "centre de cout",
     "cc",
-    "cost_center",
-    "costcentre"
+    "cost center",
+    "cost centre"
   ],
   "groupe": [
     "groupe",
     "group",
     "gr",
-    "Plugins - Group"
+    "team"
   ],
   "competence": [
     "competence",
-    "skill",
+    "formation",
     "qualification",
-    "competency",
-    "Plugins - Name_competence"
+    "skill",
+    "competency"
   ],
   "formateur": [
     "formateur",
+    "formatrice",
+    "formatrice rh",
     "trainer",
-    "instructor",
-    "Plugins - Formateur"
+    "instructor"
   ],
   "contre_maitre": [
+    "contre maitre",
     "contre_maitre",
     "supervisor",
-    "Contre maitre",
-    "team_lead",
-    "Rh seg"
+    "team lead",
+    "chef d equipe"
   ],
   "segment": [
     "segment",
     "department",
+    "departement",
     "division",
-    "seg",
-    "Plugins - seg"
+    "service"
+  ],
+  "gender": [
+    "gender",
+    "genre",
+    "sexe",
+    "sex"
   ],
   "num_tel": [
+    "num tel",
     "num_tel",
     "telephone",
     "phone",
-    "tel",
-    "num tel"
+    "mobile",
+    "gsm",
+    "tel"
   ],
   "date_recrutement": [
-    "date_recrutement",
-    "Date recrutement",
-    "date_embauche",
-    "recruitment_date",
-    "date_entree",
-    "date_dentree",
-    "date_d'association",
-    "date_association",
-    "Plugins - date d'association systeme"
+    "date recrutement",
+    "date de recrutement",
+    "date embauche",
+    "date d embauche",
+    "hire date",
+    "recruitment date",
+    "joining date",
+    "date entree",
+    "date d entree"
   ],
   "anciennete": [
     "anciennete",
     "seniority",
-    "years",
-    "years_of_service"
-  ],
-  "etat": [
-    "etat",
-    "status"
+    "years of service",
+    "tenure",
+    "years"
   ]
 }

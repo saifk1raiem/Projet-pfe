@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from datetime import date
 import re
 import unicodedata
-from io import BytesIO
+from io import BytesIO, StringIO
 from typing import Any
 
 import pandas as pd
@@ -56,8 +57,6 @@ SYNONYMS: dict[str, list[str]] = {
         "recruitment_date",
         "date_entree",
         "date_dentree",
-        "date_d'association",
-        "date_association",
     ],
     "anciennete": ["anciennete", "seniority", "years", "years_of_service"],
     "competence": [
@@ -74,11 +73,37 @@ SYNONYMS: dict[str, list[str]] = {
         "date_association_systeme",
         "Plugins - date d'association systeme",
         "date_association",
+        "date d'association",
         "assigned_date",
+    ],
+    "date_association_day": [
+        "jour",
+        "day",
+        "jour_association",
+        "date_association_jour",
+        "association_day",
+    ],
+    "date_association_month": [
+        "mois",
+        "month",
+        "mois_association",
+        "date_association_mois",
+        "association_month",
+    ],
+    "date_association_year": [
+        "annee",
+        "année",
+        "year",
+        "annee_association",
+        "date_association_annee",
+        "association_year",
     ],
     "date_completion": ["date_completion", "completion_date", "date_fin", "completed_at"],
     "score": ["score", "resultat", "note", "score_final"],
 }
+
+SUPPORTED_UPLOAD_EXTENSIONS = (".xlsx", ".xls", ".csv")
+CSV_ENCODINGS = ("utf-8-sig", "utf-8", "cp1252", "latin-1")
 
 
 def _dedupe_aliases(values: Iterable[str]) -> list[str]:
@@ -157,6 +182,16 @@ def infer_mapping(headers: list[str], synonyms: dict[str, list[str]] | None = No
         for header, normalized in normalized_headers.items():
             if normalized in alias_set:
                 mapping["competence"] = header
+                break
+
+    for date_part_field in ("date_association_day", "date_association_month", "date_association_year"):
+        part_aliases = aliases_by_field.get(date_part_field, [])
+        if not part_aliases:
+            continue
+        alias_set = {normalize_header(alias) for alias in part_aliases}
+        for header, normalized in normalized_headers.items():
+            if normalized in alias_set:
+                mapping[date_part_field] = header
                 break
 
     # Fallback for trainer columns with unexpected naming variants.
@@ -248,10 +283,79 @@ def _as_iso_date(value: Any) -> str | None:
     text = str(value).strip()
     if re.fullmatch(r"\d{4}-\d{2}-\d{2}", text):
         return text
+    short_match = re.fullmatch(r"(\d{1,2})[/-](\d{1,2})", text)
+    if short_match:
+        day_value = int(short_match.group(1))
+        month_value = int(short_match.group(2))
+        return _compose_partial_association_date(day_value, month_value, None)
+
     parsed = pd.to_datetime(value, errors="coerce", dayfirst=True)
     if pd.isna(parsed):
         return None
     return parsed.date().isoformat()
+
+
+def _as_optional_date_part(value: Any) -> int | None:
+    if value is None or pd.isna(value):
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+
+    match = re.search(r"\d{1,4}", text)
+    if not match:
+        return None
+
+    try:
+        return int(match.group(0))
+    except ValueError:
+        return None
+
+
+def _normalize_year(value: int | None) -> int | None:
+    if value is None:
+        return None
+    if value < 100:
+        return 2000 + value
+    return value
+
+
+def _compose_partial_association_date(
+    day_value: int | None,
+    month_value: int | None,
+    year_value: int | None,
+) -> str | None:
+    if day_value is None or month_value is None:
+        return None
+
+    today = date.today()
+    resolved_year = _normalize_year(year_value) or today.year
+
+    try:
+        candidate = date(resolved_year, month_value, day_value)
+    except ValueError:
+        return None
+
+    if year_value is None and candidate > today:
+        try:
+            candidate = date(resolved_year - 1, month_value, day_value)
+        except ValueError:
+            return None
+
+    return candidate.isoformat()
+
+
+def _resolve_association_date(source_row: dict[str, Any], mapping_used: dict[str, str]) -> str | None:
+    direct_header = mapping_used.get("date_association_systeme")
+    direct_value = source_row.get(direct_header) if direct_header else None
+    direct_date = _as_iso_date(direct_value)
+    if direct_date:
+        return direct_date
+
+    day_value = _as_optional_date_part(source_row.get(mapping_used.get("date_association_day")))
+    month_value = _as_optional_date_part(source_row.get(mapping_used.get("date_association_month")))
+    year_value = _as_optional_date_part(source_row.get(mapping_used.get("date_association_year")))
+    return _compose_partial_association_date(day_value, month_value, year_value)
 
 
 def _split_prenom_nom(full_name: str | None) -> tuple[str | None, str | None]:
@@ -289,6 +393,21 @@ def _normalize_statut(value: Any) -> str | None:
     return None
 
 
+def _normalize_etat_qualification(value: Any) -> str | None:
+    normalized = normalize_header(str(value)) if value is not None and not pd.isna(value) else ""
+    if not normalized:
+        return None
+    if normalized in {"qualifie", "qualifiee", "completee", "complete", "completed"}:
+        return "Qualifie"
+    if normalized in {"en_cours", "encours", "in_progress", "ongoing"}:
+        return "En cours"
+    if normalized in {"depassement", "overdue"}:
+        return "Depassement"
+    if normalized in {"non_associe", "non_associee"}:
+        return "Non associee"
+    return None
+
+
 def _derive_etat_qualification(statut: str | None) -> str | None:
     if statut == "Completee":
         return "Qualifie"
@@ -297,16 +416,86 @@ def _derive_etat_qualification(statut: str | None) -> str | None:
     return None
 
 
+def _read_csv_dataframe(file_content: bytes) -> pd.DataFrame:
+    decoded_content: str | None = None
+    last_error: Exception | None = None
+
+    for encoding in CSV_ENCODINGS:
+        try:
+            decoded_content = file_content.decode(encoding)
+            break
+        except UnicodeDecodeError as exc:
+            last_error = exc
+
+    if decoded_content is None:
+        raise last_error or ValueError("Unable to decode CSV file")
+
+    for separator in (None, ";", ",", "\t"):
+        options = {
+            "dtype": object,
+            "engine": "python",
+            "skipinitialspace": True,
+        }
+        if separator is None:
+            options["sep"] = None
+        else:
+            options["sep"] = separator
+
+        try:
+            return pd.read_csv(StringIO(decoded_content), **options)
+        except (pd.errors.ParserError, ValueError) as exc:
+            last_error = exc
+
+    raise last_error or ValueError("Invalid CSV file")
+
+
+def _score_dataframe_relevance(dataframe: pd.DataFrame, synonyms: dict[str, list[str]]) -> tuple[int, int, int]:
+    columns_detected = [str(column) for column in dataframe.columns.tolist()]
+    if not columns_detected:
+        return (0, 0, 0)
+
+    mapping_used = infer_mapping(columns_detected, synonyms)
+    identity_score = int(
+        "matricule" in mapping_used or "nom" in mapping_used or "prenom" in mapping_used or "nomprenom" in mapping_used
+    )
+    qualification_score = int(
+        "competence" in mapping_used or "statut" in mapping_used or "etat" in mapping_used
+    )
+    non_empty_rows = int(len(dataframe.index))
+    return (len(mapping_used), identity_score + qualification_score, non_empty_rows)
+
+
+def read_tabular_dataframe(
+    file_content: bytes,
+    filename: str,
+    synonyms: dict[str, list[str]] | None = None,
+) -> pd.DataFrame:
+    file_name = (filename or "").lower()
+    if file_name.endswith(".csv"):
+        return _read_csv_dataframe(file_content)
+
+    engine = "openpyxl" if file_name.endswith(".xlsx") else "xlrd"
+    workbook = pd.read_excel(BytesIO(file_content), dtype=object, engine=engine, sheet_name=None)
+    if isinstance(workbook, pd.DataFrame):
+        return workbook
+
+    active_synonyms = synonyms or SYNONYMS
+    ranked_sheets = sorted(
+        workbook.values(),
+        key=lambda dataframe: _score_dataframe_relevance(dataframe, active_synonyms),
+        reverse=True,
+    )
+    return ranked_sheets[0] if ranked_sheets else pd.DataFrame()
+
+
 def parse_excel_to_rows(
     file_content: bytes,
     filename: str,
     synonyms: dict[str, list[str]] | None = None,
 ) -> tuple[list[str], dict[str, str], list[dict[str, Any]]]:
-    file_name = (filename or "").lower()
-    engine = "openpyxl" if file_name.endswith(".xlsx") else "xlrd"
-    dataframe = pd.read_excel(BytesIO(file_content), dtype=object, engine=engine)
-    columns_detected = [str(column) for column in dataframe.columns.tolist()]
     active_synonyms = _merge_synonyms(synonyms)
+    dataframe = read_tabular_dataframe(file_content, filename, synonyms=active_synonyms)
+    columns_detected = [str(column) for column in dataframe.columns.tolist()]
     mapping_used = infer_mapping(columns_detected, active_synonyms)
     mapping_used = _refine_name_mapping(dataframe, mapping_used, active_synonyms)
 
@@ -346,10 +535,7 @@ def parse_excel_to_rows(
             statut_value = source_row.get(etat_header) if etat_header else None
         normalized_row["statut"] = _normalize_statut(statut_value)
 
-        date_association_header = mapping_used.get("date_association_systeme")
-        normalized_row["date_association_systeme"] = (
-            _as_iso_date(source_row.get(date_association_header)) if date_association_header else None
-        )
+        normalized_row["date_association_systeme"] = _resolve_association_date(source_row, mapping_used)
 
         date_completion_header = mapping_used.get("date_completion")
         normalized_row["date_completion"] = (
@@ -359,7 +545,12 @@ def parse_excel_to_rows(
         if normalized_row["statut"] == "Completee" and not normalized_row["date_completion"]:
             normalized_row["date_completion"] = normalized_row["date_association_systeme"]
 
-        normalized_row["etat_qualification"] = _derive_etat_qualification(normalized_row["statut"])
+        etat_header = mapping_used.get("etat") or mapping_used.get("statut")
+        normalized_row["etat_qualification"] = _normalize_etat_qualification(
+            source_row.get(etat_header) if etat_header else None
+        )
+        if normalized_row["etat_qualification"] is None:
+            normalized_row["etat_qualification"] = _derive_etat_qualification(normalized_row["statut"])
         normalized_row["etat"] = normalized_row["etat_qualification"]
 
         score_header = mapping_used.get("score")

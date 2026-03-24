@@ -14,6 +14,7 @@ class Collaborateur(Base):
     centre_cout: Mapped[str | None] = mapped_column(String(50), nullable=True)
     groupe: Mapped[str | None] = mapped_column(String(50), nullable=True)
     competence: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    formateur: Mapped[str | None] = mapped_column(String(150), nullable=True)
     contre_maitre: Mapped[str | None] = mapped_column(String(100), nullable=True)
     segment: Mapped[str | None] = mapped_column(String(50), nullable=True)
     gender: Mapped[str | None] = mapped_column(String(10), nullable=True)

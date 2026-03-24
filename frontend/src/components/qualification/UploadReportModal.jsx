@@ -12,8 +12,24 @@ export function UploadReportModal({
   selectedFiles,
   isPreviewLoading,
   onSubmit,
+  title,
+  description,
+  dropLabel,
+  chooseFilesLabel,
+  submitLabel,
 }) {
   if (!isOpen) return null;
+
+  const resolvedTitle = title || tr("Previsualiser le rapport", "Preview report");
+  const resolvedDescription =
+    description ||
+    tr(
+      "Analysez le rapport du jour avant de l'importer dans la base.",
+      "Analyze today's report before importing it into the database.",
+    );
+  const resolvedDropLabel = dropLabel || tr("Deposez votre rapport ici", "Drag and drop your report here");
+  const resolvedChooseFilesLabel = chooseFilesLabel || tr("Choisir des fichiers", "Choose files");
+  const resolvedSubmitLabel = submitLabel || tr("Previsualiser", "Preview");
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
@@ -24,13 +40,10 @@ export function UploadReportModal({
         <div className="flex items-center justify-between border-b border-[#2b3340] px-8 py-6">
           <div>
             <h2 className="text-[44px] font-semibold leading-tight">
-              {tr("Previsualiser le rapport", "Preview report")}
+              {resolvedTitle}
             </h2>
             <p className="mt-2 text-[16px] text-[#9aabbe]">
-              {tr(
-                "Analysez le rapport du jour avant de l'importer dans la base.",
-                "Analyze today's report before importing it into the database.",
-              )}
+              {resolvedDescription}
             </p>
           </div>
           <button
@@ -48,7 +61,7 @@ export function UploadReportModal({
             ref={inputRef}
             type="file"
             multiple
-            accept=".xlsx,.xls"
+            accept=".xlsx,.xls,.csv"
             className="hidden"
             onChange={(e) => onFileChange(e.target.files)}
           />
@@ -72,9 +85,9 @@ export function UploadReportModal({
               <Upload className="h-7 w-7 text-[#7ec1f2]" />
             </div>
             <p className="text-[22px] font-medium text-white">
-              {tr("Deposez votre rapport ici", "Drag and drop your report here")}
+              {resolvedDropLabel}
             </p>
-            <p className="mt-2 text-[15px] text-[#9aabbe]">XLSX, XLS</p>
+            <p className="mt-2 text-[15px] text-[#9aabbe]">XLSX, XLS, CSV</p>
           </div>
 
           {selectedFiles.length > 0 && (
@@ -100,7 +113,7 @@ export function UploadReportModal({
               className="h-11 rounded-xl border-[#3a4554] bg-transparent px-6 text-white hover:bg-[#1a2029]"
               onClick={() => inputRef.current?.click()}
             >
-              {tr("Choisir des fichiers", "Choose files")}
+              {resolvedChooseFilesLabel}
             </Button>
             <Button
               type="button"
@@ -114,7 +127,7 @@ export function UploadReportModal({
                   {tr("Analyse...", "Analyzing...")}
                 </span>
               ) : (
-                tr("Previsualiser", "Preview")
+                resolvedSubmitLabel
               )}
             </Button>
           </div>

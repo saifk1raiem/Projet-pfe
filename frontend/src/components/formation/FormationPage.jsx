@@ -14,20 +14,11 @@ export function FormationPage({ openFormationId = null, currentUser, accessToken
   const [formations, setFormations] = useState([]);
   const [selectedFormation, setSelectedFormation] = useState(null);
   const [loadError, setLoadError] = useState("");
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [isSubmittingCreate, setIsSubmittingCreate] = useState(false);
-  const [createError, setCreateError] = useState("");
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
   const [editError, setEditError] = useState("");
   const [editingFormationId, setEditingFormationId] = useState(null);
   const [editFormation, setEditFormation] = useState({
-    code: "",
-    name: "",
-    field: "",
-    duration_days: "",
-  });
-  const [newFormation, setNewFormation] = useState({
     code: "",
     name: "",
     field: "",
@@ -91,65 +82,6 @@ export function FormationPage({ openFormationId = null, currentUser, accessToken
     ? (configuredDurations.reduce((sum, formation) => sum + formation.duration_days, 0) / configuredDurations.length).toFixed(1)
     : "0";
   const domainesCount = new Set(formations.map((formation) => formation.field).filter(Boolean)).size;
-
-  const resetCreateForm = () => {
-    setNewFormation({
-      code: "",
-      name: "",
-      field: "",
-      duration_days: "",
-    });
-    setCreateError("");
-  };
-
-  const handleCreateFormation = async () => {
-    if (!accessToken) {
-      setCreateError(tr("Token manquant. Reconnectez-vous.", "Missing access token. Please sign in again."));
-      return;
-    }
-
-    const payload = {
-      code: String(newFormation.code || "").trim(),
-      name: String(newFormation.name || "").trim(),
-      field: String(newFormation.field || "").trim() || null,
-      duration_days: newFormation.duration_days ? Number(newFormation.duration_days) : null,
-    };
-
-    if (!payload.code || !payload.name) {
-      setCreateError(tr("Code et nom sont obligatoires.", "Code and name are required."));
-      return;
-    }
-    if (newFormation.duration_days && (!Number.isFinite(payload.duration_days) || payload.duration_days <= 0)) {
-      setCreateError(tr("La duree doit etre un nombre positif.", "Duration must be a positive number."));
-      return;
-    }
-
-    setIsSubmittingCreate(true);
-    setCreateError("");
-    try {
-      const response = await fetch(apiUrl("/formations"), {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        setCreateError(data?.detail || tr("Impossible de creer la formation.", "Failed to create training."));
-        return;
-      }
-
-      setFormations((prev) => [...prev, data].sort((a, b) => a.id - b.id));
-      setIsCreateOpen(false);
-      resetCreateForm();
-    } catch {
-      setCreateError(tr("Impossible de creer la formation.", "Failed to create training."));
-    } finally {
-      setIsSubmittingCreate(false);
-    }
-  };
 
   const openEditModal = (formation) => {
     setEditingFormationId(formation.id);
@@ -262,22 +194,11 @@ export function FormationPage({ openFormationId = null, currentUser, accessToken
 
   return (
     <div className="space-y-5 pb-6">
-      <div className="flex items-start justify-between">
+      <div>
         <div>
           <h1 className="leoni-display-xl text-[40px] font-semibold leading-tight text-[#171a1f]">{tr("Gestion des Formations", "Training Management")}</h1>
           <p className="leoni-subtitle mt-1 text-[18px] text-[#5d6574]">{tr("Catalogue et parametres des formations", "Training catalog and settings")}</p>
         </div>
-        <Button
-          className="h-10 rounded-[10px] bg-[#005ca9] px-5 text-[16px] font-medium text-white hover:bg-[#004a87]"
-          disabled={isObserver}
-          onClick={() => {
-            resetCreateForm();
-            setIsCreateOpen(true);
-          }}
-        >
-          <BookOpen className="mr-2 h-4 w-4" />
-          {tr("Nouvelle Formation", "New Training")}
-        </Button>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
@@ -376,82 +297,6 @@ export function FormationPage({ openFormationId = null, currentUser, accessToken
           </Card>
         ))}
       </div>
-
-      {!isObserver && isCreateOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setIsCreateOpen(false)}>
-          <div
-            className="w-full max-w-[700px] rounded-[24px] border border-[#dfe5e2] bg-white p-6 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-[28px] font-semibold text-[#171a1f]">{tr("Nouvelle Formation", "New Training")}</h2>
-                <p className="mt-1 text-[15px] text-[#5d6574]">{tr("Ajoutez une formation manuellement.", "Add a training manually.")}</p>
-              </div>
-              <Button variant="outline" className="rounded-xl" onClick={() => setIsCreateOpen(false)}>
-                {tr("Fermer", "Close")}
-              </Button>
-            </div>
-
-            <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-[#252930]">Code</label>
-                <input
-                  className="h-11 w-full rounded-xl border border-[#d5dce0] bg-white px-3 text-[15px] outline-none focus:border-[#0f63f2]"
-                  value={newFormation.code}
-                  onChange={(e) => setNewFormation((prev) => ({ ...prev, code: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-[#252930]">{tr("Duree (jours)", "Duration (days)")}</label>
-                <input
-                  type="number"
-                  min="1"
-                  className="h-11 w-full rounded-xl border border-[#d5dce0] bg-white px-3 text-[15px] outline-none focus:border-[#0f63f2]"
-                  value={newFormation.duration_days}
-                  onChange={(e) => setNewFormation((prev) => ({ ...prev, duration_days: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <label className="text-sm font-medium text-[#252930]">{tr("Nom", "Name")}</label>
-                <input
-                  className="h-11 w-full rounded-xl border border-[#d5dce0] bg-white px-3 text-[15px] outline-none focus:border-[#0f63f2]"
-                  value={newFormation.name}
-                  onChange={(e) => setNewFormation((prev) => ({ ...prev, name: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <label className="text-sm font-medium text-[#252930]">{tr("Domaine", "Domain")}</label>
-                <input
-                  className="h-11 w-full rounded-xl border border-[#d5dce0] bg-white px-3 text-[15px] outline-none focus:border-[#0f63f2]"
-                  value={newFormation.field}
-                  onChange={(e) => setNewFormation((prev) => ({ ...prev, field: e.target.value }))}
-                />
-              </div>
-            </div>
-
-            {createError ? (
-              <div className="mt-4 rounded-xl border border-[#f2c4c4] bg-[#fdeeee] p-3 text-sm text-[#8a1d1d]">
-                {createError}
-              </div>
-            ) : null}
-
-            <div className="mt-6 flex justify-end gap-3">
-              <Button variant="outline" className="rounded-xl" onClick={() => setIsCreateOpen(false)}>
-                {tr("Annuler", "Cancel")}
-              </Button>
-              <Button
-                className="rounded-xl bg-[#005ca9] text-white hover:bg-[#004a87]"
-                onClick={handleCreateFormation}
-                disabled={isSubmittingCreate}
-              >
-                {isSubmittingCreate ? tr("Enregistrement...", "Saving...") : tr("Enregistrer", "Save")}
-              </Button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
       {!isObserver && isEditOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setIsEditOpen(false)}>
           <div

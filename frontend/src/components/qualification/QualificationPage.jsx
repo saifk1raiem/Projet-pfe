@@ -2,19 +2,15 @@ import { useEffect, useRef, useState } from "react";
 import { AlertCircle, CheckCircle2, FileText, Users } from "lucide-react";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { useAppPreferences } from "../../context/AppPreferencesContext";
 import { apiUrl } from "../../lib/api";
 import {
   collaborateursQualification,
-  MAX_LAST_FORMATION_AGE_DAYS,
   statutOptions,
 } from "./constants";
-import { hasRecentFormation } from "./dateUtils";
 import { CollaborateursTable } from "./CollaborateursTable";
 import { ComparisonStat } from "./ComparisonStat";
-import { DeleteCollaborateurDialog } from "./DeleteCollaborateurDialog";
-import { FormationsDialog } from "./FormationsDialog";
+import { ImportConflictDialog } from "./ImportConflictDialog";
 import { QualificationFilters } from "./QualificationFilters";
 import { QualificationPreviewCard } from "./QualificationPreviewCard";
 import { UploadReportModal } from "./UploadReportModal";
@@ -45,8 +41,29 @@ async function previewQualificationFiles(accessToken, files) {
   });
 }
 
+async function previewCollaboratorFiles(accessToken, files) {
+  const formData = new FormData();
+  files.forEach((file) => formData.append("files", file));
+
+  return readJsonResponse(apiUrl("/admin/collaborateurs/preview"), {
+    method: "POST",
+    headers: getAuthHeaders(accessToken),
+    body: formData,
+  });
+}
+
 async function importQualificationRows(accessToken, rows) {
   return readJsonResponse(apiUrl("/qualification/import"), {
+    method: "POST",
+    headers: getAuthHeaders(accessToken, {
+      "Content-Type": "application/json",
+    }),
+    body: JSON.stringify({ rows }),
+  });
+}
+
+async function importCollaboratorRows(accessToken, rows) {
+  return readJsonResponse(apiUrl("/admin/collaborateurs/import-rows"), {
     method: "POST",
     headers: getAuthHeaders(accessToken, {
       "Content-Type": "application/json",
@@ -64,35 +81,16 @@ async function fetchCollaboratorFormations(accessToken, matricule) {
   );
 }
 
-async function deleteCollaborator(accessToken, matricule) {
-  const response = await fetch(
-    apiUrl(`/qualification/${encodeURIComponent(matricule)}`),
-    {
-      method: "DELETE",
-      headers: getAuthHeaders(accessToken),
-    },
-  );
-
-  const data =
-    response.status === 204 ? {} : await response.json().catch(() => ({}));
-
-  return { response, data };
-}
-
 export function QualificationPage({ onNavigateToPage, currentUser, accessToken }) {
   const { tr } = useAppPreferences();
   const isObserver = currentUser?.role === "observer";
 
-  const [activeTab, setActiveTab] = useState("induction");
   const [searchTerm, setSearchTerm] = useState("");
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
   const [groupFilter, setGroupFilter] = useState("all");
   const [collaborateursData, setCollaborateursData] = useState(collaborateursQualification);
   const [selectedCollaborateur, setSelectedCollaborateur] = useState(null);
-  const [collaborateurToDelete, setCollaborateurToDelete] = useState(null);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isDeletingCollaborateur, setIsDeletingCollaborateur] = useState(false);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState([]);
@@ -103,24 +101,21 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
   const [previewRowsCount, setPreviewRowsCount] = useState(0);
   const [previewColumnsDetected, setPreviewColumnsDetected] = useState([]);
   const [previewMappingUsed, setPreviewMappingUsed] = useState({});
+  const [previewImportType, setPreviewImportType] = useState(null);
+  const [previewConflicts, setPreviewConflicts] = useState([]);
   const [previewFileErrors, setPreviewFileErrors] = useState([]);
   const [previewError, setPreviewError] = useState("");
   const [previewErrorDetails, setPreviewErrorDetails] = useState(null);
   const [importSummary, setImportSummary] = useState(null);
   const [importError, setImportError] = useState("");
   const [pageError, setPageError] = useState("");
-  const [isFormationsDialogOpen, setIsFormationsDialogOpen] = useState(false);
-  const [formationsCollaborateur, setFormationsCollaborateur] = useState(null);
-  const [formationsHistory, setFormationsHistory] = useState([]);
-  const [formationsHistoryLoading, setFormationsHistoryLoading] = useState(false);
-  const [formationsHistoryError, setFormationsHistoryError] = useState("");
+  const [isConflictDialogOpen, setIsConflictDialogOpen] = useState(false);
   const inputRef = useRef(null);
 
   const totalCollaborateurs = collaborateursData.length;
-  const inductionCount = collaborateursData.filter((collab) => collab.phase === "induction").length;
-  const qualificationCount = collaborateursData.filter((collab) => collab.phase === "qualification").length;
-  const inductionPercent = totalCollaborateurs > 0 ? (inductionCount / totalCollaborateurs) * 100 : 0;
-  const qualificationPercent = totalCollaborateurs > 0 ? (qualificationCount / totalCollaborateurs) * 100 : 0;
+  const enCoursCount = collaborateursData.filter((collab) => collab.statut === "En cours").length;
+  const qualifieCount = collaborateursData.filter((collab) => collab.statut === "Qualifie").length;
+  const depassementCount = collaborateursData.filter((collab) => collab.statut === "Depassement").length;
   const availableGroups = Array.from(
     new Set(
       collaborateursData
@@ -167,7 +162,7 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
   const handleFileChange = (fileList) => {
     const incoming = Array.from(fileList || []).filter((file) => {
       const name = (file?.name || "").toLowerCase();
-      return name.endsWith(".xlsx") || name.endsWith(".xls");
+      return name.endsWith(".xlsx") || name.endsWith(".xls") || name.endsWith(".csv");
     });
     if (!incoming.length) return;
 
@@ -192,6 +187,67 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
     setIsDragging(false);
   };
 
+  const applyPreviewPayload = (data, importType) => {
+    const rows = Array.isArray(data?.rows) ? data.rows : [];
+    const conflicts = Array.isArray(data?.conflicts) ? data.conflicts : [];
+    setPreviewRows(rows);
+    setPendingImportRows(rows);
+    setPreviewRowsCount(Number.isFinite(data?.rows_count) ? data.rows_count : rows.length);
+    setPreviewColumnsDetected(Array.isArray(data?.columns_detected) ? data.columns_detected : []);
+    setPreviewMappingUsed(
+      data?.mapping_used && typeof data.mapping_used === "object" ? data.mapping_used : {},
+    );
+    setPreviewConflicts(conflicts);
+    setPreviewFileErrors(Array.isArray(data?.file_errors) ? data.file_errors : []);
+    setPreviewImportType(importType);
+    setIsConflictDialogOpen(conflicts.length > 0);
+    closeModal();
+    setSelectedFiles([]);
+  };
+
+  const setPreviewFailure = (detail, fallbackMessage) => {
+    if (typeof detail === "object" && detail !== null) {
+      setPreviewError(detail.message || fallbackMessage);
+      setPreviewErrorDetails(detail);
+    } else {
+      setPreviewError(detail || fallbackMessage);
+      setPreviewErrorDetails(null);
+    }
+  };
+
+  const shouldFallbackToCollaboratorPreview = (detail) => {
+    if (!detail) return false;
+
+    if (typeof detail === "string") {
+      const normalized = detail.toLowerCase();
+      return normalized.includes("collaborator data") || normalized.includes("qualification column");
+    }
+
+    const messages = [
+      detail.message,
+      ...(Array.isArray(detail.file_errors) ? detail.file_errors.map((item) => item?.error) : []),
+    ]
+      .filter((value) => typeof value === "string")
+      .join(" ")
+      .toLowerCase();
+
+    return messages.includes("collaborator data") || messages.includes("qualification column");
+  };
+
+  const shouldFallbackAfterQualificationSuccess = (data) => {
+    const rows = Array.isArray(data?.rows) ? data.rows : [];
+    const mapping = data?.mapping_used && typeof data.mapping_used === "object" ? data.mapping_used : {};
+    if (rows.length > 0) {
+      return false;
+    }
+
+    const hasIdentityMapping =
+      Boolean(mapping.matricule) || Boolean(mapping.nom) || Boolean(mapping.prenom) || Boolean(mapping.nomprenom);
+    const hasQualificationMapping = Boolean(mapping.competence);
+
+    return hasIdentityMapping && !hasQualificationMapping;
+  };
+
   const handleSubmit = async () => {
     if (!selectedFiles.length) return;
     if (!accessToken) {
@@ -210,34 +266,52 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
     setPreviewRowsCount(0);
     setPreviewColumnsDetected([]);
     setPreviewMappingUsed({});
+    setPreviewImportType(null);
+    setPreviewConflicts([]);
     setImportSummary(null);
     setImportError("");
+    setIsConflictDialogOpen(false);
 
     try {
       const { response, data } = await previewQualificationFiles(accessToken, selectedFiles);
       if (!response.ok) {
         const detail = data?.detail;
-        if (typeof detail === "object" && detail !== null) {
-          setPreviewError(detail.message || tr("Echec de lecture du fichier Excel.", "Failed to parse Excel file."));
-          setPreviewErrorDetails(detail);
-        } else {
-          setPreviewError(detail || tr("Echec de lecture du fichier Excel.", "Failed to parse Excel file."));
-          setPreviewErrorDetails(null);
+        if (shouldFallbackToCollaboratorPreview(detail)) {
+          const collaboratorPreview = await previewCollaboratorFiles(accessToken, selectedFiles);
+          if (!collaboratorPreview.response.ok) {
+            setPreviewFailure(
+              collaboratorPreview.data?.detail,
+              tr("Echec de lecture du fichier importe.", "Failed to parse upload file."),
+            );
+            return;
+          }
+
+          applyPreviewPayload(collaboratorPreview.data, "collaborateurs");
+          return;
         }
+
+        setPreviewFailure(
+          detail,
+          tr("Echec de lecture du fichier importe.", "Failed to parse upload file."),
+        );
         return;
       }
 
-      const rows = Array.isArray(data.rows) ? data.rows : [];
-      setPreviewRows(rows);
-      setPendingImportRows(rows);
-      setPreviewRowsCount(Number.isFinite(data.rows_count) ? data.rows_count : rows.length);
-      setPreviewColumnsDetected(Array.isArray(data.columns_detected) ? data.columns_detected : []);
-      setPreviewMappingUsed(
-        data.mapping_used && typeof data.mapping_used === "object" ? data.mapping_used : {},
-      );
-      setPreviewFileErrors(Array.isArray(data.file_errors) ? data.file_errors : []);
-      closeModal();
-      setSelectedFiles([]);
+      if (shouldFallbackAfterQualificationSuccess(data)) {
+        const collaboratorPreview = await previewCollaboratorFiles(accessToken, selectedFiles);
+        if (!collaboratorPreview.response.ok) {
+          setPreviewFailure(
+            collaboratorPreview.data?.detail,
+            tr("Echec de lecture du fichier importe.", "Failed to parse upload file."),
+          );
+          return;
+        }
+
+        applyPreviewPayload(collaboratorPreview.data, "collaborateurs");
+        return;
+      }
+
+      applyPreviewPayload(data, "qualification");
     } catch (error) {
       setPreviewError(
         error?.message || tr("Erreur reseau lors de l'envoi du fichier.", "Network error while uploading file."),
@@ -254,19 +328,25 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
       setImportError(tr("Token manquant. Reconnectez-vous.", "Missing access token. Please sign in again."));
       return;
     }
+    if (previewConflicts.length > 0) {
+      setIsConflictDialogOpen(true);
+      return;
+    }
 
     setIsImportingPreview(true);
     setImportError("");
     setPageError("");
 
     try {
-      const { response, data } = await importQualificationRows(accessToken, pendingImportRows);
+      const importAction =
+        previewImportType === "collaborateurs" ? importCollaboratorRows : importQualificationRows;
+      const { response, data } = await importAction(accessToken, pendingImportRows);
       if (!response.ok) {
         setImportError(data?.detail || tr("Echec de l'import.", "Import failed."));
         return;
       }
 
-      setImportSummary(data?.import_summary ?? null);
+      setImportSummary(previewImportType === "collaborateurs" ? data : data?.import_summary ?? null);
       setPendingImportRows([]);
 
       const refreshed = await fetchQualifications(accessToken);
@@ -286,77 +366,12 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
     setSelectedCollaborateur((prev) => (prev?.id === collab.id ? null : collab));
   };
 
-  const handleOpenFormationsDialog = async (collab) => {
-    setFormationsCollaborateur(collab);
-    setIsFormationsDialogOpen(true);
-    setFormationsHistory([]);
-    setFormationsHistoryError("");
-
-    if (!accessToken || !collab?.matricule) {
-      setFormationsHistoryError(tr("Impossible de charger les formations.", "Failed to load trainings."));
-      return;
-    }
-
-    setFormationsHistoryLoading(true);
-    try {
-      const { response, data } = await fetchCollaboratorFormations(accessToken, collab.matricule);
-      if (!response.ok) {
-        setFormationsHistoryError(tr("Impossible de charger les formations.", "Failed to load trainings."));
-        return;
-      }
-      setFormationsHistory(Array.isArray(data) ? data : []);
-    } catch {
-      setFormationsHistoryError(tr("Impossible de charger les formations.", "Failed to load trainings."));
-    } finally {
-      setFormationsHistoryLoading(false);
-    }
-  };
-
-  const closeFormationsDialog = () => {
-    setIsFormationsDialogOpen(false);
-    setFormationsCollaborateur(null);
-    setFormationsHistory([]);
-    setFormationsHistoryError("");
-  };
-
-  const handleGoToFormationSection = (formation) => {
-    closeFormationsDialog();
-    onNavigateToPage?.("formation", { formationId: formation.formation_id });
-  };
-
-  const handleAskDeleteCollaborateur = (collab) => {
-    if (isObserver) return;
-    setCollaborateurToDelete(collab);
-    setIsDeleteDialogOpen(true);
-  };
-
-  const handleDeleteCollaborateur = async () => {
-    if (!collaborateurToDelete) return;
-
-    const matricule = collaborateurToDelete.matricule;
-    setIsDeletingCollaborateur(true);
-    setPageError("");
-
-    try {
-      if (accessToken) {
-        const { response, data } = await deleteCollaborator(accessToken, matricule);
-        if (!response.ok) {
-          setPageError(
-            data?.detail || tr("Impossible de supprimer le collaborateur.", "Failed to delete collaborator."),
-          );
-          return;
-        }
-      }
-
-      setCollaborateursData((prev) => prev.filter((collab) => collab.matricule !== matricule));
-      setSelectedCollaborateur((prev) => (prev?.matricule === matricule ? null : prev));
-      setIsDeleteDialogOpen(false);
-      setCollaborateurToDelete(null);
-    } catch {
-      setPageError(tr("Impossible de supprimer le collaborateur.", "Failed to delete collaborator."));
-    } finally {
-      setIsDeletingCollaborateur(false);
-    }
+  const handleApplyConflictResolution = (nextRows) => {
+    setPreviewRows(nextRows);
+    setPendingImportRows(nextRows);
+    setPreviewRowsCount(nextRows.length);
+    setPreviewConflicts([]);
+    setIsConflictDialogOpen(false);
   };
 
   const filteredCollaborateurs = collaborateursData.filter((collab) => {
@@ -376,17 +391,9 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
     const matchesSearch = !query || searchableFields.some((value) => value.includes(query));
     const matchesStatus = statusFilter === "all" || collab.statut === statusFilter;
     const matchesGroup = groupFilter === "all" || collab.groupe === groupFilter;
-    const matchesLastFormationWindow =
-      activeTab !== "qualification" || hasRecentFormation(collab.derniereFormation, MAX_LAST_FORMATION_AGE_DAYS);
 
-    return collab.phase === activeTab && matchesSearch && matchesStatus && matchesGroup && matchesLastFormationWindow;
+    return matchesSearch && matchesStatus && matchesGroup;
   });
-
-  const tableLabels = {
-    viewDetails: tr("Voir details", "View details"),
-    viewFormations: tr("Voir formations", "View trainings"),
-    delete: tr("Supprimer", "Delete"),
-  };
 
   return (
     <div className="space-y-5 pb-6">
@@ -430,38 +437,39 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
           delay="30ms"
         />
         <ComparisonStat
-          title="Induction"
-          value={inductionCount}
-          deltaPercent={inductionPercent}
+          title="En cours"
+          value={enCoursCount}
+          deltaPercent={totalCollaborateurs > 0 ? (enCoursCount / totalCollaborateurs) * 100 : 0}
           icon={AlertCircle}
           iconBg="bg-[#fff2e4]"
           iconColor="text-[#fc6200]"
           delay="60ms"
         />
         <ComparisonStat
-          title="Qualification"
-          value={qualificationCount}
-          deltaPercent={qualificationPercent}
+          title="Qualifie"
+          value={qualifieCount}
+          deltaPercent={totalCollaborateurs > 0 ? (qualifieCount / totalCollaborateurs) * 100 : 0}
           icon={CheckCircle2}
           iconBg="bg-[#e8f1fb]"
           iconColor="text-[#005ca9]"
           delay="120ms"
         />
+        <ComparisonStat
+          title="Depassement"
+          value={depassementCount}
+          deltaPercent={totalCollaborateurs > 0 ? (depassementCount / totalCollaborateurs) * 100 : 0}
+          icon={AlertCircle}
+          iconBg="bg-[#fdeeee]"
+          iconColor="text-[#ea3737]"
+          delay="180ms"
+        />
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+      <div className="space-y-4">
         <div className="flex items-center justify-between gap-3">
           <h2 className="leoni-display-lg text-[30px] font-semibold leading-tight text-[#171a1f]">
-            {tr("Repartition Collaborateurs", "Collaborator Distribution")}
+            {tr("Suivi Qualification", "Qualification Tracking")}
           </h2>
-          <TabsList className="h-11 rounded-xl bg-[#e8eef6] p-1">
-            <TabsTrigger value="induction" className="rounded-lg px-5 text-[15px]">
-              Induction
-            </TabsTrigger>
-            <TabsTrigger value="qualification" className="rounded-lg px-5 text-[15px]">
-              Qualification
-            </TabsTrigger>
-          </TabsList>
         </div>
 
         <QualificationFilters
@@ -483,21 +491,13 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
           }}
         />
 
-        {["induction", "qualification"].map((tabValue) => (
-          <TabsContent key={tabValue} value={tabValue} className="m-0">
-            <CollaborateursTable
-              rows={filteredCollaborateurs}
-              onViewDetails={handleViewCollaborateur}
-              onViewFormations={handleOpenFormationsDialog}
-              onAskDelete={handleAskDeleteCollaborateur}
-              selectedCollaborateur={selectedCollaborateur}
-              onCloseDetails={() => setSelectedCollaborateur(null)}
-              canManage={!isObserver}
-              labels={tableLabels}
-            />
-          </TabsContent>
-        ))}
-      </Tabs>
+        <CollaborateursTable
+          rows={filteredCollaborateurs}
+          onViewDetails={handleViewCollaborateur}
+          selectedCollaborateur={selectedCollaborateur}
+          onCloseDetails={() => setSelectedCollaborateur(null)}
+        />
+      </div>
 
       <QualificationPreviewCard
         tr={tr}
@@ -508,39 +508,24 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
         previewRows={previewRows}
         previewColumnsDetected={previewColumnsDetected}
         previewMappingUsed={previewMappingUsed}
+        previewImportType={previewImportType}
+        previewConflictsCount={previewConflicts.length}
         canImport={pendingImportRows.length > 0}
         isImporting={isImportingPreview}
         onImport={handleImportPreview}
+        onReviewConflicts={() => setIsConflictDialogOpen(true)}
         importSummary={importSummary}
         importError={importError}
       />
 
-      <FormationsDialog
+      <ImportConflictDialog
         tr={tr}
-        isOpen={isFormationsDialogOpen}
-        collaborateur={formationsCollaborateur}
-        formationsHistory={formationsHistory}
-        formationsHistoryLoading={formationsHistoryLoading}
-        formationsHistoryError={formationsHistoryError}
-        onClose={closeFormationsDialog}
-        onOpenFormationDetails={handleGoToFormationSection}
+        isOpen={isConflictDialogOpen}
+        conflicts={previewConflicts}
+        rows={previewRows}
+        onClose={() => setIsConflictDialogOpen(false)}
+        onApply={handleApplyConflictResolution}
       />
-
-      {!isObserver ? (
-        <DeleteCollaborateurDialog
-          tr={tr}
-          isOpen={isDeleteDialogOpen}
-          onOpenChange={(open) => {
-            setIsDeleteDialogOpen(open);
-            if (!open) {
-              setCollaborateurToDelete(null);
-            }
-          }}
-          collaborateurToDelete={collaborateurToDelete}
-          onDeleteCollaborateur={handleDeleteCollaborateur}
-          isDeleting={isDeletingCollaborateur}
-        />
-      ) : null}
 
       <UploadReportModal
         tr={tr}

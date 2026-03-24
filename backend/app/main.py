@@ -1,3 +1,6 @@
+import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -5,7 +8,20 @@ from app.api.v1.router import api_router
 from app.core.config import settings
 
 
-app = FastAPI(title=settings.APP_NAME)
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    logger.info(
+        "Database connection configured: %s (%s)",
+        settings.database_target,
+        settings.database_host or "unknown-host",
+    )
+    yield
+
+
+app = FastAPI(title=settings.APP_NAME, lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

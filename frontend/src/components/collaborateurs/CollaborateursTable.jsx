@@ -1,5 +1,5 @@
 import { Fragment } from "react";
-import { BookOpen, Eye, Link2, MoreVertical, Trash2 } from "lucide-react";
+import { BookOpen, Eye, MoreVertical } from "lucide-react";
 
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
@@ -8,7 +8,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import {
@@ -27,9 +26,6 @@ export function CollaborateursTable({
   onViewDetails,
   onCloseDetails,
   onViewFormations,
-  onOpenAssociate,
-  onAskDelete,
-  canManage,
   tr,
 }) {
   return (
@@ -83,19 +79,6 @@ export function CollaborateursTable({
                         <BookOpen className="h-4 w-4" />
                         {tr("Voir formations", "View trainings")}
                       </DropdownMenuItem>
-                      {canManage ? (
-                        <>
-                          <DropdownMenuItem onClick={() => onOpenAssociate(collab)}>
-                            <Link2 className="h-4 w-4" />
-                            {tr("Associer formation", "Assign training")}
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem variant="destructive" onClick={() => onAskDelete(collab)}>
-                            <Trash2 className="h-4 w-4" />
-                            {tr("Supprimer", "Delete")}
-                          </DropdownMenuItem>
-                        </>
-                      ) : null}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>

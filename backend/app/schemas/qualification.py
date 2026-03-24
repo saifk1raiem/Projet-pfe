@@ -1,6 +1,6 @@
-from datetime import date
-
 from pydantic import BaseModel, Field
+
+from app.schemas.extraction_contract import CollaboratorPreviewConflict
 
 
 class QualificationImportRow(BaseModel):
@@ -41,6 +41,7 @@ class QualificationPreviewResponse(BaseModel):
     rows: list[QualificationImportRow] = Field(default_factory=list)
     rows_count: int = 0
     file_errors: list[QualificationFileError] = Field(default_factory=list)
+    conflicts: list[CollaboratorPreviewConflict] = Field(default_factory=list)
 
 
 class QualificationImportRequest(BaseModel):
@@ -59,28 +60,3 @@ class QualificationImportSummary(BaseModel):
 
 class QualificationImportResponse(BaseModel):
     import_summary: QualificationImportSummary
-
-
-class CollaborateurCreate(BaseModel):
-    matricule: str
-    nom: str
-    prenom: str
-    fonction: str | None = None
-    centre_cout: str | None = None
-    groupe: str | None = None
-    contre_maitre: str | None = None
-    segment: str | None = None
-    gender: str | None = None
-    num_tel: str | None = None
-    date_recrutement: date | None = None
-    anciennete: int | None = None
-
-    model_config = {"extra": "ignore", "str_strip_whitespace": True}
-
-
-class CollaborateurFormationCreate(BaseModel):
-    formation_id: int
-    formateur_id: int | None = None
-    date_association_systeme: date | None = None
-
-    model_config = {"extra": "ignore"}

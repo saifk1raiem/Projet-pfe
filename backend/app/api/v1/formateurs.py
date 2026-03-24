@@ -5,10 +5,10 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_db, require_roles
 from app.models.enums import UserRole
 from app.services.qualification_import_service import (
-    collaborateur_formations_table,
     collaborateurs_table,
     formateurs_table,
     formations_table,
+    qualification_table,
     resolve_qualification_status,
 )
 
@@ -28,13 +28,13 @@ def list_formateurs(
             formateurs_table.c.telephone,
             formateurs_table.c.email,
             formateurs_table.c.specialite,
-            func.count(func.distinct(collaborateur_formations_table.c.formation_id)).label("formations_count"),
-            func.count(collaborateur_formations_table.c.id).label("collaborateurs_count"),
+            func.count(func.distinct(qualification_table.c.formation_id)).label("formations_count"),
+            func.count(qualification_table.c.id).label("collaborateurs_count"),
         )
         .select_from(
             formateurs_table.outerjoin(
-                collaborateur_formations_table,
-                collaborateur_formations_table.c.formateur_id == formateurs_table.c.id,
+                qualification_table,
+                qualification_table.c.formateur_id == formateurs_table.c.id,
             )
         )
         .group_by(
@@ -62,55 +62,6 @@ def list_formateurs(
     ]
 
 
-@router.post("", status_code=status.HTTP_201_CREATED)
-def create_formateur(
-    payload: dict,
-    db: Session = Depends(get_db),
-    _: object = Depends(require_roles(UserRole.admin)),
-):
-    nom = str(payload.get("nom_formateur") or "").strip()
-    telephone = str(payload.get("telephone") or "").strip() or None
-    email = str(payload.get("email") or "").strip() or None
-    specialite = str(payload.get("specialite") or "").strip() or None
-
-    if not nom:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="nom_formateur is required")
-
-    existing = db.execute(
-        select(formateurs_table).where(func.lower(formateurs_table.c.nom_formateur) == nom.lower())
-    ).mappings().first()
-    if existing:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Trainer already exists")
-
-    inserted = db.execute(
-        formateurs_table.insert()
-        .values(
-            nom_formateur=nom,
-            telephone=telephone,
-            email=email,
-            specialite=specialite,
-        )
-        .returning(
-            formateurs_table.c.id,
-            formateurs_table.c.nom_formateur,
-            formateurs_table.c.telephone,
-            formateurs_table.c.email,
-            formateurs_table.c.specialite,
-        )
-    ).mappings().one()
-    db.commit()
-
-    return {
-        "id": inserted["id"],
-        "nom": inserted["nom_formateur"],
-        "telephone": inserted["telephone"],
-        "email": inserted["email"],
-        "specialite": inserted["specialite"],
-        "formations": 0,
-        "collaborateurs": 0,
-    }
-
-
 @router.get("/{formateur_id}/formations")
 def list_formateur_formations(
     formateur_id: int,
@@ -125,13 +76,13 @@ def list_formateur_formations(
 
     stmt = (
         select(
-            collaborateur_formations_table.c.formation_id,
-            func.count(collaborateur_formations_table.c.id).label("collaborateurs_count"),
-            func.max(collaborateur_formations_table.c.date_association_systeme).label("last_association_date"),
-            func.max(collaborateur_formations_table.c.date_completion).label("last_completion_date"),
+            qualification_table.c.formation_id,
+            func.count(qualification_table.c.id).label("collaborateurs_count"),
+            func.max(qualification_table.c.date_association_systeme).label("last_association_date"),
+            func.max(qualification_table.c.date_completion).label("last_completion_date"),
         )
-        .where(collaborateur_formations_table.c.formateur_id == formateur_id)
-        .group_by(collaborateur_formations_table.c.formation_id)
+        .where(qualification_table.c.formateur_id == formateur_id)
+        .group_by(qualification_table.c.formation_id)
     )
 
     rows = db.execute(stmt).mappings().all()
@@ -184,12 +135,12 @@ def list_formateur_collaborateurs(
 
     stmt = (
         select(
-            collaborateur_formations_table.c.id.label("association_id"),
-            collaborateur_formations_table.c.matricule,
-            collaborateur_formations_table.c.statut,
-            collaborateur_formations_table.c.date_association_systeme,
-            collaborateur_formations_table.c.date_completion,
-            collaborateur_formations_table.c.etat_qualification,
+            qualification_table.c.id.label("association_id"),
+            qualification_table.c.matricule,
+            qualification_table.c.statut,
+            qualification_table.c.date_association_systeme,
+            qualification_table.c.date_completion,
+            qualification_table.c.etat_qualification,
             collaborateurs_table.c.nom,
             collaborateurs_table.c.prenom,
             collaborateurs_table.c.fonction,
@@ -202,20 +153,20 @@ def list_formateur_collaborateurs(
             formations_table.c.duree_jours,
         )
         .select_from(
-            collaborateur_formations_table.join(
+            qualification_table.join(
                 collaborateurs_table,
-                collaborateurs_table.c.matricule == collaborateur_formations_table.c.matricule,
+                collaborateurs_table.c.matricule == qualification_table.c.matricule,
             ).outerjoin(
                 formations_table,
-                formations_table.c.id == collaborateur_formations_table.c.formation_id,
+                formations_table.c.id == qualification_table.c.formation_id,
             )
         )
-        .where(collaborateur_formations_table.c.formateur_id == formateur_id)
+        .where(qualification_table.c.formateur_id == formateur_id)
         .order_by(
             collaborateurs_table.c.nom.asc(),
             collaborateurs_table.c.prenom.asc(),
-            collaborateur_formations_table.c.date_association_systeme.desc(),
-            collaborateur_formations_table.c.id.desc(),
+            qualification_table.c.date_association_systeme.desc(),
+            qualification_table.c.id.desc(),
         )
     )
 
