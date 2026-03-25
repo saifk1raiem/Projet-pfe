@@ -1,4 +1,4 @@
-import { createElement } from "react";
+import { createElement, useEffect, useMemo, useState } from "react";
 import { Badge } from "../ui/badge";
 import { Card } from "../ui/card";
 import {
@@ -18,12 +18,68 @@ import { QualificationStatusChart } from "../charts/QualificationStatusChart";
 import { HeuresPresenceChart } from "../charts/HeuresPresenceChart";
 import { AnalyseDefautsChart } from "../charts/AnalyseDefautsChart";
 import { useAppPreferences } from "../../context/AppPreferencesContext";
+import { apiUrl } from "../../lib/api";
 
-const KPI = ({ title, value, icon, trend, suffix = "", iconColor, iconBg }) => (
+const EMPTY_DASHBOARD_STATS = {
+  totalCollaborators: 0,
+  recruits: 0,
+  exits: 0,
+  availableTrainers: 0,
+  latestRecruitmentDate: null,
+};
+
+const normalizeText = (value) =>
+  String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+const hasMotif = (motifValue, expectedValue) => {
+  const normalizedExpected = normalizeText(expectedValue);
+  const motifValues = Array.isArray(motifValue) ? motifValue : [motifValue];
+  return motifValues.some((value) => normalizeText(value) === normalizedExpected);
+};
+
+const buildDashboardStats = ({ collaborateurs, qualificationRows, formateurs }) => {
+  const collaboratorRows = Array.isArray(collaborateurs) ? collaborateurs : [];
+  const qualificationData = Array.isArray(qualificationRows) ? qualificationRows : [];
+  const trainerRows = Array.isArray(formateurs) ? formateurs : [];
+
+  if (collaboratorRows.length === 0 && qualificationData.length === 0 && trainerRows.length === 0) {
+    return EMPTY_DASHBOARD_STATS;
+  }
+
+  const latestRecruitmentDate = collaboratorRows.reduce((latest, row) => {
+    const recruitmentDate = row?.date_recrutement;
+    if (!recruitmentDate) {
+      return latest;
+    }
+    return !latest || recruitmentDate > latest ? recruitmentDate : latest;
+  }, null);
+
+  const recruits = latestRecruitmentDate
+    ? collaboratorRows.filter((row) => row?.date_recrutement === latestRecruitmentDate).length
+    : 0;
+
+  const exits = qualificationData.filter((row) => hasMotif(row?.motif, "mise en demeure")).length;
+  const availableTrainers = trainerRows.length;
+
+  return {
+    totalCollaborators: collaboratorRows.length,
+    recruits,
+    exits,
+    availableTrainers,
+    latestRecruitmentDate,
+  };
+};
+
+const KPI = ({ title, description, value, icon, trend, suffix = "", iconColor, iconBg }) => (
   <Card className="rounded-[20px] border border-[#dfe5e2] bg-white p-5 shadow-sm">
     <div className="flex items-start justify-between gap-3">
       <div>
         <p className="text-[15px] text-[#5f6777]">{title}</p>
+        {description ? <p className="mt-1 text-[12px] text-[#8b94a3]">{description}</p> : null}
         <div className="mt-1 flex items-baseline gap-3">
           <h3 className="leoni-metric text-[42px] font-semibold leading-none text-[#191c20]">
             {value}
@@ -54,6 +110,78 @@ const KPI = ({ title, value, icon, trend, suffix = "", iconColor, iconBg }) => (
 
 export function TrainingDashboard({ accessToken }) {
   const { tr } = useAppPreferences();
+  const [stats, setStats] = useState(EMPTY_DASHBOARD_STATS);
+  const [statsError, setStatsError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadDashboardStats = async () => {
+      if (!accessToken) {
+        setStats(EMPTY_DASHBOARD_STATS);
+        setStatsError("");
+        return;
+      }
+
+      try {
+        const headers = {
+          Authorization: `Bearer ${accessToken}`,
+        };
+        const [collaborateursResponse, qualificationResponse, formateursResponse] = await Promise.all([
+          fetch(apiUrl("/admin/collaborateurs"), { headers }),
+          fetch(apiUrl("/qualification"), { headers }),
+          fetch(apiUrl("/formateurs"), { headers }),
+        ]);
+        const [collaborateurs, qualificationRows, formateurs] = await Promise.all([
+          collaborateursResponse.json().catch(() => []),
+          qualificationResponse.json().catch(() => []),
+          formateursResponse.json().catch(() => []),
+        ]);
+
+        if (!collaborateursResponse.ok || !qualificationResponse.ok || !formateursResponse.ok) {
+          throw new Error("Failed to load dashboard data");
+        }
+
+        if (!cancelled) {
+          setStats(
+            buildDashboardStats({
+              collaborateurs,
+              qualificationRows,
+              formateurs,
+            }),
+          );
+          setStatsError("");
+        }
+      } catch {
+        if (!cancelled) {
+          setStats(EMPTY_DASHBOARD_STATS);
+          setStatsError(
+            tr(
+              "Impossible de charger les statistiques des collaborateurs.",
+              "Failed to load collaborator statistics.",
+            ),
+          );
+        }
+      }
+    };
+
+    loadDashboardStats();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken, tr]);
+
+  const recruitsDescription = useMemo(() => {
+    if (!stats.latestRecruitmentDate) {
+      return tr("Basee sur la derniere date de recrutement", "Based on the latest recruitment date");
+    }
+
+    return tr(
+      `Derniere vague: ${stats.latestRecruitmentDate}`,
+      `Latest cohort: ${stats.latestRecruitmentDate}`,
+    );
+  }, [stats.latestRecruitmentDate, tr]);
 
   return (
     <div className="space-y-5 pb-6">
@@ -74,37 +202,38 @@ export function TrainingDashboard({ accessToken }) {
           {tr("Donnees mises a jour aujourd'hui", "Data updated today")}
         </Badge>
       </div>
+      {statsError ? <p className="text-[13px] text-[#b42318]">{statsError}</p> : null}
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
         <KPI
           title={tr("Total Collaborateurs", "Total Collaborators")}
-          value="1248"
+          description={tr("Tous les collaborateurs en base", "All collaborators in the database")}
+          value={stats.totalCollaborators}
           icon={Users}
-          trend={3.2}
           iconColor="text-[#0f63f2]"
           iconBg="bg-[#e8f0ff]"
         />
         <KPI
-          title={tr("Nouvelles Recrues", "New Entries")}
-          value="47"
+          title={tr("Nouvelles Recrues", "New Recruits")}
+          description={recruitsDescription}
+          value={stats.recruits}
           icon={UserPlus}
-          trend={8.5}
           iconColor="text-[#005ca9]"
           iconBg="bg-[#e8f1fb]"
         />
         <KPI
           title={tr("Sorties", "Exits")}
-          value="12"
+          description={tr("Motif = Mise en demeure", "Reason = Mise en demeure")}
+          value={stats.exits}
           icon={UserMinus}
-          trend={-2.1}
           iconColor="text-[#ea3737]"
           iconBg="bg-[#fdeeee]"
         />
         <KPI
           title={tr("Formateurs Disponibles", "Available Trainers")}
-          value="24"
+          description={tr("Formateurs presents en base", "Trainers available in the database")}
+          value={stats.availableTrainers}
           icon={GraduationCap}
-          trend={5}
           iconColor="text-[#9029ff]"
           iconBg="bg-[#f3edff]"
         />

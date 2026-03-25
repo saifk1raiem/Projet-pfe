@@ -6,6 +6,7 @@ from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import Column, Date, Integer, MetaData, Numeric, String, Table, func, insert, select, update
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Session
 
 
@@ -60,6 +61,7 @@ qualification_table = Table(
     Column("etat_qualification", String(30)),
     Column("score", Numeric(5, 2)),
     Column("formateur_id", Integer),
+    Column("motif", ARRAY(String(150))),
 )
 
 
@@ -75,6 +77,17 @@ def _as_decimal(value: Any) -> Decimal | None:
     if value in (None, ""):
         return None
     return Decimal(str(value)).quantize(Decimal("0.01"))
+
+
+def _as_motif_list(value: Any) -> list[str] | None:
+    if value in (None, "", []):
+        return None
+    if isinstance(value, (list, tuple, set)):
+        cleaned_values = [str(item).strip() for item in value if str(item).strip()]
+        return cleaned_values or None
+
+    cleaned_value = str(value).strip()
+    return [cleaned_value] if cleaned_value else None
 
 
 def _build_collaborateur_values(row: dict[str, Any]) -> dict[str, Any]:
@@ -103,6 +116,7 @@ def _build_qualification_values(row: dict[str, Any]) -> dict[str, Any]:
         "etat_qualification": row.get("etat_qualification"),
         "score": _as_decimal(row.get("score")),
         "formateur_id": row.get("formateur_id"),
+        "motif": _as_motif_list(row.get("motif")),
     }
 
 
