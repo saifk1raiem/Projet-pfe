@@ -206,7 +206,6 @@ def list_collaborateur_formations(
             qualification_table.c.date_association_systeme,
             qualification_table.c.date_completion,
             qualification_table.c.etat_qualification,
-            qualification_table.c.score,
             qualification_table.c.formateur_id,
             formations_table.c.code_formation,
             formations_table.c.nom_formation,
@@ -248,7 +247,6 @@ def list_collaborateur_formations(
                 etat_qualification=item["etat_qualification"],
             ),
             "statut": item["statut"],
-            "score": float(item["score"]) if item["score"] is not None else None,
             "formateur_id": item["formateur_id"],
             "formateur": item["nom_formateur"],
         }

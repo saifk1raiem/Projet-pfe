@@ -23,7 +23,6 @@ class QualificationImportRow(BaseModel):
     date_association_systeme: str | None = None
     date_completion: str | None = None
     etat_qualification: str | None = None
-    score: float | None = None
     date_recrutement: str | None = None
     anciennete: int | None = None
 

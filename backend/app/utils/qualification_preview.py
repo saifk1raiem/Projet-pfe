@@ -28,7 +28,6 @@ PREVIEW_FIELDS = [
     "date_association_systeme",
     "date_completion",
     "etat_qualification",
-    "score",
     "date_recrutement",
     "anciennete",
 ]
@@ -99,7 +98,6 @@ SYNONYMS: dict[str, list[str]] = {
         "association_year",
     ],
     "date_completion": ["date_completion", "completion_date", "date_fin", "completed_at"],
-    "score": ["score", "resultat", "note", "score_final"],
 }
 
 SUPPORTED_UPLOAD_EXTENSIONS = (".xlsx", ".xls", ".csv")
@@ -262,15 +260,6 @@ def _as_optional_int(value: Any) -> int | None:
         if "." in text:
             return int(float(text))
         return int(text)
-    except ValueError:
-        return None
-
-
-def _as_optional_score(value: Any) -> float | None:
-    if value is None or pd.isna(value):
-        return None
-    try:
-        return round(float(str(value).strip().replace(",", ".")), 2)
     except ValueError:
         return None
 
@@ -564,9 +553,6 @@ def parse_excel_to_rows(
         if normalized_row["etat_qualification"] is None:
             normalized_row["etat_qualification"] = _derive_etat_qualification(normalized_row["statut"])
         normalized_row["etat"] = normalized_row["etat_qualification"]
-
-        score_header = mapping_used.get("score")
-        normalized_row["score"] = _as_optional_score(source_row.get(score_header)) if score_header else None
 
         if not normalized_row.get("prenom") or not normalized_row.get("nom"):
             combined_header = mapping_used.get("nomprenom")

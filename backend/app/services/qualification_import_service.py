@@ -2,10 +2,9 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from datetime import date, timedelta
-from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import Column, Date, Integer, MetaData, Numeric, String, Table, and_, func, insert, or_, select, update
+from sqlalchemy import Column, Date, Integer, MetaData, String, Table, and_, func, insert, or_, select, update
 from sqlalchemy.orm import Session
 
 from app.schemas.qualification import QualificationMissingField, QualificationMissingRequirement
@@ -60,7 +59,6 @@ qualification_table = Table(
     Column("date_association_systeme", Date),
     Column("date_completion", Date),
     Column("etat_qualification", String(30)),
-    Column("score", Numeric(5, 2)),
     Column("formateur_id", Integer),
 )
 
@@ -93,12 +91,6 @@ def _as_date(value: Any) -> date | None:
     if isinstance(value, date):
         return value
     return date.fromisoformat(str(value))
-
-
-def _as_decimal(value: Any) -> Decimal | None:
-    if value in (None, ""):
-        return None
-    return Decimal(str(value)).quantize(Decimal("0.01"))
 
 
 def _clean_text(value: Any) -> str | None:
@@ -266,8 +258,6 @@ def merge_same_day_qualification_rows(rows: list[dict[str, Any]]) -> list[dict[s
             target["anciennete"] = row.get("anciennete")
         if target.get("formation_id") is None and row.get("formation_id") is not None:
             target["formation_id"] = _as_optional_int(row.get("formation_id"))
-        if target.get("score") is None and row.get("score") is not None:
-            target["score"] = row.get("score")
 
         target["date_association_systeme"] = _choose_min_date(
             target.get("date_association_systeme"),
@@ -510,7 +500,6 @@ def _build_qualification_values(row: dict[str, Any]) -> dict[str, Any]:
         "date_association_systeme": _as_date(row.get("date_association_systeme")),
         "date_completion": _as_date(row.get("date_completion")),
         "etat_qualification": row.get("etat_qualification"),
-        "score": _as_decimal(row.get("score")),
         "formateur_id": row.get("formateur_id"),
     }
 
