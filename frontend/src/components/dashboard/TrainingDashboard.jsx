@@ -1,4 +1,4 @@
-import { createElement } from "react";
+import { createElement, useEffect, useState } from "react";
 import { Badge } from "../ui/badge";
 import { Card } from "../ui/card";
 import {
@@ -18,6 +18,39 @@ import { QualificationStatusChart } from "../charts/QualificationStatusChart";
 import { HeuresPresenceChart } from "../charts/HeuresPresenceChart";
 import { AnalyseDefautsChart } from "../charts/AnalyseDefautsChart";
 import { useAppPreferences } from "../../context/AppPreferencesContext";
+import { apiUrl } from "../../lib/api";
+
+const DEFAULT_DASHBOARD_METRICS = {
+  total_collaborateurs: { value: null, trend: null },
+  nouvelles_recrues: { value: null, trend: null },
+  sorties: { value: null, trend: null },
+  formateurs_disponibles: { value: null, trend: null },
+  formations_en_cours: { value: null, trend: null },
+  taux_presence: { value: null, trend: null },
+};
+
+const DEFAULT_DASHBOARD_CHARTS = {
+  centre_cout_distribution: [],
+  qualification_status_distribution: [],
+  entries_exits_monthly: [],
+  trainer_availability_weekly: [],
+  qualification_activity_monthly: [],
+  qualification_health_monthly: [],
+};
+
+const getAuthHeaders = (accessToken, headers = {}) =>
+  accessToken ? { ...headers, Authorization: `Bearer ${accessToken}` } : headers;
+
+function formatMetricValue(value, { decimals = 0 } = {}) {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return "--";
+  }
+
+  return new Intl.NumberFormat(undefined, {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  }).format(value);
+}
 
 const KPI = ({ title, value, icon, trend, suffix = "", iconColor, iconBg }) => (
   <Card className="rounded-[20px] border border-[#dfe5e2] bg-white p-5 shadow-sm">
@@ -54,6 +87,89 @@ const KPI = ({ title, value, icon, trend, suffix = "", iconColor, iconBg }) => (
 
 export function TrainingDashboard({ accessToken }) {
   const { tr } = useAppPreferences();
+  const [metrics, setMetrics] = useState(DEFAULT_DASHBOARD_METRICS);
+  const [charts, setCharts] = useState(DEFAULT_DASHBOARD_CHARTS);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    async function loadDashboardOverview() {
+      if (!accessToken) {
+        if (!isCancelled) {
+          setMetrics(DEFAULT_DASHBOARD_METRICS);
+          setCharts(DEFAULT_DASHBOARD_CHARTS);
+          setIsLoading(false);
+        }
+        return;
+      }
+
+      setIsLoading(true);
+      setLoadError("");
+
+      try {
+        const response = await fetch(apiUrl("/dashboard/overview"), {
+          headers: getAuthHeaders(accessToken),
+        });
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(data?.detail || "Failed to load dashboard metrics.");
+        }
+
+        if (!isCancelled) {
+          const nextMetrics = data.metrics ?? {};
+          const nextCharts = data.charts ?? {};
+          setMetrics({
+            total_collaborateurs:
+              nextMetrics.total_collaborateurs ?? DEFAULT_DASHBOARD_METRICS.total_collaborateurs,
+            nouvelles_recrues: nextMetrics.nouvelles_recrues ?? DEFAULT_DASHBOARD_METRICS.nouvelles_recrues,
+            sorties: nextMetrics.sorties ?? DEFAULT_DASHBOARD_METRICS.sorties,
+            formateurs_disponibles:
+              nextMetrics.formateurs_disponibles ?? DEFAULT_DASHBOARD_METRICS.formateurs_disponibles,
+            formations_en_cours:
+              nextMetrics.formations_en_cours ?? DEFAULT_DASHBOARD_METRICS.formations_en_cours,
+            taux_presence: nextMetrics.taux_presence ?? DEFAULT_DASHBOARD_METRICS.taux_presence,
+          });
+          setCharts({
+            centre_cout_distribution:
+              nextCharts.centre_cout_distribution ?? DEFAULT_DASHBOARD_CHARTS.centre_cout_distribution,
+            qualification_status_distribution:
+              nextCharts.qualification_status_distribution ??
+              DEFAULT_DASHBOARD_CHARTS.qualification_status_distribution,
+            entries_exits_monthly:
+              nextCharts.entries_exits_monthly ?? DEFAULT_DASHBOARD_CHARTS.entries_exits_monthly,
+            trainer_availability_weekly:
+              nextCharts.trainer_availability_weekly ??
+              DEFAULT_DASHBOARD_CHARTS.trainer_availability_weekly,
+            qualification_activity_monthly:
+              nextCharts.qualification_activity_monthly ??
+              DEFAULT_DASHBOARD_CHARTS.qualification_activity_monthly,
+            qualification_health_monthly:
+              nextCharts.qualification_health_monthly ??
+              DEFAULT_DASHBOARD_CHARTS.qualification_health_monthly,
+          });
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          setMetrics(DEFAULT_DASHBOARD_METRICS);
+          setCharts(DEFAULT_DASHBOARD_CHARTS);
+          setLoadError(tr("Impossible de charger les indicateurs.", "Failed to load dashboard metrics."));
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadDashboardOverview();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [accessToken, tr]);
 
   return (
     <div className="space-y-5 pb-6">
@@ -75,36 +191,52 @@ export function TrainingDashboard({ accessToken }) {
         </Badge>
       </div>
 
+      {loadError ? (
+        <div className="rounded-2xl border border-[#f6d2d2] bg-[#fff5f5] px-4 py-3 text-[14px] text-[#c53030]">
+          {loadError}
+        </div>
+      ) : null}
+
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
         <KPI
           title={tr("Total Collaborateurs", "Total Collaborators")}
-          value="1248"
+          value={
+            isLoading
+              ? "..."
+              : formatMetricValue(metrics.total_collaborateurs?.value)
+          }
           icon={Users}
-          trend={3.2}
+          trend={metrics.total_collaborateurs?.trend}
           iconColor="text-[#0f63f2]"
           iconBg="bg-[#e8f0ff]"
         />
         <KPI
           title={tr("Nouvelles Recrues", "New Entries")}
-          value="47"
+          value={
+            isLoading ? "..." : formatMetricValue(metrics.nouvelles_recrues?.value)
+          }
           icon={UserPlus}
-          trend={8.5}
+          trend={metrics.nouvelles_recrues?.trend}
           iconColor="text-[#005ca9]"
           iconBg="bg-[#e8f1fb]"
         />
         <KPI
           title={tr("Sorties", "Exits")}
-          value="12"
+          value={isLoading ? "..." : formatMetricValue(metrics.sorties?.value)}
           icon={UserMinus}
-          trend={-2.1}
+          trend={metrics.sorties?.trend}
           iconColor="text-[#ea3737]"
           iconBg="bg-[#fdeeee]"
         />
         <KPI
           title={tr("Formateurs Disponibles", "Available Trainers")}
-          value="24"
+          value={
+            isLoading
+              ? "..."
+              : formatMetricValue(metrics.formateurs_disponibles?.value)
+          }
           icon={GraduationCap}
-          trend={5}
+          trend={metrics.formateurs_disponibles?.trend}
           iconColor="text-[#9029ff]"
           iconBg="bg-[#f3edff]"
         />
@@ -113,36 +245,68 @@ export function TrainingDashboard({ accessToken }) {
       <div className="grid max-w-[52rem] grid-cols-1 gap-4 md:grid-cols-2">
         <KPI
           title={tr("Formations en Cours", "Ongoing Trainings")}
-          value="18"
+          value={
+            isLoading
+              ? "..."
+              : formatMetricValue(metrics.formations_en_cours?.value)
+          }
           icon={BookOpen}
-          trend={12}
+          trend={metrics.formations_en_cours?.trend}
           iconColor="text-[#fc6200]"
           iconBg="bg-[#fff2e4]"
         />
         <KPI
           title={tr("Taux de Presence", "Attendance Rate")}
-          value="94.2"
+          value={
+            isLoading
+              ? "..."
+              : formatMetricValue(metrics.taux_presence?.value, { decimals: 1 })
+          }
           suffix="%"
           icon={Clock3}
-          trend={1.8}
+          trend={metrics.taux_presence?.trend}
           iconColor="text-[#009a8a]"
           iconBg="bg-[#e6f4f3]"
         />
       </div>
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-        <CollaborateursGroupeChart />
-        <QualificationStatusChart accessToken={accessToken} />
+        <CollaborateursGroupeChart
+          data={charts.centre_cout_distribution}
+          isLoading={isLoading}
+          loadError={loadError}
+        />
+        <QualificationStatusChart
+          data={charts.qualification_status_distribution}
+          isLoading={isLoading}
+          loadError={loadError}
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-        <EntreesSortiesChart />
-        <FormateursDisponibiliteChart />
+        <EntreesSortiesChart
+          data={charts.entries_exits_monthly}
+          isLoading={isLoading}
+          loadError={loadError}
+        />
+        <FormateursDisponibiliteChart
+          data={charts.trainer_availability_weekly}
+          isLoading={isLoading}
+          loadError={loadError}
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-        <HeuresPresenceChart />
-        <AnalyseDefautsChart />
+        <HeuresPresenceChart
+          data={charts.qualification_activity_monthly}
+          isLoading={isLoading}
+          loadError={loadError}
+        />
+        <AnalyseDefautsChart
+          data={charts.qualification_health_monthly}
+          isLoading={isLoading}
+          loadError={loadError}
+        />
       </div>
     </div>
   );

@@ -8,6 +8,32 @@ import { apiUrl } from "../../lib/api";
 import { FormationStat } from "./FormationStat";
 import { formatDuration } from "./formatDuration";
 
+const AUTO_REFRESH_INTERVAL_MS = 30000;
+
+function getFormationConfiguration(formation, tr) {
+  const hasDuration = Number.isFinite(formation?.duration_days);
+  const hasDomain = typeof formation?.field === "string" && formation.field.trim().length > 0;
+
+  if (hasDuration && hasDomain) {
+    return {
+      label: tr("Complete", "Complete"),
+      color: { bg: "bg-[#e8f1fb]", text: "text-[#005ca9]" },
+    };
+  }
+
+  if (hasDuration || hasDomain) {
+    return {
+      label: tr("Partielle", "Partial"),
+      color: { bg: "bg-[#fff2e4]", text: "text-[#fc6200]" },
+    };
+  }
+
+  return {
+    label: tr("A completer", "Needs setup"),
+    color: { bg: "bg-[#fdeeee]", text: "text-[#ea3737]" },
+  };
+}
+
 export function FormationPage({ openFormationId = null, currentUser, accessToken }) {
   const { tr } = useAppPreferences();
   const isObserver = currentUser?.role === "observer";
@@ -33,6 +59,10 @@ export function FormationPage({ openFormationId = null, currentUser, accessToken
     let cancelled = false;
 
     const loadFormations = async () => {
+      if (isEditOpen || isSubmittingEdit) {
+        return;
+      }
+
       try {
         const response = await fetch(apiUrl("/formations"), {
           headers: {
@@ -50,6 +80,13 @@ export function FormationPage({ openFormationId = null, currentUser, accessToken
         const data = await response.json().catch(() => []);
         if (!cancelled && Array.isArray(data)) {
           setFormations(data);
+          setSelectedFormation((prev) => {
+            if (!prev) {
+              return prev;
+            }
+
+            return data.find((formation) => formation.id === prev.id) ?? prev;
+          });
           setLoadError("");
         }
       } catch {
@@ -60,10 +97,31 @@ export function FormationPage({ openFormationId = null, currentUser, accessToken
     };
 
     loadFormations();
+
+    const intervalId = window.setInterval(() => {
+      loadFormations();
+    }, AUTO_REFRESH_INTERVAL_MS);
+
+    const handleWindowFocus = () => {
+      loadFormations();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        loadFormations();
+      }
+    };
+
+    window.addEventListener("focus", handleWindowFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     return () => {
       cancelled = true;
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", handleWindowFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [accessToken, tr]);
+  }, [accessToken, isEditOpen, isSubmittingEdit, tr]);
 
   useEffect(() => {
     if (openFormationId === null) {
@@ -82,6 +140,9 @@ export function FormationPage({ openFormationId = null, currentUser, accessToken
     ? (configuredDurations.reduce((sum, formation) => sum + formation.duration_days, 0) / configuredDurations.length).toFixed(1)
     : "0";
   const domainesCount = new Set(formations.map((formation) => formation.field).filter(Boolean)).size;
+  const selectedFormationConfiguration = selectedFormation
+    ? getFormationConfiguration(selectedFormation, tr)
+    : null;
 
   const openEditModal = (formation) => {
     setEditingFormationId(formation.id);
@@ -165,7 +226,12 @@ export function FormationPage({ openFormationId = null, currentUser, accessToken
           <FormationStat icon={BookOpen} title={tr("Code", "Code")} value={selectedFormation.code} color={{ bg: "bg-[#e6f0ff]", text: "text-[#0f63f2]" }} />
           <FormationStat icon={Clock3} title={tr("Duree", "Duration")} value={formatDuration(selectedFormation.duration_days, tr)} color={{ bg: "bg-[#f3edff]", text: "text-[#9029ff]" }} />
           <FormationStat icon={Layers3} title={tr("Domaine", "Domain")} value={selectedFormation.field || tr("Non defini", "Not set")} color={{ bg: "bg-[#e8f1fb]", text: "text-[#005ca9]" }} />
-          <FormationStat icon={CheckCircle2} title={tr("Statut", "Status")} value={tr("Disponible", "Available")} color={{ bg: "bg-[#eff2f5]", text: "text-[#5f6777]" }} />
+          <FormationStat
+            icon={CheckCircle2}
+            title={tr("Configuration", "Configuration")}
+            value={selectedFormationConfiguration?.label || "-"}
+            color={selectedFormationConfiguration?.color || { bg: "bg-[#eff2f5]", text: "text-[#5f6777]" }}
+          />
         </div>
 
         <Card className="rounded-[20px] border border-[#dfe5e2] bg-white p-5 shadow-sm">

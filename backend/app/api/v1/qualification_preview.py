@@ -31,6 +31,14 @@ def resolve_phase(date_association_systeme) -> str:
     return "indection" if days_since_association <= 5 else "qualification"
 
 
+def serialize_date(value) -> str | None:
+    if value is None:
+        return None
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return str(value)
+
+
 def build_preview_rows_with_live_status(db: Session, rows: list[dict]) -> list[dict]:
     formation_ids = {
         int(row["formation_id"])
@@ -108,7 +116,7 @@ def list_qualification_rows(
         )
         .select_from(
             collaborateurs_table
-            .join(
+            .outerjoin(
                 qualification_table,
                 collaborateurs_table.c.matricule == qualification_table.c.matricule,
             )
@@ -117,8 +125,9 @@ def list_qualification_rows(
         )
         .order_by(
             collaborateurs_table.c.matricule.asc(),
-            qualification_table.c.date_association_systeme.desc(),
-            qualification_table.c.id.desc(),
+            qualification_table.c.date_association_systeme.desc().nullslast(),
+            qualification_table.c.date_completion.desc().nullslast(),
+            qualification_table.c.id.desc().nullslast(),
         )
     )
 
@@ -128,6 +137,7 @@ def list_qualification_rows(
     for item in raw_rows:
         matricule = item["matricule"]
         current = collaborators_by_matricule.get(matricule)
+        latest_activity_date = item["date_completion"] or item["date_association_systeme"]
         qualification_status = resolve_qualification_status(
             item["qualification_statut"],
             item["date_association_systeme"],
@@ -151,18 +161,20 @@ def list_qualification_rows(
                 "segment": item["segment"],
                 "gender": item["gender"],
                 "num_tel": item["num_tel"],
-                "date_recrutement": item["date_recrutement"].isoformat() if item["date_recrutement"] else None,
+                "date_recrutement": serialize_date(item["date_recrutement"]),
                 "anciennete": item["anciennete"],
-                "date_association_systeme": item["date_association_systeme"].isoformat() if item["date_association_systeme"] else None,
-                "date_completion": item["date_completion"].isoformat() if item["date_completion"] else None,
+                "date_association_systeme": serialize_date(item["date_association_systeme"]),
+                "date_completion": serialize_date(item["date_completion"]),
                 "statut": qualification_status,
                 "etat": qualification_status,
                 "formation_id": item["formation_id"],
                 "formations": 0,
+                "derniereFormation": serialize_date(latest_activity_date),
             }
             collaborators_by_matricule[matricule] = current
 
-        current["formations"] += 1
+        if item["qualification_row_id"] is not None:
+            current["formations"] += 1
 
     result = []
     for collaborator in collaborators_by_matricule.values():

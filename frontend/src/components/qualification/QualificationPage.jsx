@@ -1,19 +1,25 @@
 import { useEffect, useRef, useState } from "react";
-import { AlertCircle, CheckCircle2, FileText, Users } from "lucide-react";
+import {
+  AlertCircle,
+  AlertTriangle,
+  CheckCircle2,
+  FileText,
+  Users,
+  XCircle,
+} from "lucide-react";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
 import { useAppPreferences } from "../../context/AppPreferencesContext";
 import { apiUrl } from "../../lib/api";
-import {
-  collaborateursQualification,
-  statutOptions,
-} from "./constants";
+import { statutOptions } from "./constants";
 import { CollaborateursTable } from "./CollaborateursTable";
 import { ComparisonStat } from "./ComparisonStat";
 import { ImportConflictDialog } from "./ImportConflictDialog";
 import { QualificationFilters } from "./QualificationFilters";
 import { QualificationPreviewCard } from "./QualificationPreviewCard";
 import { UploadReportModal } from "./UploadReportModal";
+
+const AUTO_REFRESH_INTERVAL_MS = 30000;
 
 const getAuthHeaders = (accessToken, headers = {}) =>
   accessToken ? { ...headers, Authorization: `Bearer ${accessToken}` } : headers;
@@ -72,15 +78,6 @@ async function importCollaboratorRows(accessToken, rows) {
   });
 }
 
-async function fetchCollaboratorFormations(accessToken, matricule) {
-  return readJsonResponse(
-    apiUrl(`/qualification/${encodeURIComponent(matricule)}/formations`),
-    {
-      headers: getAuthHeaders(accessToken),
-    },
-  );
-}
-
 export function QualificationPage({ onNavigateToPage, currentUser, accessToken }) {
   const { tr } = useAppPreferences();
   const isObserver = currentUser?.role === "observer";
@@ -89,7 +86,7 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
   const [groupFilter, setGroupFilter] = useState("all");
-  const [collaborateursData, setCollaborateursData] = useState(collaborateursQualification);
+  const [collaborateursData, setCollaborateursData] = useState([]);
   const [selectedCollaborateur, setSelectedCollaborateur] = useState(null);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -111,10 +108,41 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
   const [pageError, setPageError] = useState("");
   const [isConflictDialogOpen, setIsConflictDialogOpen] = useState(false);
   const inputRef = useRef(null);
+  const isLiveRefreshPaused =
+    isUploadOpen || isPreviewLoading || isImportingPreview || isConflictDialogOpen || pendingImportRows.length > 0;
+
+  const applyQualificationsData = (rows) => {
+    setCollaborateursData(rows);
+    setSelectedCollaborateur((prev) => {
+      if (!prev) return prev;
+      return rows.find((item) => item.id === prev.id) ?? null;
+    });
+  };
+
+  const loadQualifications = async () => {
+    if (!accessToken) {
+      applyQualificationsData([]);
+      setPageError("");
+      return [];
+    }
+
+    const { response, data } = await fetchQualifications(accessToken);
+    if (!response.ok) {
+      throw new Error("load_failed");
+    }
+
+    const rows = Array.isArray(data) ? data : [];
+    applyQualificationsData(rows);
+    setPageError("");
+    return rows;
+  };
 
   const totalCollaborateurs = collaborateursData.length;
   const enCoursCount = collaborateursData.filter((collab) => collab.statut === "En cours").length;
   const qualifieCount = collaborateursData.filter((collab) => collab.statut === "Qualifie").length;
+  const nonAssocieeCount = collaborateursData.filter(
+    (collab) => collab.statut === "Non associee" || collab.statut === "Non associe",
+  ).length;
   const depassementCount = collaborateursData.filter((collab) => collab.statut === "Depassement").length;
   const availableGroups = Array.from(
     new Set(
@@ -126,26 +154,21 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
 
   useEffect(() => {
     if (!accessToken) {
+      applyQualificationsData([]);
       setPageError("");
       return;
     }
 
     let cancelled = false;
 
-    const loadQualifications = async () => {
-      try {
-        const { response, data } = await fetchQualifications(accessToken);
-        if (!response.ok) {
-          if (!cancelled) {
-            setPageError(tr("Impossible de charger les qualifications.", "Failed to load qualifications."));
-          }
-          return;
-        }
+    const syncQualifications = async () => {
+      if (isLiveRefreshPaused) {
+        return;
+      }
 
-        if (!cancelled) {
-          setCollaborateursData(Array.isArray(data) ? data : []);
-          setPageError("");
-        }
+      try {
+        await loadQualifications();
+        if (cancelled) return;
       } catch {
         if (!cancelled) {
           setPageError(tr("Impossible de charger les qualifications.", "Failed to load qualifications."));
@@ -153,11 +176,32 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
       }
     };
 
-    loadQualifications();
+    syncQualifications();
+
+    const intervalId = window.setInterval(() => {
+      syncQualifications();
+    }, AUTO_REFRESH_INTERVAL_MS);
+
+    const handleWindowFocus = () => {
+      syncQualifications();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        syncQualifications();
+      }
+    };
+
+    window.addEventListener("focus", handleWindowFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     return () => {
       cancelled = true;
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", handleWindowFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [accessToken, tr]);
+  }, [accessToken, isLiveRefreshPaused, tr]);
 
   const handleFileChange = (fileList) => {
     const incoming = Array.from(fileList || []).filter((file) => {
@@ -349,10 +393,7 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
       setImportSummary(previewImportType === "collaborateurs" ? data : data?.import_summary ?? null);
       setPendingImportRows([]);
 
-      const refreshed = await fetchQualifications(accessToken);
-      if (refreshed.response.ok) {
-        setCollaborateursData(Array.isArray(refreshed.data) ? refreshed.data : []);
-      }
+      await loadQualifications();
     } catch (error) {
       setImportError(
         error?.message || tr("Erreur reseau lors de l'import.", "Network error while importing."),
@@ -426,42 +467,58 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
         </Card>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
         <ComparisonStat
-          title="Total Collaborateurs"
+          title={tr("Total Collaborateurs", "Total Collaborators")}
           value={totalCollaborateurs}
-          deltaPercent={totalCollaborateurs > 0 ? 100 : 0}
           icon={Users}
           iconBg="bg-[#e8f0ff]"
           iconColor="text-[#0f63f2]"
           delay="30ms"
         />
         <ComparisonStat
-          title="En cours"
+          title={tr("En cours", "In progress")}
           value={enCoursCount}
           deltaPercent={totalCollaborateurs > 0 ? (enCoursCount / totalCollaborateurs) * 100 : 0}
+          deltaLabel={tr("du total", "of total")}
+          deltaVariant="share"
           icon={AlertCircle}
           iconBg="bg-[#fff2e4]"
           iconColor="text-[#fc6200]"
           delay="60ms"
         />
         <ComparisonStat
-          title="Qualifie"
+          title={tr("Qualifie", "Qualified")}
           value={qualifieCount}
           deltaPercent={totalCollaborateurs > 0 ? (qualifieCount / totalCollaborateurs) * 100 : 0}
+          deltaLabel={tr("du total", "of total")}
+          deltaVariant="share"
           icon={CheckCircle2}
           iconBg="bg-[#e8f1fb]"
           iconColor="text-[#005ca9]"
           delay="120ms"
         />
         <ComparisonStat
-          title="Depassement"
-          value={depassementCount}
-          deltaPercent={totalCollaborateurs > 0 ? (depassementCount / totalCollaborateurs) * 100 : 0}
-          icon={AlertCircle}
+          title={tr("Non associee", "Not associated")}
+          value={nonAssocieeCount}
+          deltaPercent={totalCollaborateurs > 0 ? (nonAssocieeCount / totalCollaborateurs) * 100 : 0}
+          deltaLabel={tr("du total", "of total")}
+          deltaVariant="share"
+          icon={XCircle}
           iconBg="bg-[#fdeeee]"
           iconColor="text-[#ea3737]"
           delay="180ms"
+        />
+        <ComparisonStat
+          title={tr("Depassement", "Overdue")}
+          value={depassementCount}
+          deltaPercent={totalCollaborateurs > 0 ? (depassementCount / totalCollaborateurs) * 100 : 0}
+          deltaLabel={tr("du total", "of total")}
+          deltaVariant="share"
+          icon={AlertTriangle}
+          iconBg="bg-[#f3edff]"
+          iconColor="text-[#7b35e8]"
+          delay="210ms"
         />
       </div>
 

@@ -19,6 +19,8 @@ import { CollaborateursTable } from "./CollaborateursTable";
 import { FormationsDialog } from "./FormationsDialog";
 import { mapCollaborateur } from "./helpers";
 
+const AUTO_REFRESH_INTERVAL_MS = 30000;
+
 const getAuthHeaders = (accessToken, headers = {}) =>
   accessToken ? { ...headers, Authorization: `Bearer ${accessToken}` } : headers;
 
@@ -100,18 +102,45 @@ export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken 
     return mappedRows;
   };
 
+  const loadCollaborateurHistory = async (matricule) => {
+    if (!accessToken || !matricule) {
+      setFormationsHistoryError(tr("Impossible de charger les formations.", "Failed to load trainings."));
+      return;
+    }
+
+    const { response, data } = await fetchCollaborateurFormations(accessToken, matricule);
+    if (!response.ok) {
+      setFormationsHistoryError(tr("Impossible de charger les formations.", "Failed to load trainings."));
+      return;
+    }
+
+    setFormationsHistory(Array.isArray(data) ? data : []);
+    setFormationsHistoryError("");
+  };
+
   useEffect(() => {
     if (!accessToken) {
       setCollaborateursData([]);
+      setLoadError("");
+      setPageError("");
       return;
     }
 
     let cancelled = false;
 
-    const initializeCollaborateurs = async () => {
+    const syncCollaborateurs = async () => {
+      if (isRefreshingData) {
+        return;
+      }
+
       try {
-        if (!cancelled) {
-          await loadCollaborateurs();
+        await loadCollaborateurs();
+        if (cancelled) {
+          return;
+        }
+
+        if (formationsCollaborateur?.matricule) {
+          await loadCollaborateurHistory(formationsCollaborateur.matricule);
         }
       } catch {
         if (!cancelled) {
@@ -120,12 +149,32 @@ export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken 
       }
     };
 
-    initializeCollaborateurs();
+    syncCollaborateurs();
+
+    const intervalId = window.setInterval(() => {
+      syncCollaborateurs();
+    }, AUTO_REFRESH_INTERVAL_MS);
+
+    const handleWindowFocus = () => {
+      syncCollaborateurs();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        syncCollaborateurs();
+      }
+    };
+
+    window.addEventListener("focus", handleWindowFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       cancelled = true;
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", handleWindowFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [accessToken, tr]);
+  }, [accessToken, formationsCollaborateur?.matricule, isRefreshingData, tr]);
 
   const totalCollaborateurs = collaborateursData.length;
   const qualifiesCount = collaborateursData.filter((collab) => collab.statut === "Qualifie").length;
@@ -169,17 +218,7 @@ export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken 
 
     setFormationsHistoryLoading(true);
     try {
-      const response = await fetch(apiUrl(`/qualification/${collab.matricule}/formations`), {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-      const data = await response.json().catch(() => []);
-      if (!response.ok) {
-        setFormationsHistoryError(tr("Impossible de charger les formations.", "Failed to load trainings."));
-        return;
-      }
-      setFormationsHistory(Array.isArray(data) ? data : []);
+      await loadCollaborateurHistory(collab.matricule);
     } catch {
       setFormationsHistoryError(tr("Impossible de charger les formations.", "Failed to load trainings."));
     } finally {
@@ -210,13 +249,7 @@ export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken 
       await loadCollaborateurs();
 
       if (formationsCollaborateur?.matricule) {
-        const { response, data } = await fetchCollaborateurFormations(accessToken, formationsCollaborateur.matricule);
-        if (!response.ok) {
-          setFormationsHistoryError(tr("Impossible de charger les formations.", "Failed to load trainings."));
-        } else {
-          setFormationsHistory(Array.isArray(data) ? data : []);
-          setFormationsHistoryError("");
-        }
+        await loadCollaborateurHistory(formationsCollaborateur.matricule);
       }
     } catch {
       setPageError(tr("Impossible d'actualiser les collaborateurs.", "Failed to refresh collaborators."));

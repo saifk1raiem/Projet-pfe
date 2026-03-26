@@ -9,6 +9,15 @@ import { CollaborateursDialog } from "./CollaborateursDialog";
 import { FormateursStat } from "./FormateursStat";
 import { getInitials, getSpecialites } from "./formateursUtils";
 
+const AUTO_REFRESH_INTERVAL_MS = 30000;
+
+const getAuthHeaders = (accessToken) =>
+  accessToken
+    ? {
+      Authorization: `Bearer ${accessToken}`,
+    }
+    : {};
+
 export function FormateursList({ onNavigateToPage, accessToken }) {
   const { tr } = useAppPreferences();
   const [selectedFormateur, setSelectedFormateur] = useState(null);
@@ -23,32 +32,93 @@ export function FormateursList({ onNavigateToPage, accessToken }) {
   const [collaborateursLoading, setCollaborateursLoading] = useState(false);
   const [collaborateursError, setCollaborateursError] = useState("");
 
+  const applyFormateursData = (rows) => {
+    setFormateurs(rows);
+    setSelectedFormateur((prev) => {
+      if (!prev) return prev;
+      return rows.find((item) => item.id === prev.id) ?? null;
+    });
+    setCollaborateursDialogFormateur((prev) => {
+      if (!prev) return prev;
+      return rows.find((item) => item.id === prev.id) ?? null;
+    });
+  };
+
+  const loadFormateurs = async () => {
+    const response = await fetch(apiUrl("/formateurs"), {
+      headers: getAuthHeaders(accessToken),
+    });
+
+    const data = await response.json().catch(() => []);
+    if (!response.ok) {
+      throw new Error("load_failed");
+    }
+
+    const rows = Array.isArray(data) ? data : [];
+    applyFormateursData(rows);
+    setLoadError("");
+    return rows;
+  };
+
+  const loadFormateurFormations = async (formateurId) => {
+    if (!accessToken || !formateurId) {
+      setFormationsError(tr("Impossible de charger les formations.", "Failed to load trainings."));
+      return;
+    }
+
+    const response = await fetch(apiUrl(`/formateurs/${formateurId}/formations`), {
+      headers: getAuthHeaders(accessToken),
+    });
+    const data = await response.json().catch(() => []);
+    if (!response.ok) {
+      setFormationsError(tr("Impossible de charger les formations.", "Failed to load trainings."));
+      return;
+    }
+
+    setFormateurFormations(Array.isArray(data) ? data : []);
+    setFormationsError("");
+  };
+
+  const loadFormateurCollaborateurs = async (formateurId) => {
+    if (!accessToken || !formateurId) {
+      setCollaborateursError(tr("Impossible de charger les collaborateurs.", "Failed to load collaborators."));
+      return;
+    }
+
+    const response = await fetch(apiUrl(`/formateurs/${formateurId}/collaborateurs`), {
+      headers: getAuthHeaders(accessToken),
+    });
+    const data = await response.json().catch(() => []);
+    if (!response.ok) {
+      setCollaborateursError(tr("Impossible de charger les collaborateurs.", "Failed to load collaborators."));
+      return;
+    }
+
+    setFormateurCollaborateurs(Array.isArray(data) ? data : []);
+    setCollaborateursError("");
+  };
+
   useEffect(() => {
     if (!accessToken) {
+      applyFormateursData([]);
+      setLoadError("");
       return;
     }
 
     let cancelled = false;
 
-    const loadFormateurs = async () => {
+    const syncFormateurs = async () => {
       try {
-        const response = await fetch(apiUrl("/formateurs"), {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        });
-
-        const data = await response.json().catch(() => []);
-        if (!response.ok) {
-          if (!cancelled) {
-            setLoadError(tr("Impossible de charger les formateurs.", "Failed to load trainers."));
-          }
+        await loadFormateurs();
+        if (cancelled) {
           return;
         }
 
-        if (!cancelled) {
-          setFormateurs(Array.isArray(data) ? data : []);
-          setLoadError("");
+        if (isDetailsDialogOpen && selectedFormateur?.id) {
+          await loadFormateurFormations(selectedFormateur.id);
+        }
+        if (collaborateursDialogFormateur?.id) {
+          await loadFormateurCollaborateurs(collaborateursDialogFormateur.id);
         }
       } catch {
         if (!cancelled) {
@@ -57,11 +127,32 @@ export function FormateursList({ onNavigateToPage, accessToken }) {
       }
     };
 
-    loadFormateurs();
+    syncFormateurs();
+
+    const intervalId = window.setInterval(() => {
+      syncFormateurs();
+    }, AUTO_REFRESH_INTERVAL_MS);
+
+    const handleWindowFocus = () => {
+      syncFormateurs();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        syncFormateurs();
+      }
+    };
+
+    window.addEventListener("focus", handleWindowFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     return () => {
       cancelled = true;
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", handleWindowFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [accessToken, tr]);
+  }, [accessToken, collaborateursDialogFormateur?.id, isDetailsDialogOpen, selectedFormateur?.id, tr]);
 
   const totalFormateurs = formateurs.length;
   const activeFormateurs = formateurs.filter((formateur) => formateur.formations > 0).length;
@@ -81,17 +172,7 @@ export function FormateursList({ onNavigateToPage, accessToken }) {
 
     setFormationsLoading(true);
     try {
-      const response = await fetch(apiUrl(`/formateurs/${formateur.id}/formations`), {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-      const data = await response.json().catch(() => []);
-      if (!response.ok) {
-        setFormationsError(tr("Impossible de charger les formations.", "Failed to load trainings."));
-        return;
-      }
-      setFormateurFormations(Array.isArray(data) ? data : []);
+      await loadFormateurFormations(formateur.id);
     } catch {
       setFormationsError(tr("Impossible de charger les formations.", "Failed to load trainings."));
     } finally {
@@ -123,17 +204,7 @@ export function FormateursList({ onNavigateToPage, accessToken }) {
 
     setCollaborateursLoading(true);
     try {
-      const response = await fetch(apiUrl(`/formateurs/${formateur.id}/collaborateurs`), {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-      const data = await response.json().catch(() => []);
-      if (!response.ok) {
-        setCollaborateursError(tr("Impossible de charger les collaborateurs.", "Failed to load collaborators."));
-        return;
-      }
-      setFormateurCollaborateurs(Array.isArray(data) ? data : []);
+      await loadFormateurCollaborateurs(formateur.id);
     } catch {
       setCollaborateursError(tr("Impossible de charger les collaborateurs.", "Failed to load collaborators."));
     } finally {
