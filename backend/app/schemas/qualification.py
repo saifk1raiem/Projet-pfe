@@ -12,6 +12,7 @@ class QualificationImportRow(BaseModel):
     groupe: str | None = None
     competence: str | None = None
     formateur: str | None = None
+    motif: str | None = None
     contre_maitre: str | None = None
     segment: str | None = None
     gender: str | None = None

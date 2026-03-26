@@ -189,6 +189,7 @@ export function QualificationPreviewCard({
                 {isCollaboratorImport ? <TableHead>anciennete</TableHead> : null}
                 {!isCollaboratorImport ? <TableHead>date_association</TableHead> : null}
                 {!isCollaboratorImport ? <TableHead>date_completion</TableHead> : null}
+                {!isCollaboratorImport ? <TableHead>motif</TableHead> : null}
                 <TableHead>etat</TableHead>
               </TableRow>
             </TableHeader>
@@ -211,6 +212,7 @@ export function QualificationPreviewCard({
                   {isCollaboratorImport ? <TableCell>{row.anciennete ?? "-"}</TableCell> : null}
                   {!isCollaboratorImport ? <TableCell>{row.date_association_systeme || "-"}</TableCell> : null}
                   {!isCollaboratorImport ? <TableCell>{row.date_completion || "-"}</TableCell> : null}
+                  {!isCollaboratorImport ? <TableCell>{row.motif || "-"}</TableCell> : null}
                   <TableCell>{row.etat || "-"}</TableCell>
                 </TableRow>
               ))}

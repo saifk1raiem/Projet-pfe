@@ -5,7 +5,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import Column, Date, Integer, MetaData, Numeric, String, Table, func, insert, select, update
+from sqlalchemy import Column, Date, Integer, MetaData, Numeric, String, Table, Text, func, insert, select, update
 from sqlalchemy.orm import Session
 
 
@@ -60,6 +60,7 @@ qualification_table = Table(
     Column("etat_qualification", String(30)),
     Column("score", Numeric(5, 2)),
     Column("formateur_id", Integer),
+    Column("motif", Text),
 )
 
 
@@ -103,6 +104,7 @@ def _build_qualification_values(row: dict[str, Any]) -> dict[str, Any]:
         "etat_qualification": row.get("etat_qualification"),
         "score": _as_decimal(row.get("score")),
         "formateur_id": row.get("formateur_id"),
+        "motif": row.get("motif"),
     }
 
 

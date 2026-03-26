@@ -68,6 +68,9 @@ export function FormationsDialog({
                     <p className="mt-1 text-[13px] text-[#475467]">
                       {tr("Formateur", "Trainer")}: {formation.formateur || "-"}
                     </p>
+                    <p className="mt-1 text-[13px] text-[#475467]">
+                      {tr("Motif", "Reason")}: {formation.motif || "-"}
+                    </p>
                   </div>
                   <Badge className="rounded-lg border border-[#b9d3ea] bg-[#e8f1fb] px-3 py-1 text-[13px] font-medium text-[#005ca9]">
                     {formation.resultat}

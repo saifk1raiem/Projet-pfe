@@ -110,6 +110,7 @@ def list_qualification_rows(
             qualification_table.c.date_completion,
             qualification_table.c.etat_qualification,
             qualification_table.c.formateur_id,
+            qualification_table.c.motif,
             formations_table.c.nom_formation,
             formations_table.c.duree_jours,
             formateurs_table.c.nom_formateur,
@@ -157,6 +158,7 @@ def list_qualification_rows(
                 "groupe": item["groupe"],
                 "competence": item["nom_formation"],
                 "formateur": item["nom_formateur"],
+                "motif": item["motif"],
                 "contre_maitre": item["contre_maitre"],
                 "segment": item["segment"],
                 "gender": item["gender"],
@@ -206,6 +208,7 @@ def list_collaborateur_formations(
             qualification_table.c.etat_qualification,
             qualification_table.c.score,
             qualification_table.c.formateur_id,
+            qualification_table.c.motif,
             formations_table.c.code_formation,
             formations_table.c.nom_formation,
             formations_table.c.domaine,
@@ -249,6 +252,7 @@ def list_collaborateur_formations(
             "score": float(item["score"]) if item["score"] is not None else None,
             "formateur_id": item["formateur_id"],
             "formateur": item["nom_formateur"],
+            "motif": item["motif"],
         }
         for item in rows
     ]

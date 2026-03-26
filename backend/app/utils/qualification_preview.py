@@ -18,6 +18,7 @@ PREVIEW_FIELDS = [
     "centre_cout",
     "groupe",
     "formateur",
+    "motif",
     "contre_maitre",
     "segment",
     "num_tel",
@@ -67,6 +68,7 @@ SYNONYMS: dict[str, list[str]] = {
         "Plugins - Name_competence",
     ],
     "formateur": ["formateur", "trainer", "instructor", "Plugins - Formateur"],
+    "motif": ["motif", "reason", "cause", "remarque", "commentaire", "comment"],
     "statut": ["statut", "status", "Plugins - status", "training_status", "qualification_status", "etat"],
     "etat": ["etat", "status", "Niveau de formation", "qualification_status", "etat_qualifie", "etatqualifies"],
     "date_association_systeme": [
@@ -511,6 +513,7 @@ def parse_excel_to_rows(
             "centre_cout",
             "groupe",
             "formateur",
+            "motif",
             "contre_maitre",
             "segment",
             "num_tel",

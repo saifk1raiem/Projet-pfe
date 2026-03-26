@@ -425,6 +425,7 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
       collab.centre_cout,
       collab.groupe,
       collab.segment,
+      collab.motif,
     ]
       .filter((value) => typeof value === "string")
       .map((value) => value.toLowerCase());
