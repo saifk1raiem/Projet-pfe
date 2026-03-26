@@ -43,19 +43,29 @@ export function EntityFiltersCard({
               <label htmlFor={filterItem.id} className="text-sm font-medium text-[#252930]">
                 {filterItem.label}
               </label>
-              <select
-                id={filterItem.id}
-                className="h-10 w-full rounded-md border border-[#d5dce0] bg-white px-3 text-sm outline-none focus:border-[#0f63f2]"
-                value={filterItem.value}
-                onChange={(e) => filterItem.onChange(e.target.value)}
-              >
-                <option value="all">{filterItem.allOptionLabel}</option>
-                {filterItem.options.map((option) => (
-                  <option key={`${filterItem.id}-${option.value}`} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+              {filterItem.type === "date" ? (
+                <Input
+                  id={filterItem.id}
+                  type="date"
+                  className="h-10 rounded-md border-[#d5dce0] bg-white text-sm"
+                  value={filterItem.value}
+                  onChange={(e) => filterItem.onChange(e.target.value)}
+                />
+              ) : (
+                <select
+                  id={filterItem.id}
+                  className="h-10 w-full rounded-md border border-[#d5dce0] bg-white px-3 text-sm outline-none focus:border-[#0f63f2]"
+                  value={filterItem.value}
+                  onChange={(e) => filterItem.onChange(e.target.value)}
+                >
+                  <option value="all">{filterItem.allOptionLabel}</option>
+                  {filterItem.options.map((option) => (
+                    <option key={`${filterItem.id}-${option.value}`} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
           ))}
 

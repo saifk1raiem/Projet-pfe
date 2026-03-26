@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from datetime import date
+from datetime import date, datetime
 import re
 import unicodedata
 from io import BytesIO, StringIO
@@ -20,6 +20,7 @@ PREVIEW_FIELDS = [
     "formateur",
     "contre_maitre",
     "segment",
+    "gender",
     "num_tel",
     "formation_id",
     "formation_label",
@@ -28,6 +29,7 @@ PREVIEW_FIELDS = [
     "date_association_systeme",
     "date_completion",
     "etat_qualification",
+    "motif",
     "score",
     "date_recrutement",
     "anciennete",
@@ -49,10 +51,14 @@ SYNONYMS: dict[str, list[str]] = {
     "groupe": ["groupe", "group", "gr", "Plugins - Group"],
     "contre_maitre": ["contre_maitre", "supervisor", "Contre maitre", "team_lead", "Rh seg"],
     "segment": ["segment", "department", "division", "seg", "Plugins - seg"],
+    "gender": ["gender", "genre", "sexe", "sex"],
     "num_tel": ["num_tel", "telephone", "phone", "tel", "num tel"],
     "date_recrutement": [
         "date_recrutement",
         "Date recrutement",
+        "Date d'embauche",
+        "date d'embauche",
+        "date d embauche",
         "date_embauche",
         "recruitment_date",
         "date_entree",
@@ -99,11 +105,47 @@ SYNONYMS: dict[str, list[str]] = {
         "association_year",
     ],
     "date_completion": ["date_completion", "completion_date", "date_fin", "completed_at"],
+    "motif": ["motif", "reason", "cause"],
     "score": ["score", "resultat", "note", "score_final"],
 }
 
 SUPPORTED_UPLOAD_EXTENSIONS = (".xlsx", ".xls", ".csv")
 CSV_ENCODINGS = ("utf-8-sig", "utf-8", "cp1252", "latin-1")
+DATE_FORMATS = (
+    "%Y-%m-%d",
+    "%Y/%m/%d",
+    "%d/%m/%Y",
+    "%d-%m-%Y",
+    "%d.%m.%Y",
+    "%m/%d/%Y",
+    "%m-%d-%Y",
+)
+MONTH_NAME_LOOKUP = {
+    "janvier": 1,
+    "january": 1,
+    "fevrier": 2,
+    "february": 2,
+    "mars": 3,
+    "march": 3,
+    "avril": 4,
+    "april": 4,
+    "mai": 5,
+    "may": 5,
+    "juin": 6,
+    "june": 6,
+    "juillet": 7,
+    "july": 7,
+    "aout": 8,
+    "august": 8,
+    "septembre": 9,
+    "september": 9,
+    "octobre": 10,
+    "october": 10,
+    "novembre": 11,
+    "november": 11,
+    "decembre": 12,
+    "december": 12,
+}
 
 
 def _dedupe_aliases(values: Iterable[str]) -> list[str]:
@@ -259,8 +301,9 @@ def _as_optional_int(value: Any) -> int | None:
         text = str(value).strip()
         if not text:
             return None
-        if "." in text:
-            return int(float(text))
+        normalized_text = text.replace(",", ".")
+        if "." in normalized_text:
+            return int(float(normalized_text))
         return int(text)
     except ValueError:
         return None
@@ -289,6 +332,13 @@ def _as_iso_date(value: Any) -> str | None:
         month_value = int(short_match.group(2))
         return _compose_partial_association_date(day_value, month_value, None)
 
+    normalized_text = text.replace("\\", "/")
+    for date_format in DATE_FORMATS:
+        try:
+            return datetime.strptime(normalized_text, date_format).date().isoformat()
+        except ValueError:
+            continue
+
     parsed = pd.to_datetime(value, errors="coerce", dayfirst=True)
     if pd.isna(parsed):
         return None
@@ -310,6 +360,17 @@ def _as_optional_date_part(value: Any) -> int | None:
         return int(match.group(0))
     except ValueError:
         return None
+
+
+def _as_optional_month_part(value: Any) -> int | None:
+    numeric_month = _as_optional_date_part(value)
+    if numeric_month is not None:
+        return numeric_month
+    if value is None or pd.isna(value):
+        return None
+
+    normalized = normalize_header(value)
+    return MONTH_NAME_LOOKUP.get(normalized)
 
 
 def _normalize_year(value: int | None) -> int | None:
@@ -353,7 +414,7 @@ def _resolve_association_date(source_row: dict[str, Any], mapping_used: dict[str
         return direct_date
 
     day_value = _as_optional_date_part(source_row.get(mapping_used.get("date_association_day")))
-    month_value = _as_optional_date_part(source_row.get(mapping_used.get("date_association_month")))
+    month_value = _as_optional_month_part(source_row.get(mapping_used.get("date_association_month")))
     year_value = _as_optional_date_part(source_row.get(mapping_used.get("date_association_year")))
     return _compose_partial_association_date(day_value, month_value, year_value)
 
@@ -364,7 +425,16 @@ def _split_prenom_nom(full_name: str | None) -> tuple[str | None, str | None]:
     parts = [part for part in full_name.strip().split() if part]
     if len(parts) < 2:
         return None, None
-    return parts[0].title(), " ".join(parts[1:]).title()
+    return " ".join(parts[1:]).title(), parts[0].title()
+
+
+def _normalize_gender(value: Any) -> str | None:
+    normalized = normalize_header(str(value)) if value is not None and not pd.isna(value) else ""
+    if normalized in {"m", "male", "homme", "masculin", "man"}:
+        return "M"
+    if normalized in {"f", "female", "femme", "feminin", "woman"}:
+        return "F"
+    return None
 
 
 def _parse_formation(value: Any) -> tuple[int | None, str | None]:
@@ -408,10 +478,10 @@ def _normalize_etat_qualification(value: Any) -> str | None:
     return None
 
 
-def _derive_etat_qualification(statut: str | None) -> str | None:
+def _derive_etat_qualification(statut: str | None, *, has_association: bool = False) -> str | None:
     if statut == "Completee":
         return "Qualifie"
-    if statut == "En cours":
+    if statut == "En cours" or has_association:
         return "En cours"
     return None
 
@@ -513,14 +583,24 @@ def parse_excel_to_rows(
             "formateur",
             "contre_maitre",
             "segment",
+            "motif",
             "num_tel",
-            "date_recrutement",
         ]:
             header = mapping_used.get(field)
             normalized_row[field] = _as_clean_string(source_row.get(header)) if header else None
 
+        gender_header = mapping_used.get("gender")
+        normalized_row["gender"] = _normalize_gender(source_row.get(gender_header)) if gender_header else None
+
+        date_recrutement_header = mapping_used.get("date_recrutement")
+        normalized_row["date_recrutement"] = (
+            _as_iso_date(source_row.get(date_recrutement_header)) if date_recrutement_header else None
+        )
+
         anciennete_header = mapping_used.get("anciennete")
         normalized_row["anciennete"] = _as_optional_int(source_row.get(anciennete_header)) if anciennete_header else None
+        if normalized_row["anciennete"] is None and normalized_row["date_recrutement"]:
+            normalized_row["anciennete"] = max(date.today().year - int(normalized_row["date_recrutement"][:4]), 0)
 
         formation_header = mapping_used.get("competence")
         formation_id, formation_label = _parse_formation(source_row.get(formation_header) if formation_header else None)
@@ -550,7 +630,10 @@ def parse_excel_to_rows(
             source_row.get(etat_header) if etat_header else None
         )
         if normalized_row["etat_qualification"] is None:
-            normalized_row["etat_qualification"] = _derive_etat_qualification(normalized_row["statut"])
+            normalized_row["etat_qualification"] = _derive_etat_qualification(
+                normalized_row["statut"],
+                has_association=bool(normalized_row["date_association_systeme"]),
+            )
         normalized_row["etat"] = normalized_row["etat_qualification"]
 
         score_header = mapping_used.get("score")
@@ -569,8 +652,6 @@ def parse_excel_to_rows(
             normalized_row.get("prenom") and normalized_row.get("nom")
         )
         if not has_identity:
-            continue
-        if normalized_row.get("formation_id") is None:
             continue
 
         rows.append(normalized_row)

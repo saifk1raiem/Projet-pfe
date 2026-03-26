@@ -1,7 +1,13 @@
-import { createElement, useEffect, useMemo, useState } from "react";
+import {
+  createElement,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { Badge } from "../ui/badge";
 import { Card } from "../ui/card";
 import {
+  ArrowDownRight,
   Users,
   UserPlus,
   UserMinus,
@@ -20,66 +26,35 @@ import { AnalyseDefautsChart } from "../charts/AnalyseDefautsChart";
 import { useAppPreferences } from "../../context/AppPreferencesContext";
 import { apiUrl } from "../../lib/api";
 
-const EMPTY_DASHBOARD_STATS = {
-  totalCollaborators: 0,
-  recruits: 0,
-  exits: 0,
-  availableTrainers: 0,
-  latestRecruitmentDate: null,
+const EMPTY_DASHBOARD_DATA = {
+  overview: {
+    total_collaborators: 0,
+    latest_recruitment_date: null,
+    latest_recruitment_count: 0,
+    latest_association_date: null,
+    latest_association_count: 0,
+    total_exits: 0,
+    available_trainers: 0,
+  },
 };
 
-const normalizeText = (value) =>
-  String(value ?? "")
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-
-const hasMotif = (motifValue, expectedValue) => {
-  const normalizedExpected = normalizeText(expectedValue);
-  const motifValues = Array.isArray(motifValue) ? motifValue : [motifValue];
-  return motifValues.some((value) => normalizeText(value) === normalizedExpected);
-};
-
-const buildDashboardStats = ({ collaborateurs, qualificationRows, formateurs }) => {
-  const collaboratorRows = Array.isArray(collaborateurs) ? collaborateurs : [];
-  const qualificationData = Array.isArray(qualificationRows) ? qualificationRows : [];
-  const trainerRows = Array.isArray(formateurs) ? formateurs : [];
-
-  if (collaboratorRows.length === 0 && qualificationData.length === 0 && trainerRows.length === 0) {
-    return EMPTY_DASHBOARD_STATS;
-  }
-
-  const latestRecruitmentDate = collaboratorRows.reduce((latest, row) => {
-    const recruitmentDate = row?.date_recrutement;
-    if (!recruitmentDate) {
-      return latest;
-    }
-    return !latest || recruitmentDate > latest ? recruitmentDate : latest;
-  }, null);
-
-  const recruits = latestRecruitmentDate
-    ? collaboratorRows.filter((row) => row?.date_recrutement === latestRecruitmentDate).length
-    : 0;
-
-  const exits = qualificationData.filter((row) => hasMotif(row?.motif, "mise en demeure")).length;
-  const availableTrainers = trainerRows.length;
-
-  return {
-    totalCollaborators: collaboratorRows.length,
-    recruits,
-    exits,
-    availableTrainers,
-    latestRecruitmentDate,
-  };
-};
-
-const KPI = ({ title, description, value, icon, trend, suffix = "", iconColor, iconBg }) => (
+const KPI = ({
+  title,
+  description,
+  value,
+  icon,
+  trend,
+  suffix = "",
+  iconColor,
+  iconBg,
+}) => (
   <Card className="rounded-[20px] border border-[#dfe5e2] bg-white p-5 shadow-sm">
     <div className="flex items-start justify-between gap-3">
       <div>
         <p className="text-[15px] text-[#5f6777]">{title}</p>
-        {description ? <p className="mt-1 text-[12px] text-[#8b94a3]">{description}</p> : null}
+        {description ? (
+          <p className="mt-1 text-[12px] text-[#8b94a3]">{description}</p>
+        ) : null}
         <div className="mt-1 flex items-baseline gap-3">
           <h3 className="leoni-metric text-[42px] font-semibold leading-none text-[#191c20]">
             {value}
@@ -110,62 +85,56 @@ const KPI = ({ title, description, value, icon, trend, suffix = "", iconColor, i
 
 export function TrainingDashboard({ accessToken }) {
   const { tr } = useAppPreferences();
-  const [stats, setStats] = useState(EMPTY_DASHBOARD_STATS);
+  const [dashboardData, setDashboardData] = useState(EMPTY_DASHBOARD_DATA);
   const [statsError, setStatsError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
 
-    const loadDashboardStats = async () => {
+    const loadDashboardData = async () => {
       if (!accessToken) {
-        setStats(EMPTY_DASHBOARD_STATS);
+        setDashboardData(EMPTY_DASHBOARD_DATA);
         setStatsError("");
         return;
       }
 
       try {
-        const headers = {
-          Authorization: `Bearer ${accessToken}`,
-        };
-        const [collaborateursResponse, qualificationResponse, formateursResponse] = await Promise.all([
-          fetch(apiUrl("/admin/collaborateurs"), { headers }),
-          fetch(apiUrl("/qualification"), { headers }),
-          fetch(apiUrl("/formateurs"), { headers }),
-        ]);
-        const [collaborateurs, qualificationRows, formateurs] = await Promise.all([
-          collaborateursResponse.json().catch(() => []),
-          qualificationResponse.json().catch(() => []),
-          formateursResponse.json().catch(() => []),
-        ]);
+        const response = await fetch(apiUrl("/dashboard"), {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+        const payload = await response.json().catch(() => ({}));
 
-        if (!collaborateursResponse.ok || !qualificationResponse.ok || !formateursResponse.ok) {
-          throw new Error("Failed to load dashboard data");
+        if (!response.ok) {
+          throw new Error("Failed to load dashboard snapshot");
         }
 
-        if (!cancelled) {
-          setStats(
-            buildDashboardStats({
-              collaborateurs,
-              qualificationRows,
-              formateurs,
-            }),
-          );
-          setStatsError("");
+        if (cancelled) {
+          return;
         }
+
+        setDashboardData({
+          overview: {
+            ...EMPTY_DASHBOARD_DATA.overview,
+            ...(payload?.overview || {}),
+          },
+        });
+        setStatsError("");
       } catch {
         if (!cancelled) {
-          setStats(EMPTY_DASHBOARD_STATS);
+          setDashboardData(EMPTY_DASHBOARD_DATA);
           setStatsError(
             tr(
-              "Impossible de charger les statistiques des collaborateurs.",
-              "Failed to load collaborator statistics.",
+              "Impossible de charger les statistiques du dashboard.",
+              "Failed to load dashboard statistics.",
             ),
           );
         }
       }
     };
 
-    loadDashboardStats();
+    loadDashboardData();
 
     return () => {
       cancelled = true;
@@ -173,15 +142,32 @@ export function TrainingDashboard({ accessToken }) {
   }, [accessToken, tr]);
 
   const recruitsDescription = useMemo(() => {
-    if (!stats.latestRecruitmentDate) {
-      return tr("Basee sur la derniere date de recrutement", "Based on the latest recruitment date");
+    if (!dashboardData.overview.latest_recruitment_date) {
+      return tr(
+        "Basee sur la derniere date de recrutement",
+        "Based on the latest recruitment date",
+      );
     }
 
     return tr(
-      `Derniere vague: ${stats.latestRecruitmentDate}`,
-      `Latest cohort: ${stats.latestRecruitmentDate}`,
+      `Derniere vague: ${dashboardData.overview.latest_recruitment_date}`,
+      `Latest cohort: ${dashboardData.overview.latest_recruitment_date}`,
     );
-  }, [stats.latestRecruitmentDate, tr]);
+  }, [dashboardData.overview.latest_recruitment_date, tr]);
+
+  const entriesDescription = useMemo(() => {
+    if (!dashboardData.overview.latest_association_date) {
+      return tr(
+        "Basee sur la derniere date d'association",
+        "Based on the latest association date",
+      );
+    }
+
+    return tr(
+      `Derniere association: ${dashboardData.overview.latest_association_date}`,
+      `Latest association: ${dashboardData.overview.latest_association_date}`,
+    );
+  }, [dashboardData.overview.latest_association_date, tr]);
 
   return (
     <div className="space-y-5 pb-6">
@@ -202,13 +188,18 @@ export function TrainingDashboard({ accessToken }) {
           {tr("Donnees mises a jour aujourd'hui", "Data updated today")}
         </Badge>
       </div>
-      {statsError ? <p className="text-[13px] text-[#b42318]">{statsError}</p> : null}
+      {statsError ? (
+        <p className="text-[13px] text-[#b42318]">{statsError}</p>
+      ) : null}
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-5">
         <KPI
           title={tr("Total Collaborateurs", "Total Collaborators")}
-          description={tr("Tous les collaborateurs en base", "All collaborators in the database")}
-          value={stats.totalCollaborators}
+          description={tr(
+            "Tous les collaborateurs en base",
+            "All collaborators in the database",
+          )}
+          value={dashboardData.overview.total_collaborators}
           icon={Users}
           iconColor="text-[#0f63f2]"
           iconBg="bg-[#e8f0ff]"
@@ -216,23 +207,37 @@ export function TrainingDashboard({ accessToken }) {
         <KPI
           title={tr("Nouvelles Recrues", "New Recruits")}
           description={recruitsDescription}
-          value={stats.recruits}
+          value={dashboardData.overview.latest_recruitment_count}
           icon={UserPlus}
           iconColor="text-[#005ca9]"
           iconBg="bg-[#e8f1fb]"
         />
         <KPI
+          title={tr("Nouvelles Entrees", "New Entries")}
+          description={entriesDescription}
+          value={dashboardData.overview.latest_association_count}
+          icon={ArrowDownRight}
+          iconColor="text-[#fc6200]"
+          iconBg="bg-[#fff2e4]"
+        />
+        <KPI
           title={tr("Sorties", "Exits")}
-          description={tr("Motif = Mise en demeure", "Reason = Mise en demeure")}
-          value={stats.exits}
+          description={tr(
+            "Motif = Mise en demeure",
+            "Reason = Mise en demeure",
+          )}
+          value={dashboardData.overview.total_exits}
           icon={UserMinus}
           iconColor="text-[#ea3737]"
           iconBg="bg-[#fdeeee]"
         />
         <KPI
           title={tr("Formateurs Disponibles", "Available Trainers")}
-          description={tr("Formateurs presents en base", "Trainers available in the database")}
-          value={stats.availableTrainers}
+          description={tr(
+            "Formateurs presents en base",
+            "Trainers available in the database",
+          )}
+          value={dashboardData.overview.available_trainers}
           icon={GraduationCap}
           iconColor="text-[#9029ff]"
           iconBg="bg-[#f3edff]"

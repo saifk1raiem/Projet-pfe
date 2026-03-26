@@ -49,16 +49,12 @@ def build_preview_rows_with_live_status(db: Session, rows: list[dict]) -> list[d
 
     enriched_rows = []
     for row in rows:
-        normalized_status = row.get("statut")
-        if normalized_status not in {"Completee", "En cours"}:
-            normalized_status = "Completee" if row.get("date_completion") else "En cours"
-
         association_date = None
         if row.get("date_association_systeme"):
             association_date = date.fromisoformat(str(row["date_association_systeme"]))
 
         qualification_status = resolve_qualification_status(
-            normalized_status,
+            row.get("statut"),
             association_date,
             durations_by_formation_id.get(int(row["formation_id"])) if row.get("formation_id") not in (None, "") else None,
             etat_qualification=row.get("etat_qualification"),
@@ -67,7 +63,6 @@ def build_preview_rows_with_live_status(db: Session, rows: list[dict]) -> list[d
         enriched_rows.append(
             {
                 **row,
-                "statut": normalized_status,
                 "etat_qualification": qualification_status,
                 "etat": qualification_status,
             }
@@ -223,8 +218,10 @@ def list_collaborateur_formations(
         {
             "id": item["id"],
             "formation_id": item["formation_id"],
-            "code": item["code_formation"] or str(item["formation_id"]),
-            "titre": item["nom_formation"] or f"Formation {item['formation_id']}",
+            "code": item["code_formation"] or (str(item["formation_id"]) if item["formation_id"] is not None else "-"),
+            "titre": item["nom_formation"] or (
+                f"Formation {item['formation_id']}" if item["formation_id"] is not None else "Formation non renseignee"
+            ),
             "type": item["domaine"] or "Formation",
             "date": item["date_completion"].isoformat() if item["date_completion"] else (
                 item["date_association_systeme"].isoformat() if item["date_association_systeme"] else None
@@ -299,11 +296,24 @@ async def preview_qualification_file(
             )
             continue
 
-        if "competence" not in mapping_used:
+        qualification_fields = {
+            "competence",
+            "formateur",
+            "statut",
+            "etat",
+            "motif",
+            "date_association_systeme",
+            "date_association_day",
+            "date_association_month",
+            "date_association_year",
+            "date_completion",
+            "score",
+        }
+        if not any(field in mapping_used for field in qualification_fields):
             file_errors.append(
                 {
                     "file": upload.filename or "",
-                    "error": "This file contains collaborator data but no qualification column. Use the Collaborateurs Excel import instead.",
+                    "error": "This file contains collaborator data but no qualification fields. Use the Collaborateurs Excel import instead.",
                 }
             )
             continue

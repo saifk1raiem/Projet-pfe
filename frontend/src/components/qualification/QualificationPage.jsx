@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { AlertCircle, CheckCircle2, FileText, Users } from "lucide-react";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { useAppPreferences } from "../../context/AppPreferencesContext";
 import { apiUrl } from "../../lib/api";
 import {
@@ -12,6 +13,7 @@ import { CollaborateursTable } from "./CollaborateursTable";
 import { ComparisonStat } from "./ComparisonStat";
 import { ImportConflictDialog } from "./ImportConflictDialog";
 import { QualificationFilters } from "./QualificationFilters";
+import { QualificationMovementTab } from "./QualificationMovementTab";
 import { QualificationPreviewCard } from "./QualificationPreviewCard";
 import { UploadReportModal } from "./UploadReportModal";
 
@@ -426,97 +428,114 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
         </Card>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <ComparisonStat
-          title="Total Collaborateurs"
-          value={totalCollaborateurs}
-          deltaPercent={totalCollaborateurs > 0 ? 100 : 0}
-          icon={Users}
-          iconBg="bg-[#e8f0ff]"
-          iconColor="text-[#0f63f2]"
-          delay="30ms"
-        />
-        <ComparisonStat
-          title="En cours"
-          value={enCoursCount}
-          deltaPercent={totalCollaborateurs > 0 ? (enCoursCount / totalCollaborateurs) * 100 : 0}
-          icon={AlertCircle}
-          iconBg="bg-[#fff2e4]"
-          iconColor="text-[#fc6200]"
-          delay="60ms"
-        />
-        <ComparisonStat
-          title="Qualifie"
-          value={qualifieCount}
-          deltaPercent={totalCollaborateurs > 0 ? (qualifieCount / totalCollaborateurs) * 100 : 0}
-          icon={CheckCircle2}
-          iconBg="bg-[#e8f1fb]"
-          iconColor="text-[#005ca9]"
-          delay="120ms"
-        />
-        <ComparisonStat
-          title="Depassement"
-          value={depassementCount}
-          deltaPercent={totalCollaborateurs > 0 ? (depassementCount / totalCollaborateurs) * 100 : 0}
-          icon={AlertCircle}
-          iconBg="bg-[#fdeeee]"
-          iconColor="text-[#ea3737]"
-          delay="180ms"
-        />
-      </div>
-
-      <div className="space-y-4">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="leoni-display-lg text-[30px] font-semibold leading-tight text-[#171a1f]">
+      <Tabs defaultValue="tracking" className="space-y-4">
+        <TabsList className="grid h-auto w-full max-w-[720px] grid-cols-2 rounded-[22px] border border-[#dfe5e2] bg-white p-2 shadow-sm">
+          <TabsTrigger
+            value="tracking"
+            className="rounded-[16px] border border-transparent px-5 py-4 data-[state=active]:border-[#b9d3ea] data-[state=active]:bg-[#f3f8fd] data-[state=active]:shadow-none"
+          >
             {tr("Suivi Qualification", "Qualification Tracking")}
-          </h2>
-        </div>
+          </TabsTrigger>
+          <TabsTrigger
+            value="movements"
+            className="rounded-[16px] border border-transparent px-5 py-4 data-[state=active]:border-[#f1c59e] data-[state=active]:bg-[#fffaf3] data-[state=active]:shadow-none"
+          >
+            {tr("Mouvements Collaborateurs", "Collaborator Movements")}
+          </TabsTrigger>
+        </TabsList>
 
-        <QualificationFilters
-          tr={tr}
-          searchTerm={searchTerm}
-          onSearchTermChange={setSearchTerm}
-          isFiltersOpen={isFiltersOpen}
-          onToggleFilters={() => setIsFiltersOpen((prev) => !prev)}
-          statusFilter={statusFilter}
-          onStatusFilterChange={setStatusFilter}
-          groupFilter={groupFilter}
-          onGroupFilterChange={setGroupFilter}
-          availableGroups={availableGroups}
-          statutOptions={statutOptions}
-          onResetFilters={() => {
-            setStatusFilter("all");
-            setGroupFilter("all");
-            setSearchTerm("");
-          }}
-        />
+        <TabsContent value="tracking" className="space-y-5">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <ComparisonStat
+              title="Total Collaborateurs"
+              value={totalCollaborateurs}
+              deltaPercent={totalCollaborateurs > 0 ? 100 : 0}
+              icon={Users}
+              iconBg="bg-[#e8f0ff]"
+              iconColor="text-[#0f63f2]"
+              delay="30ms"
+            />
+            <ComparisonStat
+              title="En cours"
+              value={enCoursCount}
+              deltaPercent={totalCollaborateurs > 0 ? (enCoursCount / totalCollaborateurs) * 100 : 0}
+              icon={AlertCircle}
+              iconBg="bg-[#fff2e4]"
+              iconColor="text-[#fc6200]"
+              delay="60ms"
+            />
+            <ComparisonStat
+              title="Qualifie"
+              value={qualifieCount}
+              deltaPercent={totalCollaborateurs > 0 ? (qualifieCount / totalCollaborateurs) * 100 : 0}
+              icon={CheckCircle2}
+              iconBg="bg-[#e8f1fb]"
+              iconColor="text-[#005ca9]"
+              delay="120ms"
+            />
+            <ComparisonStat
+              title="Depassement"
+              value={depassementCount}
+              deltaPercent={totalCollaborateurs > 0 ? (depassementCount / totalCollaborateurs) * 100 : 0}
+              icon={AlertCircle}
+              iconBg="bg-[#fdeeee]"
+              iconColor="text-[#ea3737]"
+              delay="180ms"
+            />
+          </div>
 
-        <CollaborateursTable
-          rows={filteredCollaborateurs}
-          onViewDetails={handleViewCollaborateur}
-          selectedCollaborateur={selectedCollaborateur}
-          onCloseDetails={() => setSelectedCollaborateur(null)}
-        />
-      </div>
+          <div className="space-y-4">
+            <QualificationFilters
+              tr={tr}
+              searchTerm={searchTerm}
+              onSearchTermChange={setSearchTerm}
+              isFiltersOpen={isFiltersOpen}
+              onToggleFilters={() => setIsFiltersOpen((prev) => !prev)}
+              statusFilter={statusFilter}
+              onStatusFilterChange={setStatusFilter}
+              groupFilter={groupFilter}
+              onGroupFilterChange={setGroupFilter}
+              availableGroups={availableGroups}
+              statutOptions={statutOptions}
+              onResetFilters={() => {
+                setStatusFilter("all");
+                setGroupFilter("all");
+                setSearchTerm("");
+              }}
+            />
 
-      <QualificationPreviewCard
-        tr={tr}
-        previewRowsCount={previewRowsCount}
-        previewError={previewError}
-        previewErrorDetails={previewErrorDetails}
-        previewFileErrors={previewFileErrors}
-        previewRows={previewRows}
-        previewColumnsDetected={previewColumnsDetected}
-        previewMappingUsed={previewMappingUsed}
-        previewImportType={previewImportType}
-        previewConflictsCount={previewConflicts.length}
-        canImport={pendingImportRows.length > 0}
-        isImporting={isImportingPreview}
-        onImport={handleImportPreview}
-        onReviewConflicts={() => setIsConflictDialogOpen(true)}
-        importSummary={importSummary}
-        importError={importError}
-      />
+            <CollaborateursTable
+              rows={filteredCollaborateurs}
+              onViewDetails={handleViewCollaborateur}
+              selectedCollaborateur={selectedCollaborateur}
+              onCloseDetails={() => setSelectedCollaborateur(null)}
+            />
+          </div>
+
+          <QualificationPreviewCard
+            tr={tr}
+            previewRowsCount={previewRowsCount}
+            previewError={previewError}
+            previewErrorDetails={previewErrorDetails}
+            previewFileErrors={previewFileErrors}
+            previewRows={previewRows}
+            previewColumnsDetected={previewColumnsDetected}
+            previewMappingUsed={previewMappingUsed}
+            previewImportType={previewImportType}
+            previewConflictsCount={previewConflicts.length}
+            canImport={pendingImportRows.length > 0}
+            isImporting={isImportingPreview}
+            onImport={handleImportPreview}
+            onReviewConflicts={() => setIsConflictDialogOpen(true)}
+            importSummary={importSummary}
+            importError={importError}
+          />
+        </TabsContent>
+
+        <TabsContent value="movements" className="space-y-5">
+          <QualificationMovementTab accessToken={accessToken} />
+        </TabsContent>
+      </Tabs>
 
       <ImportConflictDialog
         tr={tr}

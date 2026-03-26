@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: str = "change-this-access-secret"
     JWT_REFRESH_SECRET_KEY: str = "change-this-refresh-secret"
     JWT_ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 120
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7
     CORS_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173"
     CORS_ORIGIN_REGEX: str = r"https?://(localhost|127\.0\.0\.1)(:\d+)?$"

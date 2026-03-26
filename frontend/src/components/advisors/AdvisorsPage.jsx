@@ -76,6 +76,19 @@ function buildAdvisorFindings(collaborateurs, formations) {
     });
   }
 
+  const qualificationsMissingAssignmentData = collaborateurs.filter(
+    (collab) => !collab.formation_id || !collab.competence || !collab.formateur,
+  );
+  if (qualificationsMissingAssignmentData.length > 0) {
+    findings.push({
+      id: "qualification-assignment-warning",
+      severity: "warning",
+      source: "qualification",
+      title: "Qualifications incompletes",
+      description: `${qualificationsMissingAssignmentData.length} collaborateurs ont une qualification importee sans formation ou formateur renseigne. Verifiez le fichier importe.`,
+    });
+  }
+
   const formationsMissingMetadata = formations.filter((formation) => !formation.field || !formation.duration_days);
   if (formationsMissingMetadata.length > 0) {
     findings.push({
