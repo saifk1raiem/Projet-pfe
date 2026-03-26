@@ -6,14 +6,16 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, require_roles
 from app.models.enums import UserRole
-from app.schemas.qualification import QualificationImportRequest
+from app.schemas.qualification import QualificationImportRequest, QualificationImportResponse, QualificationPreviewResponse
 from app.services.collaborateur_import_service import detect_collaborateur_conflicts
 from app.services.excel_synonyms import get_excel_synonyms
 from app.services.qualification_import_service import (
     collaborateurs_table,
+    detect_missing_qualification_requirements,
     formateurs_table,
     formations_table,
     import_qualification_rows,
+    prepare_qualification_preview_rows,
     qualification_table,
     recalculate_qualification_rows,
     resolve_qualification_status,
@@ -254,7 +256,7 @@ def list_collaborateur_formations(
     ]
 
 
-@router.post("/preview")
+@router.post("/preview", response_model=QualificationPreviewResponse)
 async def preview_qualification_file(
     files: list[UploadFile] = File(...),
     db: Session = Depends(get_db),
@@ -330,19 +332,23 @@ async def preview_qualification_file(
             detail={"message": "No valid files to preview", "file_errors": file_errors},
         )
 
-    conflicts = detect_collaborateur_conflicts(db, merged_rows)
+    prepared_rows = prepare_qualification_preview_rows(db, merged_rows)
+    conflicts = detect_collaborateur_conflicts(db, prepared_rows)
+    missing_requirements = detect_missing_qualification_requirements(db, prepared_rows)
+    preview_rows = build_preview_rows_with_live_status(db, prepared_rows)
 
     return {
         "columns_detected": merged_columns,
         "mapping_used": merged_mapping,
-        "rows": build_preview_rows_with_live_status(db, merged_rows),
-        "rows_count": len(merged_rows),
+        "rows": preview_rows,
+        "rows_count": len(preview_rows),
         "file_errors": file_errors,
         "conflicts": [conflict.model_dump() for conflict in conflicts],
+        "missing_requirements": [item.model_dump() for item in missing_requirements],
     }
 
 
-@router.post("/import")
+@router.post("/import", response_model=QualificationImportResponse)
 def import_qualification_preview_rows(
     payload: QualificationImportRequest,
     db: Session = Depends(get_db),
@@ -354,5 +360,16 @@ def import_qualification_preview_rows(
             detail="No qualification rows provided for import",
         )
 
-    summary = import_qualification_rows(db, [row.model_dump() for row in payload.rows])
+    prepared_rows = prepare_qualification_preview_rows(db, [row.model_dump() for row in payload.rows])
+    missing_requirements = detect_missing_qualification_requirements(db, prepared_rows)
+    if missing_requirements:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "message": "Some qualification rows are still missing required data",
+                "missing_requirements": [item.model_dump() for item in missing_requirements],
+            },
+        )
+
+    summary = import_qualification_rows(db, prepared_rows)
     return {"import_summary": summary}

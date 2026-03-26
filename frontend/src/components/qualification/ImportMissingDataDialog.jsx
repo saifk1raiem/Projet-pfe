@@ -8,60 +8,55 @@ import { Checkbox } from "../ui/checkbox";
 import { Input } from "../ui/input";
 
 const FIELD_LABELS = {
+  matricule: "Matricule",
   nom: "Nom",
   prenom: "Prenom",
-  fonction: "Fonction SAP",
-  fonction_sap: "Fonction SAP",
-  centre_cout: "Centre de cout",
-  groupe: "Groupe",
-  competence: "Competence",
-  formateur: "Formateur",
-  contre_maitre: "Contre maitre",
-  segment: "Segment",
-  gender: "Gender",
-  num_tel: "Numero de telephone",
-  date_recrutement: "Date recrutement",
-  anciennete: "Anciennete",
+  formation_id: "ID formation",
 };
 
-function buildDrafts(conflicts, rows) {
+function buildDrafts(missingRequirements, rows) {
   const rowsById = new Map(rows.map((row) => [row.__previewRowId, row]));
 
-  return conflicts.map((conflict) => {
-    const row = (conflict.rowId ? rowsById.get(conflict.rowId) : null) || rows[conflict.row_index] || {};
+  return missingRequirements.map((warning) => {
+    const row = (warning.rowId ? rowsById.get(warning.rowId) : null) || rows[warning.row_index] || {};
     const values = {};
 
-    conflict.fields.forEach((field) => {
-      const value = row[field.row_field];
-      values[field.row_field] = value == null ? "" : String(value);
+    warning.fields.forEach((field) => {
+      const value = row[field.field];
+      values[field.field] = value == null ? "" : String(value);
     });
 
     return {
-      rowId: conflict.rowId || row.__previewRowId || null,
-      rowIndex: conflict.row_index,
-      matricule: conflict.matricule,
+      rowId: warning.rowId || row.__previewRowId || null,
+      rowIndex: warning.row_index,
       skip: false,
-      fields: conflict.fields,
+      fields: warning.fields,
+      formationLabel: warning.formation_label || row.formation_label || row.competence || null,
+      matricule: warning.matricule || row.matricule || null,
+      nom: warning.nom || row.nom || null,
+      prenom: warning.prenom || row.prenom || null,
       values,
     };
   });
 }
 
-export function ImportConflictDialog({
+export function ImportMissingDataDialog({
   tr,
   isOpen,
-  conflicts,
+  missingRequirements,
   rows,
   onClose,
   onApply,
 }) {
-  const [drafts, setDrafts] = useState(() => buildDrafts(conflicts, rows));
+  const [drafts, setDrafts] = useState(() => buildDrafts(missingRequirements, rows));
+  const [dialogError, setDialogError] = useState("");
 
   if (!isOpen) return null;
 
   const getDraftKey = (draft) => draft.rowId || `row-${draft.rowIndex}`;
 
   const handleValueChange = (draftKey, fieldName, nextValue) => {
+    setDialogError("");
     setDrafts((prev) =>
       prev.map((draft) =>
         getDraftKey(draft) === draftKey
@@ -72,6 +67,7 @@ export function ImportConflictDialog({
   };
 
   const handleSkipChange = (draftKey, checked) => {
+    setDialogError("");
     setDrafts((prev) =>
       prev.map((draft) =>
         getDraftKey(draft) === draftKey ? { ...draft, skip: checked === true } : draft,
@@ -80,8 +76,22 @@ export function ImportConflictDialog({
   };
 
   const handleApply = () => {
+    const invalidDraft = drafts.find((draft) =>
+      !draft.skip && draft.fields.some((field) => !String(draft.values[field.field] ?? "").trim()),
+    );
+
+    if (invalidDraft) {
+      setDialogError(
+        tr(
+          "Remplissez les champs obligatoires ou ignorez la ligne avant de continuer.",
+          "Fill the required fields or skip the row before continuing.",
+        ),
+      );
+      return;
+    }
+
     const skippedKeys = new Set(drafts.filter((draft) => draft.skip).map((draft) => getDraftKey(draft)));
-    const rowsByKey = new Map(drafts.map((draft) => [getDraftKey(draft), draft]));
+    const draftsByKey = new Map(drafts.map((draft) => [getDraftKey(draft), draft]));
 
     const nextRows = rows
       .map((row, rowIndex) => {
@@ -90,15 +100,15 @@ export function ImportConflictDialog({
           return null;
         }
 
-        const draft = rowsByKey.get(rowKey);
+        const draft = draftsByKey.get(rowKey);
         if (!draft) {
           return row;
         }
 
         const updatedRow = { ...row };
-        Object.entries(draft.values).forEach(([fieldName, value]) => {
-          const trimmed = value.trim();
-          updatedRow[fieldName] = trimmed ? trimmed : null;
+        draft.fields.forEach((field) => {
+          const trimmed = String(draft.values[field.field] ?? "").trim();
+          updatedRow[field.field] = trimmed ? trimmed : null;
         });
         return updatedRow;
       })
@@ -108,7 +118,7 @@ export function ImportConflictDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[72] flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
       <div
         className="leoni-rise-up flex h-[88vh] w-full max-w-[1100px] flex-col overflow-hidden rounded-[24px] border border-[#dfe5e2] bg-white shadow-2xl"
         onClick={(event) => event.stopPropagation()}
@@ -120,13 +130,13 @@ export function ImportConflictDialog({
                 <AlertTriangle className="h-5 w-5" />
               </div>
               <h2 className="leoni-display-lg text-[28px] font-semibold leading-tight text-[#171a1f]">
-                {tr("Verifier les conflits", "Review conflicts")}
+                {tr("Donnees manquantes", "Missing data")}
               </h2>
             </div>
             <p className="mt-2 text-[15px] text-[#64748b]">
               {tr(
-                "Les matricules suivants existent deja avec des informations differentes. Modifiez les champs ou ignorez la ligne.",
-                "The following employee IDs already exist with different information. Edit the fields or skip the row.",
+                "Certaines lignes n'ont pas assez d'informations pour etre importees. Completez les champs exacts manquants ou ignorez la ligne.",
+                "Some rows do not have enough data to be imported. Fill the exact missing fields or skip the row.",
               )}
             </p>
           </div>
@@ -136,15 +146,22 @@ export function ImportConflictDialog({
         </div>
 
         <div className="flex-1 space-y-4 overflow-y-auto px-7 py-6">
+          {dialogError ? (
+            <div className="rounded-xl border border-[#f2c4c4] bg-[#fdeeee] p-3 text-sm text-[#8a1d1d]">
+              {dialogError}
+            </div>
+          ) : null}
+
           {drafts.map((draft) => (
             <Card key={getDraftKey(draft)} className="rounded-2xl border border-[#dfe5e2] bg-[#fbfdff] p-5 shadow-sm">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-[18px] font-semibold text-[#171a1f]">
-                    {tr("Matricule", "Employee ID")}: {draft.matricule}
+                    {tr("Ligne a completer", "Row to complete")}
                   </p>
                   <p className="text-[13px] text-[#64748b]">
-                    {draft.fields.length} {tr("champs en conflit", "conflicting fields")}
+                    {[draft.matricule, draft.nom, draft.prenom, draft.formationLabel].filter(Boolean).join(" | ") ||
+                      tr("Informations partielles", "Partial information")}
                   </p>
                 </div>
                 <label className="flex items-center gap-2 rounded-xl border border-[#dfe5e2] bg-white px-3 py-2 text-sm text-[#1f2937]">
@@ -158,33 +175,20 @@ export function ImportConflictDialog({
 
               <div className="space-y-3">
                 {draft.fields.map((field) => (
-                  <div key={`${draft.rowIndex}-${field.row_field}`} className="rounded-xl border border-[#e2e8f0] bg-white p-4">
+                  <div key={`${getDraftKey(draft)}-${field.field}`} className="rounded-xl border border-[#e2e8f0] bg-white p-4">
                     <div className="mb-3 flex items-center justify-between gap-3">
                       <p className="text-[14px] font-medium text-[#171a1f]">
-                        {FIELD_LABELS[field.row_field] || FIELD_LABELS[field.field] || field.row_field}
+                        {FIELD_LABELS[field.field] || field.label || field.field}
                       </p>
                       <Badge variant="outline" className="rounded-xl border-[#f1c59e] bg-[#fff7ed] text-[#8a4b00]">
-                        {tr("Conflit", "Conflict")}
+                        {tr("Obligatoire", "Required")}
                       </Badge>
                     </div>
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                      <div>
-                        <p className="mb-1 text-xs text-[#64748b]">{tr("Valeur existante", "Existing value")}</p>
-                        <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] px-3 py-2 text-sm text-[#1f2937]">
-                          {field.existing_value ?? "-"}
-                        </div>
-                      </div>
-                      <div>
-                        <p className="mb-1 text-xs text-[#64748b]">{tr("Nouvelle valeur", "New value")}</p>
-                        <Input
-                          value={draft.values[field.row_field] ?? ""}
-                          onChange={(event) =>
-                            handleValueChange(getDraftKey(draft), field.row_field, event.target.value)
-                          }
-                          disabled={draft.skip}
-                        />
-                      </div>
-                    </div>
+                    <Input
+                      value={draft.values[field.field] ?? ""}
+                      onChange={(event) => handleValueChange(getDraftKey(draft), field.field, event.target.value)}
+                      disabled={draft.skip}
+                    />
                   </div>
                 ))}
               </div>

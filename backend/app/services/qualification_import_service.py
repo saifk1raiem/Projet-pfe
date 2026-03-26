@@ -5,8 +5,10 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import Column, Date, Integer, MetaData, Numeric, String, Table, func, insert, select, update
+from sqlalchemy import Column, Date, Integer, MetaData, Numeric, String, Table, and_, func, insert, or_, select, update
 from sqlalchemy.orm import Session
+
+from app.schemas.qualification import QualificationMissingField, QualificationMissingRequirement
 
 
 metadata = MetaData()
@@ -62,6 +64,28 @@ qualification_table = Table(
     Column("formateur_id", Integer),
 )
 
+_COLLABORATOR_FILL_FIELDS = (
+    "matricule",
+    "nom",
+    "prenom",
+    "fonction",
+    "centre_cout",
+    "groupe",
+    "contre_maitre",
+    "segment",
+    "gender",
+    "num_tel",
+    "date_recrutement",
+    "anciennete",
+)
+
+_MISSING_FIELD_LABELS = {
+    "matricule": "Matricule",
+    "nom": "Nom",
+    "prenom": "Prenom",
+    "formation_id": "ID formation",
+}
+
 
 def _as_date(value: Any) -> date | None:
     if value in (None, ""):
@@ -75,6 +99,391 @@ def _as_decimal(value: Any) -> Decimal | None:
     if value in (None, ""):
         return None
     return Decimal(str(value)).quantize(Decimal("0.01"))
+
+
+def _clean_text(value: Any) -> str | None:
+    if value in (None, ""):
+        return None
+    text = " ".join(str(value).split()).strip()
+    if not text or text.casefold() in {"none", "null", "nan"}:
+        return None
+    return text
+
+
+def _clean_token(value: Any) -> str | None:
+    text = _clean_text(value)
+    return text.casefold() if text else None
+
+
+def _serialize_value(value: Any) -> Any:
+    if value is None:
+        return None
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return value
+
+
+def _as_optional_int(value: Any) -> int | None:
+    if value in (None, ""):
+        return None
+    if isinstance(value, int):
+        return value
+    text = _clean_text(value)
+    if not text:
+        return None
+    try:
+        return int(text)
+    except ValueError:
+        return None
+
+
+def _row_identity_tokens(row: dict[str, Any]) -> set[str]:
+    tokens: set[str] = set()
+
+    matricule = _clean_token(row.get("matricule"))
+    if matricule:
+        tokens.add(f"mat:{matricule}")
+
+    nom = _clean_token(row.get("nom"))
+    prenom = _clean_token(row.get("prenom"))
+    if nom and prenom:
+        tokens.add(f"name:{nom}|{prenom}")
+
+    return tokens
+
+
+def _row_formation_tokens(row: dict[str, Any]) -> set[str]:
+    tokens: set[str] = set()
+
+    formation_id = _as_optional_int(row.get("formation_id"))
+    if formation_id is not None:
+        tokens.add(f"id:{formation_id}")
+
+    formation_label = _clean_token(row.get("formation_label") or row.get("competence"))
+    if formation_label:
+        tokens.add(f"label:{formation_label}")
+
+    return tokens
+
+
+def _row_activity_day(row: dict[str, Any]) -> str | None:
+    return _clean_text(row.get("date_completion") or row.get("date_association_systeme"))
+
+
+def _rows_match_for_same_day_merge(existing: dict[str, Any], incoming: dict[str, Any]) -> bool:
+    if not (_row_identity_tokens(existing) & _row_identity_tokens(incoming)):
+        return False
+    if not (_row_formation_tokens(existing) & _row_formation_tokens(incoming)):
+        return False
+
+    existing_day = _row_activity_day(existing)
+    incoming_day = _row_activity_day(incoming)
+    if existing_day and incoming_day and existing_day != incoming_day:
+        return False
+
+    return True
+
+
+def _choose_text_value(current: Any, incoming: Any) -> Any:
+    current_text = _clean_text(current)
+    incoming_text = _clean_text(incoming)
+    if not incoming_text:
+        return current
+    if not current_text:
+        return incoming
+    if len(incoming_text) > len(current_text) and current_text.casefold() in incoming_text.casefold():
+        return incoming
+    return current
+
+
+def _choose_min_date(current: Any, incoming: Any) -> Any:
+    current_date = _as_date(current)
+    incoming_date = _as_date(incoming)
+    if incoming_date is None:
+        return current
+    if current_date is None or incoming_date < current_date:
+        return incoming_date.isoformat()
+    return current
+
+
+def _choose_max_date(current: Any, incoming: Any) -> Any:
+    current_date = _as_date(current)
+    incoming_date = _as_date(incoming)
+    if incoming_date is None:
+        return current
+    if current_date is None or incoming_date > current_date:
+        return incoming_date.isoformat()
+    return current
+
+
+def _merge_statut(current: Any, incoming: Any, *, has_completion: bool = False) -> str | None:
+    current_status = _normalize_import_statut(current, None, None) if _clean_text(current) else None
+    incoming_status = _normalize_import_statut(incoming, None, None) if _clean_text(incoming) else None
+    if has_completion or current_status == "Completee" or incoming_status == "Completee":
+        return "Completee"
+    if current_status == "En cours" or incoming_status == "En cours":
+        return "En cours"
+    return current_status or incoming_status
+
+
+def merge_same_day_qualification_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    merged_rows: list[dict[str, Any]] = []
+
+    for raw_row in rows:
+        row = dict(raw_row)
+        if row.get("formation_label") and not row.get("competence"):
+            row["competence"] = row.get("formation_label")
+        if row.get("competence") and not row.get("formation_label"):
+            row["formation_label"] = row.get("competence")
+
+        target = next(
+            (existing for existing in merged_rows if _rows_match_for_same_day_merge(existing, row)),
+            None,
+        )
+        if target is None:
+            merged_rows.append(row)
+            continue
+
+        for field in (
+            "matricule",
+            "nom",
+            "prenom",
+            "fonction",
+            "centre_cout",
+            "groupe",
+            "competence",
+            "formation_label",
+            "formateur",
+            "contre_maitre",
+            "segment",
+            "gender",
+            "num_tel",
+            "date_recrutement",
+        ):
+            target[field] = _choose_text_value(target.get(field), row.get(field))
+
+        if target.get("anciennete") is None and row.get("anciennete") is not None:
+            target["anciennete"] = row.get("anciennete")
+        if target.get("formation_id") is None and row.get("formation_id") is not None:
+            target["formation_id"] = _as_optional_int(row.get("formation_id"))
+        if target.get("score") is None and row.get("score") is not None:
+            target["score"] = row.get("score")
+
+        target["date_association_systeme"] = _choose_min_date(
+            target.get("date_association_systeme"),
+            row.get("date_association_systeme"),
+        )
+        target["date_completion"] = _choose_max_date(
+            target.get("date_completion"),
+            row.get("date_completion"),
+        )
+        target["statut"] = _merge_statut(
+            target.get("statut"),
+            row.get("statut"),
+            has_completion=bool(target.get("date_completion") or row.get("date_completion")),
+        )
+        target["etat"] = _choose_text_value(target.get("etat"), row.get("etat"))
+        target["etat_qualification"] = _choose_text_value(
+            target.get("etat_qualification"),
+            row.get("etat_qualification"),
+        )
+
+    return merged_rows
+
+
+def enrich_qualification_preview_rows(db: Session, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    if not rows:
+        return []
+
+    normalized_rows = [dict(row) for row in rows]
+
+    collaborator_matricules = sorted(
+        {
+            matricule
+            for row in normalized_rows
+            if (matricule := _clean_text(row.get("matricule")))
+        }
+    )
+    collaborator_name_pairs = {
+        (nom, prenom)
+        for row in normalized_rows
+        if (nom := _clean_token(row.get("nom"))) and (prenom := _clean_token(row.get("prenom")))
+    }
+
+    collaborator_by_matricule: dict[str, dict[str, Any]] = {}
+    collaborators_by_name: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    if collaborator_matricules or collaborator_name_pairs:
+        conditions = []
+        if collaborator_matricules:
+            conditions.append(collaborateurs_table.c.matricule.in_(collaborator_matricules))
+        if collaborator_name_pairs:
+            conditions.append(
+                and_(
+                    func.lower(collaborateurs_table.c.nom).in_([item[0] for item in collaborator_name_pairs]),
+                    func.lower(collaborateurs_table.c.prenom).in_([item[1] for item in collaborator_name_pairs]),
+                )
+            )
+        collaborator_rows = db.execute(
+            select(collaborateurs_table).where(or_(*conditions))
+        ).mappings().all()
+        for collaborator in collaborator_rows:
+            matricule = _clean_text(collaborator.get("matricule"))
+            if matricule:
+                collaborator_by_matricule[matricule] = collaborator
+            name_key = (_clean_token(collaborator.get("nom")), _clean_token(collaborator.get("prenom")))
+            if name_key[0] and name_key[1]:
+                collaborators_by_name.setdefault(name_key, []).append(collaborator)
+
+    formation_ids = {
+        formation_id
+        for row in normalized_rows
+        if (formation_id := _as_optional_int(row.get("formation_id"))) is not None
+    }
+    formation_labels = {
+        label
+        for row in normalized_rows
+        if (label := _clean_token(row.get("formation_label") or row.get("competence")))
+    }
+
+    formation_by_id: dict[int, dict[str, Any]] = {}
+    formations_by_label: dict[str, list[dict[str, Any]]] = {}
+    if formation_ids or formation_labels:
+        conditions = []
+        if formation_ids:
+            conditions.append(formations_table.c.id.in_(sorted(formation_ids)))
+        if formation_labels:
+            conditions.append(func.lower(formations_table.c.nom_formation).in_(sorted(formation_labels)))
+            conditions.append(func.lower(formations_table.c.code_formation).in_(sorted(formation_labels)))
+        formation_rows = db.execute(
+            select(formations_table).where(or_(*conditions))
+        ).mappings().all()
+        for formation in formation_rows:
+            formation_by_id[int(formation["id"])] = formation
+            for label_key in {
+                _clean_token(formation.get("nom_formation")),
+                _clean_token(formation.get("code_formation")),
+            }:
+                if label_key:
+                    formations_by_label.setdefault(label_key, []).append(formation)
+
+    enriched_rows: list[dict[str, Any]] = []
+    for row in normalized_rows:
+        next_row = dict(row)
+
+        collaborator = None
+        row_matricule = _clean_text(next_row.get("matricule"))
+        if row_matricule:
+            collaborator = collaborator_by_matricule.get(row_matricule)
+        if collaborator is None:
+            name_key = (_clean_token(next_row.get("nom")), _clean_token(next_row.get("prenom")))
+            matches = collaborators_by_name.get(name_key, []) if name_key[0] and name_key[1] else []
+            if len(matches) == 1:
+                collaborator = matches[0]
+                next_row["matricule"] = collaborator.get("matricule")
+
+        if collaborator:
+            for field in _COLLABORATOR_FILL_FIELDS:
+                if _clean_text(next_row.get(field)) is None and collaborator.get(field) is not None:
+                    next_row[field] = _serialize_value(collaborator.get(field))
+
+        formation = None
+        formation_id = _as_optional_int(next_row.get("formation_id"))
+        if formation_id is not None:
+            next_row["formation_id"] = formation_id
+            formation = formation_by_id.get(formation_id)
+        if formation is None:
+            label_key = _clean_token(next_row.get("formation_label") or next_row.get("competence"))
+            matches = formations_by_label.get(label_key, []) if label_key else []
+            unique_ids = {int(item["id"]) for item in matches}
+            if len(unique_ids) == 1:
+                formation_id = next(iter(unique_ids))
+                formation = formation_by_id.get(formation_id) or matches[0]
+                next_row["formation_id"] = formation_id
+
+        if formation:
+            formation_name = formation.get("nom_formation")
+            if not _clean_text(next_row.get("formation_label")) and formation_name:
+                next_row["formation_label"] = formation_name
+            if not _clean_text(next_row.get("competence")) and formation_name:
+                next_row["competence"] = formation_name
+
+        enriched_rows.append(next_row)
+
+    return enriched_rows
+
+
+def detect_missing_qualification_requirements(
+    db: Session,
+    rows: list[dict[str, Any]],
+) -> list[QualificationMissingRequirement]:
+    if not rows:
+        return []
+
+    existing_matricules = set()
+    candidate_matricules = sorted(
+        {
+            matricule
+            for row in rows
+            if (matricule := _clean_text(row.get("matricule")))
+        }
+    )
+    if candidate_matricules:
+        existing_matricules = {
+            item
+            for item in db.scalars(
+                select(collaborateurs_table.c.matricule).where(collaborateurs_table.c.matricule.in_(candidate_matricules))
+            ).all()
+            if item
+        }
+
+    missing_requirements: list[QualificationMissingRequirement] = []
+    for row_index, row in enumerate(rows):
+        missing_fields: list[QualificationMissingField] = []
+
+        matricule = _clean_text(row.get("matricule"))
+        if not matricule:
+            missing_fields.append(
+                QualificationMissingField(field="matricule", label=_MISSING_FIELD_LABELS["matricule"])
+            )
+
+        formation_id = _as_optional_int(row.get("formation_id"))
+        if formation_id is None:
+            missing_fields.append(
+                QualificationMissingField(field="formation_id", label=_MISSING_FIELD_LABELS["formation_id"])
+            )
+
+        if not matricule or matricule not in existing_matricules:
+            if not _clean_text(row.get("nom")):
+                missing_fields.append(
+                    QualificationMissingField(field="nom", label=_MISSING_FIELD_LABELS["nom"])
+                )
+            if not _clean_text(row.get("prenom")):
+                missing_fields.append(
+                    QualificationMissingField(field="prenom", label=_MISSING_FIELD_LABELS["prenom"])
+                )
+
+        if not missing_fields:
+            continue
+
+        missing_requirements.append(
+            QualificationMissingRequirement(
+                row_index=row_index,
+                matricule=matricule,
+                nom=_clean_text(row.get("nom")),
+                prenom=_clean_text(row.get("prenom")),
+                formation_id=formation_id,
+                formation_label=_clean_text(row.get("formation_label") or row.get("competence")),
+                fields=missing_fields,
+            )
+        )
+
+    return missing_requirements
+
+
+def prepare_qualification_preview_rows(db: Session, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    enriched_rows = enrich_qualification_preview_rows(db, rows)
+    merged_rows = merge_same_day_qualification_rows(enriched_rows)
+    return enrich_qualification_preview_rows(db, merged_rows)
 
 
 def _build_collaborateur_values(row: dict[str, Any]) -> dict[str, Any]:

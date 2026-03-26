@@ -35,6 +35,21 @@ class QualificationFileError(BaseModel):
     error: str
 
 
+class QualificationMissingField(BaseModel):
+    field: str
+    label: str
+
+
+class QualificationMissingRequirement(BaseModel):
+    row_index: int
+    matricule: str | None = None
+    nom: str | None = None
+    prenom: str | None = None
+    formation_id: int | None = None
+    formation_label: str | None = None
+    fields: list[QualificationMissingField] = Field(default_factory=list)
+
+
 class QualificationPreviewResponse(BaseModel):
     columns_detected: list[str] = Field(default_factory=list)
     mapping_used: dict[str, str] = Field(default_factory=dict)
@@ -42,6 +57,7 @@ class QualificationPreviewResponse(BaseModel):
     rows_count: int = 0
     file_errors: list[QualificationFileError] = Field(default_factory=list)
     conflicts: list[CollaboratorPreviewConflict] = Field(default_factory=list)
+    missing_requirements: list[QualificationMissingRequirement] = Field(default_factory=list)
 
 
 class QualificationImportRequest(BaseModel):

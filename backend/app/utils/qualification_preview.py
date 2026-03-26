@@ -416,6 +416,18 @@ def _derive_etat_qualification(statut: str | None) -> str | None:
     return None
 
 
+def _has_identity_signal(row: dict[str, Any]) -> bool:
+    return bool(row.get("matricule") or row.get("nom") or row.get("prenom"))
+
+
+def _has_qualification_signal(row: dict[str, Any]) -> bool:
+    return bool(
+        row.get("formation_id") is not None
+        or row.get("formation_label")
+        or row.get("competence")
+    )
+
+
 def _read_csv_dataframe(file_content: bytes) -> pd.DataFrame:
     decoded_content: str | None = None
     last_error: Exception | None = None
@@ -565,12 +577,9 @@ def parse_excel_to_rows(
                 normalized_row["prenom"] = normalized_row.get("prenom") or split_prenom
                 normalized_row["nom"] = normalized_row.get("nom") or split_nom
 
-        has_identity = bool(normalized_row.get("matricule")) or bool(
-            normalized_row.get("prenom") and normalized_row.get("nom")
-        )
-        if not has_identity:
+        if not _has_identity_signal(normalized_row):
             continue
-        if normalized_row.get("formation_id") is None:
+        if not _has_qualification_signal(normalized_row):
             continue
 
         rows.append(normalized_row)

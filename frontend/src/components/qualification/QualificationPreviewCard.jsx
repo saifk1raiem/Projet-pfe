@@ -21,9 +21,11 @@ export function QualificationPreviewCard({
   previewMappingUsed,
   previewImportType,
   previewConflictsCount,
+  previewMissingRequirementsCount,
   canImport,
   isImporting,
   onImport,
+  onReviewMissingRequirements,
   onReviewConflicts,
   importSummary,
   importError,
@@ -97,6 +99,30 @@ export function QualificationPreviewCard({
               {item.file}: {item.error}
             </p>
           ))}
+        </div>
+      ) : null}
+
+      {previewMissingRequirementsCount > 0 ? (
+        <div className="mt-2 flex flex-col gap-3 rounded-xl border border-[#f1c59e] bg-[#fff7ed] p-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-sm font-medium text-[#8a4b00]">
+              {previewMissingRequirementsCount} {tr("lignes ont des donnees manquantes", "rows have missing required data")}
+            </p>
+            <p className="text-xs text-[#8a4b00]">
+              {tr(
+                "Completez les champs obligatoires ou ignorez ces lignes avant l'import.",
+                "Fill the required fields or skip those rows before importing.",
+              )}
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            className="h-10 rounded-xl border-[#f1c59e] bg-white text-[#8a4b00] hover:bg-[#fff1de]"
+            onClick={onReviewMissingRequirements}
+          >
+            {tr("Verifier les donnees manquantes", "Review missing data")}
+          </Button>
         </div>
       ) : null}
 
