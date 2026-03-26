@@ -31,7 +31,7 @@ async function readJsonResponse(url, options = {}) {
 }
 
 async function fetchCollaborateurs(accessToken) {
-  return readJsonResponse(apiUrl("/qualification"), {
+  return readJsonResponse(apiUrl("/qualification/collaborateurs"), {
     headers: getAuthHeaders(accessToken),
   });
 }

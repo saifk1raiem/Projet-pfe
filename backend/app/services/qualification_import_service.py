@@ -2,10 +2,9 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from datetime import date, timedelta
-from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import Column, Date, Integer, MetaData, Numeric, String, Table, Text, func, insert, select, update
+from sqlalchemy import Column, Date, Integer, MetaData, String, Table, Text, func, insert, select, update
 from sqlalchemy.orm import Session
 
 
@@ -58,7 +57,6 @@ qualification_table = Table(
     Column("date_association_systeme", Date),
     Column("date_completion", Date),
     Column("etat_qualification", String(30)),
-    Column("score", Numeric(5, 2)),
     Column("formateur_id", Integer),
     Column("motif", Text),
 )
@@ -70,12 +68,6 @@ def _as_date(value: Any) -> date | None:
     if isinstance(value, date):
         return value
     return date.fromisoformat(str(value))
-
-
-def _as_decimal(value: Any) -> Decimal | None:
-    if value in (None, ""):
-        return None
-    return Decimal(str(value)).quantize(Decimal("0.01"))
 
 
 def _build_collaborateur_values(row: dict[str, Any]) -> dict[str, Any]:
@@ -102,7 +94,6 @@ def _build_qualification_values(row: dict[str, Any]) -> dict[str, Any]:
         "date_association_systeme": _as_date(row.get("date_association_systeme")),
         "date_completion": _as_date(row.get("date_completion")),
         "etat_qualification": row.get("etat_qualification"),
-        "score": _as_decimal(row.get("score")),
         "formateur_id": row.get("formateur_id"),
         "motif": row.get("motif"),
     }
@@ -240,15 +231,152 @@ def _ensure_formateur(db: Session, nom_formateur: str | None) -> tuple[int | Non
     return inserted, True
 
 
-def _dedupe_rows(rows: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
-    by_key: dict[tuple[str, int], dict[str, Any]] = {}
-    for row in rows:
-        matricule = row.get("matricule")
-        formation_id = row.get("formation_id")
-        if not matricule or formation_id is None:
+def _is_blank_merge_value(value: Any) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return not value.strip()
+    return False
+
+
+def _normalize_merge_text(value: Any) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text.casefold() or None
+
+
+def _normalize_formation_id(value: Any) -> int | None:
+    if value in (None, ""):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _qualification_row_aliases(row: dict[str, Any]) -> list[tuple[Any, ...]]:
+    aliases: list[tuple[Any, ...]] = []
+    formation_id = _normalize_formation_id(row.get("formation_id"))
+    if formation_id is None:
+        return aliases
+
+    matricule = _normalize_merge_text(row.get("matricule"))
+    if matricule:
+        aliases.append(("matricule", matricule, formation_id))
+
+    nom = _normalize_merge_text(row.get("nom"))
+    prenom = _normalize_merge_text(row.get("prenom"))
+    if nom and prenom:
+        aliases.append(("name", nom, prenom, formation_id))
+
+    return aliases
+
+
+def _merge_statut(existing_value: Any, incoming_value: Any) -> Any:
+    priority = {None: 0, "En cours": 1, "Completee": 2}
+    if priority.get(incoming_value, 0) > priority.get(existing_value, 0):
+        return incoming_value
+    return existing_value
+
+
+def _merge_etat_qualification(existing_value: Any, incoming_value: Any) -> Any:
+    priority = {
+        None: 0,
+        "Non associee": 1,
+        "Non associe": 1,
+        "En cours": 2,
+        "Depassement": 3,
+        "Qualifie": 4,
+    }
+    if priority.get(incoming_value, 0) > priority.get(existing_value, 0):
+        return incoming_value
+    return existing_value
+
+
+def _merge_association_date(existing_value: Any, incoming_value: Any) -> Any:
+    existing_date = _as_date(existing_value)
+    incoming_date = _as_date(incoming_value)
+    if existing_date and incoming_date:
+        return min(existing_date, incoming_date).isoformat()
+    return incoming_value if existing_date is None else existing_value
+
+
+def _merge_completion_date(existing_value: Any, incoming_value: Any) -> Any:
+    existing_date = _as_date(existing_value)
+    incoming_date = _as_date(incoming_value)
+    if existing_date and incoming_date:
+        return max(existing_date, incoming_date).isoformat()
+    return incoming_value if existing_date is None else existing_value
+
+
+def _merge_qualification_row(existing: dict[str, Any], incoming: dict[str, Any]) -> dict[str, Any]:
+    merged = dict(existing)
+
+    for field, incoming_value in incoming.items():
+        existing_value = merged.get(field)
+
+        if field == "statut":
+            merged[field] = _merge_statut(existing_value, incoming_value)
             continue
-        by_key[(matricule, int(formation_id))] = row
-    return list(by_key.values())
+
+        if field in {"etat_qualification", "etat"}:
+            merged[field] = _merge_etat_qualification(existing_value, incoming_value)
+            continue
+
+        if field == "date_association_systeme":
+            merged[field] = _merge_association_date(existing_value, incoming_value)
+            continue
+
+        if field == "date_completion":
+            merged[field] = _merge_completion_date(existing_value, incoming_value)
+            continue
+
+        if _is_blank_merge_value(existing_value) and not _is_blank_merge_value(incoming_value):
+            merged[field] = incoming_value
+
+    return merged
+
+
+def merge_qualification_rows(rows: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
+    merged_rows: list[dict[str, Any] | None] = []
+    alias_to_index: dict[tuple[Any, ...], int] = {}
+    passthrough_rows: list[dict[str, Any]] = []
+
+    for row in rows:
+        row_payload = dict(row)
+        aliases = _qualification_row_aliases(row_payload)
+        if not aliases:
+            passthrough_rows.append(row_payload)
+            continue
+
+        matched_indexes = sorted({alias_to_index[alias] for alias in aliases if alias in alias_to_index})
+        if not matched_indexes:
+            target_index = len(merged_rows)
+            merged_rows.append(row_payload)
+        else:
+            target_index = matched_indexes[0]
+            combined_row = merged_rows[target_index] or {}
+
+            for other_index in matched_indexes[1:]:
+                other_row = merged_rows[other_index]
+                if other_row is None:
+                    continue
+                combined_row = _merge_qualification_row(combined_row, other_row)
+                for alias in _qualification_row_aliases(other_row):
+                    alias_to_index[alias] = target_index
+                merged_rows[other_index] = None
+
+            merged_rows[target_index] = _merge_qualification_row(combined_row, row_payload)
+
+        current_row = merged_rows[target_index]
+        if current_row is None:
+            continue
+
+        for alias in _qualification_row_aliases(current_row):
+            alias_to_index[alias] = target_index
+
+    return [row for row in merged_rows if row is not None] + passthrough_rows
 
 
 def import_qualification_rows(db: Session, rows: list[dict[str, Any]]) -> dict[str, int]:
@@ -261,7 +389,7 @@ def import_qualification_rows(db: Session, rows: list[dict[str, Any]]) -> dict[s
     linked_with_formateur = 0
 
     try:
-        for row in _dedupe_rows(rows):
+        for row in merge_qualification_rows(rows):
             matricule = row.get("matricule")
             formation_id = row.get("formation_id")
             if not matricule or formation_id is None:

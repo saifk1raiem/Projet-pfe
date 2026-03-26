@@ -204,17 +204,87 @@ def detect_collaborateur_conflicts(
     return conflicts
 
 
+def _is_blank_merge_value(value: Any) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return not value.strip()
+    return False
+
+
+def _normalize_merge_text(value: Any) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text.casefold() or None
+
+
+def _merge_collaborateur_payload(
+    existing: dict[str, str | int | None],
+    incoming: dict[str, str | int | None],
+) -> dict[str, str | int | None]:
+    merged = dict(existing)
+    for field, incoming_value in incoming.items():
+        if _is_blank_merge_value(merged.get(field)) and not _is_blank_merge_value(incoming_value):
+            merged[field] = incoming_value
+    return merged
+
+
+def _collaborateur_row_aliases(row: dict[str, str | int | None]) -> list[tuple[str, ...]]:
+    aliases: list[tuple[str, ...]] = []
+
+    matricule = _normalize_merge_text(row.get("matricule"))
+    if matricule:
+        aliases.append(("matricule", matricule))
+
+    nom = _normalize_merge_text(row.get("nom"))
+    prenom = _normalize_merge_text(row.get("prenom"))
+    if nom and prenom:
+        aliases.append(("name", nom, prenom))
+
+    return aliases
+
+
 def dedupe_by_matricule(rows: list[ExtractedCollaboratorRow]) -> list[ExtractedCollaboratorRow]:
-    deduped: dict[str, ExtractedCollaboratorRow] = {}
+    merged_rows: list[dict[str, str | int | None] | None] = []
+    alias_to_index: dict[tuple[str, ...], int] = {}
     invalid_rows: list[ExtractedCollaboratorRow] = []
 
     for row in rows:
-        if not row.matricule:
+        row_payload = row.model_dump()
+        aliases = _collaborateur_row_aliases(row_payload)
+        if not aliases:
             invalid_rows.append(row)
             continue
-        deduped[row.matricule] = row
 
-    return [*deduped.values(), *invalid_rows]
+        matched_indexes = sorted({alias_to_index[alias] for alias in aliases if alias in alias_to_index})
+        if not matched_indexes:
+            target_index = len(merged_rows)
+            merged_rows.append(row_payload)
+        else:
+            target_index = matched_indexes[0]
+            combined_row = merged_rows[target_index] or {}
+
+            for other_index in matched_indexes[1:]:
+                other_row = merged_rows[other_index]
+                if other_row is None:
+                    continue
+                combined_row = _merge_collaborateur_payload(combined_row, other_row)
+                for alias in _collaborateur_row_aliases(other_row):
+                    alias_to_index[alias] = target_index
+                merged_rows[other_index] = None
+
+            merged_rows[target_index] = _merge_collaborateur_payload(combined_row, row_payload)
+
+        current_row = merged_rows[target_index]
+        if current_row is None:
+            continue
+
+        for alias in _collaborateur_row_aliases(current_row):
+            alias_to_index[alias] = target_index
+
+    normalized_rows = [ExtractedCollaboratorRow.model_validate(payload) for payload in merged_rows if payload is not None]
+    return [*normalized_rows, *invalid_rows]
 
 
 def upsert_collaborateur_rows(db: Session, rows: list[ExtractedCollaboratorRow]) -> dict[str, int]:
@@ -323,4 +393,4 @@ async def extract_rows_from_uploads(
             if field not in merged_mapping:
                 merged_mapping[field] = header
 
-    return merged_columns, merged_mapping, merged_rows, file_errors
+    return merged_columns, merged_mapping, dedupe_by_matricule(merged_rows), file_errors

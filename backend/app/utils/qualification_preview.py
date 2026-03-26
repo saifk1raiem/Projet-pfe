@@ -27,7 +27,6 @@ PREVIEW_FIELDS = [
     "statut",
     "etat",
     "date_association_systeme",
-    "date_completion",
     "etat_qualification",
     "score",
     "date_recrutement",
@@ -100,12 +99,37 @@ SYNONYMS: dict[str, list[str]] = {
         "date_association_annee",
         "association_year",
     ],
-    "date_completion": ["date_completion", "completion_date", "date_fin", "completed_at"],
     "score": ["score", "resultat", "note", "score_final"],
 }
 
 SUPPORTED_UPLOAD_EXTENSIONS = (".xlsx", ".xls", ".csv")
 CSV_ENCODINGS = ("utf-8-sig", "utf-8", "cp1252", "latin-1")
+MONTH_NAME_TO_NUMBER = {
+    "janvier": 1,
+    "january": 1,
+    "fevrier": 2,
+    "february": 2,
+    "mars": 3,
+    "march": 3,
+    "avril": 4,
+    "april": 4,
+    "mai": 5,
+    "may": 5,
+    "juin": 6,
+    "june": 6,
+    "juillet": 7,
+    "july": 7,
+    "aout": 8,
+    "august": 8,
+    "septembre": 9,
+    "september": 9,
+    "octobre": 10,
+    "october": 10,
+    "novembre": 11,
+    "november": 11,
+    "decembre": 12,
+    "december": 12,
+}
 
 
 def _dedupe_aliases(values: Iterable[str]) -> list[str]:
@@ -305,13 +329,14 @@ def _as_optional_date_part(value: Any) -> int | None:
         return None
 
     match = re.search(r"\d{1,4}", text)
-    if not match:
-        return None
+    if match:
+        try:
+            return int(match.group(0))
+        except ValueError:
+            return None
 
-    try:
-        return int(match.group(0))
-    except ValueError:
-        return None
+    normalized = normalize_header(text)
+    return MONTH_NAME_TO_NUMBER.get(normalized)
 
 
 def _normalize_year(value: int | None) -> int | None:
@@ -494,6 +519,8 @@ def parse_excel_to_rows(
     file_content: bytes,
     filename: str,
     synonyms: dict[str, list[str]] | None = None,
+    *,
+    require_formation: bool = True,
 ) -> tuple[list[str], dict[str, str], list[dict[str, Any]]]:
     active_synonyms = _merge_synonyms(synonyms)
     dataframe = read_tabular_dataframe(file_content, filename, synonyms=active_synonyms)
@@ -540,14 +567,6 @@ def parse_excel_to_rows(
 
         normalized_row["date_association_systeme"] = _resolve_association_date(source_row, mapping_used)
 
-        date_completion_header = mapping_used.get("date_completion")
-        normalized_row["date_completion"] = (
-            _as_iso_date(source_row.get(date_completion_header)) if date_completion_header else None
-        )
-
-        if normalized_row["statut"] == "Completee" and not normalized_row["date_completion"]:
-            normalized_row["date_completion"] = normalized_row["date_association_systeme"]
-
         etat_header = mapping_used.get("etat") or mapping_used.get("statut")
         normalized_row["etat_qualification"] = _normalize_etat_qualification(
             source_row.get(etat_header) if etat_header else None
@@ -573,7 +592,7 @@ def parse_excel_to_rows(
         )
         if not has_identity:
             continue
-        if normalized_row.get("formation_id") is None:
+        if require_formation and normalized_row.get("formation_id") is None:
             continue
 
         rows.append(normalized_row)

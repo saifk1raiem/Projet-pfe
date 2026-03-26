@@ -26,6 +26,7 @@ from app.services.qualification_import_service import (
     formateurs_table,
     formations_table,
     qualification_table,
+    resolve_qualification_status,
 )
 
 
@@ -50,6 +51,8 @@ class QualificationRecord:
     matricule: str
     formation_id: int | None
     formateur_id: int | None
+    statut: str | None
+    etat_qualification: str | None
     association_date: date | None
     completion_date: date | None
     duration_days: int | None
@@ -127,16 +130,32 @@ def _collaborator_group_label(row: CollaboratorRecord) -> str:
 
 
 def _status_as_of(record: QualificationRecord, as_of: date) -> str | None:
-    if record.association_date is None or record.association_date > as_of:
+    if record.association_date is not None and record.association_date > as_of:
         return None
+
+    resolved = resolve_qualification_status(
+        record.statut,
+        record.association_date,
+        record.duration_days,
+        etat_qualification=record.etat_qualification,
+        today=as_of,
+    )
+
+    if resolved != "Non associee":
+        return resolved
 
     if record.completion_date is not None and record.completion_date <= as_of:
         return "Qualifie"
 
-    if record.duration_days is not None and as_of > record.association_date + timedelta(days=int(record.duration_days)):
-        return "Depassement"
+    return None
 
-    return "En cours"
+
+def _effective_completion_date(record: QualificationRecord) -> date | None:
+    if record.completion_date is not None:
+        return record.completion_date
+    if _status_as_of(record, date.today()) == "Qualifie":
+        return record.association_date
+    return None
 
 
 def _count_new_entries(entry_dates: list[date | None], period_start: date, period_end: date) -> int:
@@ -156,7 +175,11 @@ def _count_pipeline_exits(
             continue
 
         latest_completion = max(
-            (row.completion_date for row in rows if row.completion_date is not None and row.completion_date <= snapshot_day),
+            (
+                completion_date
+                for row in rows
+                if (completion_date := _effective_completion_date(row)) is not None and completion_date <= snapshot_day
+            ),
             default=None,
         )
         if latest_completion is not None and period_start <= latest_completion <= period_end:
@@ -233,6 +256,8 @@ def _load_dashboard_context(db: Session) -> DashboardContext:
             matricule=row["matricule"],
             formation_id=row["formation_id"],
             formateur_id=row["formateur_id"],
+            statut=row["statut"],
+            etat_qualification=row["etat_qualification"],
             association_date=row["date_association_systeme"],
             completion_date=row["date_completion"],
             duration_days=row["duree_jours"],
@@ -243,6 +268,8 @@ def _load_dashboard_context(db: Session) -> DashboardContext:
                 qualification_table.c.matricule,
                 qualification_table.c.formation_id,
                 qualification_table.c.formateur_id,
+                qualification_table.c.statut,
+                qualification_table.c.etat_qualification,
                 qualification_table.c.date_association_systeme,
                 qualification_table.c.date_completion,
                 formations_table.c.duree_jours,
@@ -362,19 +389,6 @@ def _build_centre_cout_distribution(context: DashboardContext) -> list[Dashboard
     return result
 
 
-def _latest_qualification_for_status(rows: list[QualificationRecord]) -> QualificationRecord | None:
-    if not rows:
-        return None
-    return max(
-        rows,
-        key=lambda row: (
-            row.association_date or date.min,
-            row.completion_date or date.min,
-            row.qualification_id,
-        ),
-    )
-
-
 def _build_qualification_status_distribution(
     context: DashboardContext,
     *,
@@ -387,11 +401,8 @@ def _build_qualification_status_distribution(
         "Non associee": 0,
     }
 
-    for collaborator in context.collaborators:
-        latest_row = _latest_qualification_for_status(
-            context.qualifications_by_collaborateur.get(collaborator.matricule, [])
-        )
-        status = _status_as_of(latest_row, today) if latest_row else None
+    for qualification in context.qualifications:
+        status = _status_as_of(qualification, today)
         counts[status or "Non associee"] += 1
 
     ordered_labels = ["Qualifie", "En cours", "Non associee", "Depassement"]
@@ -459,7 +470,8 @@ def _build_qualification_activity_monthly(
         completions = sum(
             1
             for row in context.qualifications
-            if row.completion_date is not None and month_start <= row.completion_date < next_month_start
+            if (completion_date := _effective_completion_date(row)) is not None
+            and month_start <= completion_date < next_month_start
         )
         points.append(
             DashboardMonthlyActivityPoint(

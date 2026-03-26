@@ -137,7 +137,7 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
     return rows;
   };
 
-  const totalCollaborateurs = collaborateursData.length;
+  const totalQualifications = collaborateursData.length;
   const enCoursCount = collaborateursData.filter((collab) => collab.statut === "En cours").length;
   const qualifieCount = collaborateursData.filter((collab) => collab.statut === "Qualifie").length;
   const nonAssocieeCount = collaborateursData.filter(
@@ -470,8 +470,8 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
         <ComparisonStat
-          title={tr("Total Collaborateurs", "Total Collaborators")}
-          value={totalCollaborateurs}
+          title={tr("Total Qualifications", "Total Qualifications")}
+          value={totalQualifications}
           icon={Users}
           iconBg="bg-[#e8f0ff]"
           iconColor="text-[#0f63f2]"
@@ -480,7 +480,7 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
         <ComparisonStat
           title={tr("En cours", "In progress")}
           value={enCoursCount}
-          deltaPercent={totalCollaborateurs > 0 ? (enCoursCount / totalCollaborateurs) * 100 : 0}
+          deltaPercent={totalQualifications > 0 ? (enCoursCount / totalQualifications) * 100 : 0}
           deltaLabel={tr("du total", "of total")}
           deltaVariant="share"
           icon={AlertCircle}
@@ -491,7 +491,7 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
         <ComparisonStat
           title={tr("Qualifie", "Qualified")}
           value={qualifieCount}
-          deltaPercent={totalCollaborateurs > 0 ? (qualifieCount / totalCollaborateurs) * 100 : 0}
+          deltaPercent={totalQualifications > 0 ? (qualifieCount / totalQualifications) * 100 : 0}
           deltaLabel={tr("du total", "of total")}
           deltaVariant="share"
           icon={CheckCircle2}
@@ -502,7 +502,7 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
         <ComparisonStat
           title={tr("Non associee", "Not associated")}
           value={nonAssocieeCount}
-          deltaPercent={totalCollaborateurs > 0 ? (nonAssocieeCount / totalCollaborateurs) * 100 : 0}
+          deltaPercent={totalQualifications > 0 ? (nonAssocieeCount / totalQualifications) * 100 : 0}
           deltaLabel={tr("du total", "of total")}
           deltaVariant="share"
           icon={XCircle}
@@ -513,7 +513,7 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
         <ComparisonStat
           title={tr("Depassement", "Overdue")}
           value={depassementCount}
-          deltaPercent={totalCollaborateurs > 0 ? (depassementCount / totalCollaborateurs) * 100 : 0}
+          deltaPercent={totalQualifications > 0 ? (depassementCount / totalQualifications) * 100 : 0}
           deltaLabel={tr("du total", "of total")}
           deltaVariant="share"
           icon={AlertTriangle}

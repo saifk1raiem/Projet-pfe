@@ -24,8 +24,8 @@ export function UploadReportModal({
   const resolvedDescription =
     description ||
     tr(
-      "Analysez le rapport du jour avant de l'importer dans la base.",
-      "Analyze today's report before importing it into the database.",
+      "Analysez un ou plusieurs rapports avant de les importer. Les lignes complementaires seront fusionnees.",
+      "Analyze one or more reports before importing them. Complementary rows will be merged.",
     );
   const resolvedDropLabel = dropLabel || tr("Deposez votre rapport ici", "Drag and drop your report here");
   const resolvedChooseFilesLabel = chooseFilesLabel || tr("Choisir des fichiers", "Choose files");

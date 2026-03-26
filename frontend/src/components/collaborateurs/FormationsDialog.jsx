@@ -66,6 +66,9 @@ export function FormationsDialog({
                     </h3>
                     <p className="mt-1 text-[14px] text-[#64748b]">{formation.type}</p>
                     <p className="mt-1 text-[13px] text-[#475467]">
+                      {tr("Statut", "Status")}: {formation.statut || "-"}
+                    </p>
+                    <p className="mt-1 text-[13px] text-[#475467]">
                       {tr("Formateur", "Trainer")}: {formation.formateur || "-"}
                     </p>
                     <p className="mt-1 text-[13px] text-[#475467]">

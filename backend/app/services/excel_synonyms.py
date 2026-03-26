@@ -9,6 +9,30 @@ from app.services.extraction_mapper import DEFAULT_EXTRACTION_SYNONYMS
 DEFAULT_EXCEL_SYNONYMS: dict[str, list[str]] = {
     field: list(aliases) for field, aliases in DEFAULT_EXTRACTION_SYNONYMS.items()
 }
+DEFAULT_EXCEL_SYNONYMS["motif"] = [
+    "motif",
+    "reason",
+    "cause",
+    "remarque",
+    "commentaire",
+    "comment",
+]
+DEFAULT_EXCEL_SYNONYMS["statut"] = [
+    "statut",
+    "status",
+    "Plugins - status",
+    "training_status",
+    "qualification_status",
+    "etat",
+]
+DEFAULT_EXCEL_SYNONYMS["etat"] = [
+    "etat",
+    "status",
+    "Niveau de formation",
+    "qualification_status",
+    "etat_qualifie",
+    "etatqualifies",
+]
 LEGACY_FIELD_MAP = {
     "fonction": "fonction_sap",
     "nomprenom": "full_name",

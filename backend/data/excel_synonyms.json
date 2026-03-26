@@ -113,5 +113,29 @@
     "years of service",
     "tenure",
     "years"
+  ],
+  "motif": [
+    "motif",
+    "reason",
+    "cause",
+    "remarque",
+    "commentaire",
+    "comment"
+  ],
+  "statut": [
+    "statut",
+    "status",
+    "Plugins - status",
+    "training_status",
+    "qualification_status",
+    "etat"
+  ],
+  "etat": [
+    "etat",
+    "status",
+    "Niveau de formation",
+    "qualification_status",
+    "etat_qualifie",
+    "etatqualifies"
   ]
 }

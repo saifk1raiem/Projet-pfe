@@ -56,7 +56,7 @@ export function QualificationStatusChart({ data = [], isLoading = false, loadErr
     <Card className="rounded-[20px] border border-[#dfe5e2] bg-white p-6 shadow-sm">
       <div className="mb-6">
         <h3 className="leoni-display-lg mb-1 text-[38px] font-medium text-[#1b1e23]">Statut de Qualification</h3>
-        <p className="text-[15px] text-[#5f6777]">Etat actuel des qualifications des collaborateurs</p>
+        <p className="text-[15px] text-[#5f6777]">Etat actuel de toutes les lignes de qualification</p>
         {loadError ? <p className="mt-2 text-[13px] text-[#b42318]">{loadError}</p> : null}
       </div>
 
