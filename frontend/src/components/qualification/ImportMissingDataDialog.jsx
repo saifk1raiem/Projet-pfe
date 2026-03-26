@@ -29,7 +29,7 @@ function buildDrafts(missingRequirements, rows) {
     return {
       rowId: warning.rowId || row.__previewRowId || null,
       rowIndex: warning.row_index,
-      skip: false,
+      skip: row.skip_import === true,
       fields: warning.fields,
       formationLabel: warning.formation_label || row.formation_label || row.competence || null,
       matricule: warning.matricule || row.matricule || null,
@@ -96,16 +96,26 @@ export function ImportMissingDataDialog({
     const nextRows = rows
       .map((row, rowIndex) => {
         const rowKey = row.__previewRowId || `row-${rowIndex}`;
+        const draft = draftsByKey.get(rowKey);
+
         if (skippedKeys.has(rowKey)) {
-          return null;
+          if (!draft) {
+            return { ...row, skip_import: true };
+          }
+
+          const skippedRow = { ...row, skip_import: true };
+          draft.fields.forEach((field) => {
+            skippedRow[field.field] = null;
+          });
+          return skippedRow;
         }
 
-        const draft = draftsByKey.get(rowKey);
         if (!draft) {
           return row;
         }
 
         const updatedRow = { ...row };
+        updatedRow.skip_import = false;
         draft.fields.forEach((field) => {
           const trimmed = String(draft.values[field.field] ?? "").trim();
           updatedRow[field.field] = trimmed ? trimmed : null;

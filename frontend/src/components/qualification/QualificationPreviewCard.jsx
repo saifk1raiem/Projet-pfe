@@ -21,6 +21,7 @@ export function QualificationPreviewCard({
   previewMappingUsed,
   previewImportType,
   previewConflictsCount,
+  previewSkippedRowsCount,
   previewMissingRequirementsCount,
   canImport,
   isImporting,
@@ -123,6 +124,20 @@ export function QualificationPreviewCard({
           >
             {tr("Verifier les donnees manquantes", "Review missing data")}
           </Button>
+        </div>
+      ) : null}
+
+      {previewSkippedRowsCount > 0 ? (
+        <div className="mt-2 rounded-xl border border-[#c7d7ea] bg-[#f4f8fc] p-3 text-[#18476b]">
+          <p className="text-sm font-medium">
+            {previewSkippedRowsCount} {tr("lignes seront ignorees a l'import", "rows will be skipped during import")}
+          </p>
+          <p className="text-xs">
+            {tr(
+              "Les valeurs manquantes restent vides dans l'aperçu et ces lignes n'empecheront pas l'import du reste du fichier.",
+              "Their missing values stay empty in the preview, and those rows will not block importing the rest of the file.",
+            )}
+          </p>
         </div>
       ) : null}
 

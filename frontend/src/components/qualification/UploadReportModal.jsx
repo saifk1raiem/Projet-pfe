@@ -17,6 +17,8 @@ export function UploadReportModal({
   dropLabel,
   chooseFilesLabel,
   submitLabel,
+  errorMessage,
+  fileErrors,
 }) {
   if (!isOpen) return null;
 
@@ -105,6 +107,22 @@ export function UploadReportModal({
               </div>
             </div>
           )}
+
+          {errorMessage ? (
+            <div className="rounded-2xl border border-[#7f1d1d] bg-[#3b0d0d] p-4 text-sm text-[#fecaca]">
+              <p className="font-medium">{errorMessage}</p>
+              {Array.isArray(fileErrors) && fileErrors.length > 0 ? (
+                <div className="mt-2 space-y-1 text-xs text-[#fca5a5]">
+                  {fileErrors.map((item, index) => (
+                    <p key={`${item.file || "file"}-${index}`}>
+                      {item.file ? `${item.file}: ` : ""}
+                      {item.error}
+                    </p>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
 
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
             <Button

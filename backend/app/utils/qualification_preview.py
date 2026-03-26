@@ -417,6 +417,39 @@ def _has_qualification_signal(row: dict[str, Any]) -> bool:
     )
 
 
+def _has_any_preview_signal(row: dict[str, Any]) -> bool:
+    for field in (
+        "matricule",
+        "nom",
+        "prenom",
+        "fonction",
+        "centre_cout",
+        "groupe",
+        "formateur",
+        "contre_maitre",
+        "segment",
+        "num_tel",
+        "formation_id",
+        "formation_label",
+        "competence",
+        "statut",
+        "etat",
+        "date_association_systeme",
+        "date_completion",
+        "etat_qualification",
+        "score",
+        "date_recrutement",
+        "anciennete",
+    ):
+        value = row.get(field)
+        if value is None:
+            continue
+        if isinstance(value, str) and not value.strip():
+            continue
+        return True
+    return False
+
+
 def _read_csv_dataframe(file_content: bytes) -> pd.DataFrame:
     decoded_content: str | None = None
     last_error: Exception | None = None
@@ -563,9 +596,7 @@ def parse_excel_to_rows(
                 normalized_row["prenom"] = normalized_row.get("prenom") or split_prenom
                 normalized_row["nom"] = normalized_row.get("nom") or split_nom
 
-        if not _has_identity_signal(normalized_row):
-            continue
-        if not _has_qualification_signal(normalized_row):
+        if not _has_any_preview_signal(normalized_row):
             continue
 
         rows.append(normalized_row)

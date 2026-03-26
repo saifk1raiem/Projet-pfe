@@ -358,7 +358,11 @@ def import_qualification_preview_rows(
             detail="No qualification rows provided for import",
         )
 
-    prepared_rows = prepare_qualification_preview_rows(db, [row.model_dump() for row in payload.rows])
+    submitted_rows = [row.model_dump() for row in payload.rows]
+    skipped_rows = [row for row in submitted_rows if row.get("skip_import")]
+    active_rows = [row for row in submitted_rows if not row.get("skip_import")]
+
+    prepared_rows = prepare_qualification_preview_rows(db, active_rows)
     missing_requirements = detect_missing_qualification_requirements(db, prepared_rows)
     if missing_requirements:
         raise HTTPException(
@@ -370,4 +374,6 @@ def import_qualification_preview_rows(
         )
 
     summary = import_qualification_rows(db, prepared_rows)
+    if skipped_rows:
+        summary["skipped"] += len(skipped_rows)
     return {"import_summary": summary}

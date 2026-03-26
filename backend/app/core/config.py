@@ -8,6 +8,15 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
+LOCAL_DEV_ORIGIN_REGEX = (
+    r"https?://("
+    r"localhost|127\.0\.0\.1|0\.0\.0\.0|"
+    r"10(?:\.\d{1,3}){3}|"
+    r"192\.168(?:\.\d{1,3}){2}|"
+    r"172\.(?:1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2}|"
+    r"[a-zA-Z0-9-]+(?:\.local)?"
+    r")(?::\d+)?$"
+)
 
 
 class Settings(BaseSettings):
@@ -22,7 +31,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7
     CORS_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173"
-    CORS_ORIGIN_REGEX: str = r"https?://(localhost|127\.0\.0\.1)(:\d+)?$"
+    CORS_ORIGIN_REGEX: str = LOCAL_DEV_ORIGIN_REGEX
     SEED_ADMIN_EMAIL: str = "saif.kraiem@leoni.com"
     SEED_DEFAULT_PASSWORD: str = "ChangeMe123!"
     SEED_EMAIL_DOMAIN: str = "leoni.com"

@@ -25,6 +25,7 @@ class QualificationImportRow(BaseModel):
     etat_qualification: str | None = None
     date_recrutement: str | None = None
     anciennete: int | None = None
+    skip_import: bool = False
 
     model_config = {"extra": "ignore"}
 

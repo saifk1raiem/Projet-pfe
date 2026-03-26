@@ -25,10 +25,54 @@ const AUTO_REFRESH_INTERVAL_MS = 30000;
 const getAuthHeaders = (accessToken, headers = {}) =>
   accessToken ? { ...headers, Authorization: `Bearer ${accessToken}` } : headers;
 
+const getLocalApiFallbackUrls = (url) => {
+  if (!import.meta.env.DEV || typeof window === "undefined") {
+    return [];
+  }
+
+  const hostname = window.location.hostname?.toLowerCase?.() || "";
+  if (!["localhost", "127.0.0.1"].includes(hostname)) {
+    return [];
+  }
+
+  let requestUrl;
+  try {
+    requestUrl = new URL(url, window.location.origin);
+  } catch {
+    return [];
+  }
+
+  if (!requestUrl.pathname.startsWith("/api/")) {
+    return [];
+  }
+
+  return [`http://127.0.0.1:8000${requestUrl.pathname}${requestUrl.search}`].filter(
+    (candidate) => candidate !== requestUrl.toString(),
+  );
+};
+
 async function readJsonResponse(url, options = {}) {
-  const response = await fetch(url, options);
-  const data = await response.json().catch(() => ({}));
-  return { response, data };
+  const responseToJson = async (response) => {
+    const data = await response.json().catch(() => ({}));
+    return { response, data };
+  };
+
+  try {
+    const response = await fetch(url, options);
+    return responseToJson(response);
+  } catch (primaryError) {
+    const fallbackUrls = getLocalApiFallbackUrls(url);
+    for (const fallbackUrl of fallbackUrls) {
+      try {
+        const fallbackResponse = await fetch(fallbackUrl, options);
+        return responseToJson(fallbackResponse);
+      } catch {
+        continue;
+      }
+    }
+
+    throw primaryError;
+  }
 }
 
 async function fetchQualifications(accessToken) {
@@ -100,7 +144,12 @@ const mapIssuesToPreviewRows = (issues, rows) =>
   }));
 
 const filterIssuesForRows = (issues, rows) => {
-  const rowIds = new Set(rows.map((row) => row.__previewRowId).filter(Boolean));
+  const rowIds = new Set(
+    rows
+      .filter((row) => row.skip_import !== true)
+      .map((row) => row.__previewRowId)
+      .filter(Boolean),
+  );
   return issues.filter((issue) => issue.rowId && rowIds.has(issue.rowId));
 };
 
@@ -644,6 +693,7 @@ export function QualificationPage({ currentUser, accessToken }) {
         previewMappingUsed={previewMappingUsed}
         previewImportType={previewImportType}
         previewConflictsCount={previewConflicts.length}
+        previewSkippedRowsCount={previewRows.filter((row) => row.skip_import === true).length}
         previewMissingRequirementsCount={previewMissingRequirements.length}
         canImport={pendingImportRows.length > 0}
         isImporting={isImportingPreview}
@@ -685,6 +735,8 @@ export function QualificationPage({ currentUser, accessToken }) {
         selectedFiles={selectedFiles}
         isPreviewLoading={isPreviewLoading}
         onSubmit={handleSubmit}
+        errorMessage={previewError}
+        fileErrors={previewErrorDetails?.file_errors}
       />
     </div>
   );
