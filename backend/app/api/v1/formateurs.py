@@ -79,7 +79,6 @@ def list_formateur_formations(
             qualification_table.c.formation_id,
             func.count(qualification_table.c.id).label("collaborateurs_count"),
             func.max(qualification_table.c.date_association_systeme).label("last_association_date"),
-            func.max(qualification_table.c.date_completion).label("last_completion_date"),
         )
         .where(qualification_table.c.formateur_id == formateur_id)
         .group_by(qualification_table.c.formation_id)
@@ -104,7 +103,7 @@ def list_formateur_formations(
     for row in rows:
         formation_id = row["formation_id"]
         formation = formations_by_id.get(formation_id, {})
-        last_date = row["last_completion_date"] or row["last_association_date"]
+        last_date = row["last_association_date"]
         result.append(
             {
                 "formation_id": formation_id,
@@ -139,7 +138,6 @@ def list_formateur_collaborateurs(
             qualification_table.c.matricule,
             qualification_table.c.statut,
             qualification_table.c.date_association_systeme,
-            qualification_table.c.date_completion,
             qualification_table.c.etat_qualification,
             collaborateurs_table.c.nom,
             collaborateurs_table.c.prenom,
@@ -192,7 +190,6 @@ def list_formateur_collaborateurs(
                 "date_association": row["date_association_systeme"].isoformat()
                 if row["date_association_systeme"]
                 else None,
-                "date_completion": row["date_completion"].isoformat() if row["date_completion"] else None,
                 "formation_id": row["formation_id"],
                 "formation_code": row["code_formation"] or (str(row["formation_id"]) if row["formation_id"] else None),
                 "formation_titre": row["nom_formation"] or (

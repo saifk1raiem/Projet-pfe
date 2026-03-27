@@ -54,7 +54,6 @@ class QualificationRecord:
     statut: str | None
     etat_qualification: str | None
     association_date: date | None
-    completion_date: date | None
     duration_days: int | None
 
 
@@ -144,16 +143,11 @@ def _status_as_of(record: QualificationRecord, as_of: date) -> str | None:
     if resolved != "Non associee":
         return resolved
 
-    if record.completion_date is not None and record.completion_date <= as_of:
-        return "Qualifie"
-
     return None
 
 
-def _effective_completion_date(record: QualificationRecord) -> date | None:
-    if record.completion_date is not None:
-        return record.completion_date
-    if _status_as_of(record, date.today()) == "Qualifie":
+def _effective_completion_date(record: QualificationRecord, as_of: date) -> date | None:
+    if _status_as_of(record, as_of) == "Qualifie":
         return record.association_date
     return None
 
@@ -178,7 +172,8 @@ def _count_pipeline_exits(
             (
                 completion_date
                 for row in rows
-                if (completion_date := _effective_completion_date(row)) is not None and completion_date <= snapshot_day
+                if (completion_date := _effective_completion_date(row, snapshot_day)) is not None
+                and completion_date <= snapshot_day
             ),
             default=None,
         )
@@ -259,7 +254,6 @@ def _load_dashboard_context(db: Session) -> DashboardContext:
             statut=row["statut"],
             etat_qualification=row["etat_qualification"],
             association_date=row["date_association_systeme"],
-            completion_date=row["date_completion"],
             duration_days=row["duree_jours"],
         )
         for row in db.execute(
@@ -271,7 +265,6 @@ def _load_dashboard_context(db: Session) -> DashboardContext:
                 qualification_table.c.statut,
                 qualification_table.c.etat_qualification,
                 qualification_table.c.date_association_systeme,
-                qualification_table.c.date_completion,
                 formations_table.c.duree_jours,
             ).select_from(
                 qualification_table.outerjoin(
@@ -462,6 +455,7 @@ def _build_qualification_activity_monthly(
     points: list[DashboardMonthlyActivityPoint] = []
     for month_start in _month_starts_including(today, 12):
         next_month_start = min(_next_month_start(month_start), today + timedelta(days=1))
+        month_end = min(_next_month_start(month_start) - timedelta(days=1), today)
         associations = sum(
             1
             for row in context.qualifications
@@ -470,7 +464,7 @@ def _build_qualification_activity_monthly(
         completions = sum(
             1
             for row in context.qualifications
-            if (completion_date := _effective_completion_date(row)) is not None
+            if (completion_date := _effective_completion_date(row, month_end)) is not None
             and month_start <= completion_date < next_month_start
         )
         points.append(

@@ -251,7 +251,6 @@ def _fetch_qualification_listing_rows(db: Session):
             qualification_table.c.formation_id,
             qualification_table.c.statut.label("qualification_statut"),
             qualification_table.c.date_association_systeme,
-            qualification_table.c.date_completion,
             qualification_table.c.etat_qualification,
             qualification_table.c.formateur_id,
             qualification_table.c.motif,
@@ -267,7 +266,6 @@ def _fetch_qualification_listing_rows(db: Session):
         )
         .order_by(
             qualification_table.c.date_association_systeme.desc().nullslast(),
-            qualification_table.c.date_completion.desc().nullslast(),
             qualification_table.c.id.desc().nullslast(),
             collaborateurs_table.c.matricule.asc(),
         )
@@ -310,12 +308,11 @@ def list_qualification_rows(
                 "date_recrutement": serialize_date(item["date_recrutement"]),
                 "anciennete": item["anciennete"],
                 "date_association_systeme": serialize_date(item["date_association_systeme"]),
-                "date_completion": serialize_date(item["date_completion"]),
                 "statut": qualification_status,
                 "etat": qualification_status,
                 "formation_id": item["formation_id"],
                 "formations": 1,
-                "derniereFormation": serialize_date(item["date_completion"] or item["date_association_systeme"]),
+                "derniereFormation": serialize_date(item["date_association_systeme"]),
             }
         )
     return result
@@ -332,7 +329,7 @@ def list_collaborateur_summaries(
     for item in raw_rows:
         matricule = item["matricule"]
         current = collaborators_by_matricule.get(matricule)
-        latest_activity_date = item["date_completion"] or item["date_association_systeme"]
+        latest_activity_date = item["date_association_systeme"]
         qualification_status = resolve_qualification_status(
             item["qualification_statut"],
             item["date_association_systeme"],
@@ -360,7 +357,6 @@ def list_collaborateur_summaries(
                 "date_recrutement": serialize_date(item["date_recrutement"]),
                 "anciennete": item["anciennete"],
                 "date_association_systeme": serialize_date(item["date_association_systeme"]),
-                "date_completion": serialize_date(item["date_completion"]),
                 "statut": qualification_status,
                 "etat": qualification_status,
                 "formation_id": item["formation_id"],
@@ -395,7 +391,6 @@ def list_collaborateur_formations(
             qualification_table.c.formation_id,
             qualification_table.c.statut,
             qualification_table.c.date_association_systeme,
-            qualification_table.c.date_completion,
             qualification_table.c.etat_qualification,
             qualification_table.c.formateur_id,
             qualification_table.c.motif,
@@ -428,9 +423,7 @@ def list_collaborateur_formations(
             "code": item["code_formation"] or str(item["formation_id"]),
             "titre": item["nom_formation"] or f"Formation {item['formation_id']}",
             "type": item["domaine"] or "Formation",
-            "date": item["date_completion"].isoformat() if item["date_completion"] else (
-                item["date_association_systeme"].isoformat() if item["date_association_systeme"] else None
-            ),
+            "date": item["date_association_systeme"].isoformat() if item["date_association_systeme"] else None,
             "duree": item["duree_jours"],
             "resultat": resolve_qualification_status(
                 item["statut"],

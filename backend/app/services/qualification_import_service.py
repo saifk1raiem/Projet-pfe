@@ -55,7 +55,6 @@ qualification_table = Table(
     Column("formation_id", Integer, nullable=False),
     Column("statut", String(20), nullable=False),
     Column("date_association_systeme", Date),
-    Column("date_completion", Date),
     Column("etat_qualification", String(30)),
     Column("formateur_id", Integer),
     Column("motif", Text),
@@ -92,7 +91,6 @@ def _build_qualification_values(row: dict[str, Any]) -> dict[str, Any]:
         "formation_id": row.get("formation_id"),
         "statut": row.get("statut"),
         "date_association_systeme": _as_date(row.get("date_association_systeme")),
-        "date_completion": _as_date(row.get("date_completion")),
         "etat_qualification": row.get("etat_qualification"),
         "formateur_id": row.get("formateur_id"),
         "motif": row.get("motif"),
@@ -144,7 +142,7 @@ def resolve_qualification_status(
     return "Non associee"
 
 
-def _normalize_import_statut(statut: Any, date_completion: Any, etat_qualification: Any = None) -> str:
+def _normalize_import_statut(statut: Any, etat_qualification: Any = None) -> str:
     if isinstance(statut, str):
         normalized = statut.strip().lower().replace("-", "_").replace(" ", "_")
     else:
@@ -162,8 +160,6 @@ def _normalize_import_statut(statut: Any, date_completion: Any, etat_qualificati
         if normalized_etat in {"en_cours", "encours", "depassement", "overdue"}:
             return "En cours"
 
-    if date_completion not in (None, ""):
-        return "Completee"
     return "En cours"
 
 
@@ -302,14 +298,6 @@ def _merge_association_date(existing_value: Any, incoming_value: Any) -> Any:
     return incoming_value if existing_date is None else existing_value
 
 
-def _merge_completion_date(existing_value: Any, incoming_value: Any) -> Any:
-    existing_date = _as_date(existing_value)
-    incoming_date = _as_date(incoming_value)
-    if existing_date and incoming_date:
-        return max(existing_date, incoming_date).isoformat()
-    return incoming_value if existing_date is None else existing_value
-
-
 def _merge_qualification_row(existing: dict[str, Any], incoming: dict[str, Any]) -> dict[str, Any]:
     merged = dict(existing)
 
@@ -326,10 +314,6 @@ def _merge_qualification_row(existing: dict[str, Any], incoming: dict[str, Any])
 
         if field == "date_association_systeme":
             merged[field] = _merge_association_date(existing_value, incoming_value)
-            continue
-
-        if field == "date_completion":
-            merged[field] = _merge_completion_date(existing_value, incoming_value)
             continue
 
         if _is_blank_merge_value(existing_value) and not _is_blank_merge_value(incoming_value):
@@ -399,7 +383,6 @@ def import_qualification_rows(db: Session, rows: list[dict[str, Any]]) -> dict[s
             row_payload = dict(row)
             row_payload["statut"] = _normalize_import_statut(
                 row.get("statut"),
-                row.get("date_completion"),
                 row.get("etat_qualification"),
             )
 
