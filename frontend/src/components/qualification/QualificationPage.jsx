@@ -16,6 +16,7 @@ import { statutOptions } from "./constants";
 import { CollaborateursTable } from "./CollaborateursTable";
 import { ComparisonStat } from "./ComparisonStat";
 import { ImportConflictDialog } from "./ImportConflictDialog";
+import { ImportMissingDataDialog } from "./ImportMissingDataDialog";
 import { QualificationFilters } from "./QualificationFilters";
 import { QualificationMovementTab } from "./QualificationMovementTab";
 import { QualificationPreviewCard } from "./QualificationPreviewCard";
@@ -80,6 +81,41 @@ async function importCollaboratorRows(accessToken, rows) {
   });
 }
 
+const buildPreviewRowId = (row, index) =>
+  [
+    row.matricule || `${row.nom || "unknown"}-${row.prenom || "unknown"}`,
+    row.formation_id ?? row.competence ?? "no-formation",
+    row.date_association_systeme ?? row.date_completion ?? "no-date",
+    index,
+  ].join("::");
+
+const withPreviewRowIds = (rows) =>
+  rows.map((row, index) => ({
+    ...row,
+    __previewRowId: row.__previewRowId || buildPreviewRowId(row, index),
+  }));
+
+const mapIssuesToPreviewRows = (issues, rows) =>
+  issues.map((issue) => ({
+    ...issue,
+    rowId: rows[issue.row_index]?.__previewRowId ?? null,
+  }));
+
+const filterIssuesForRows = (issues, rows) => {
+  const rowIds = new Set(rows.map((row) => row.__previewRowId).filter(Boolean));
+  return issues.filter((issue) => issue.rowId && rowIds.has(issue.rowId));
+};
+
+const getErrorMessageFromDetail = (detail, fallbackMessage) => {
+  if (typeof detail === "string" && detail.trim()) {
+    return detail;
+  }
+  if (detail && typeof detail === "object" && typeof detail.message === "string" && detail.message.trim()) {
+    return detail.message;
+  }
+  return fallbackMessage;
+};
+
 export function QualificationPage({ onNavigateToPage, currentUser, accessToken }) {
   const { tr } = useAppPreferences();
   const isObserver = currentUser?.role === "observer";
@@ -102,16 +138,23 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
   const [previewMappingUsed, setPreviewMappingUsed] = useState({});
   const [previewImportType, setPreviewImportType] = useState(null);
   const [previewConflicts, setPreviewConflicts] = useState([]);
+  const [previewMissingRequirements, setPreviewMissingRequirements] = useState([]);
   const [previewFileErrors, setPreviewFileErrors] = useState([]);
   const [previewError, setPreviewError] = useState("");
   const [previewErrorDetails, setPreviewErrorDetails] = useState(null);
   const [importSummary, setImportSummary] = useState(null);
   const [importError, setImportError] = useState("");
   const [pageError, setPageError] = useState("");
+  const [isMissingDataDialogOpen, setIsMissingDataDialogOpen] = useState(false);
   const [isConflictDialogOpen, setIsConflictDialogOpen] = useState(false);
   const inputRef = useRef(null);
   const isLiveRefreshPaused =
-    isUploadOpen || isPreviewLoading || isImportingPreview || isConflictDialogOpen || pendingImportRows.length > 0;
+    isUploadOpen ||
+    isPreviewLoading ||
+    isImportingPreview ||
+    isMissingDataDialogOpen ||
+    isConflictDialogOpen ||
+    pendingImportRows.length > 0;
 
   const applyQualificationsData = (rows) => {
     setCollaborateursData(rows);
@@ -233,20 +276,36 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
     setIsDragging(false);
   };
 
+  const syncPreviewRows = (nextRows, { clearConflicts = false, clearMissingRequirements = false } = {}) => {
+    setPreviewRows(nextRows);
+    setPendingImportRows(nextRows);
+    setPreviewRowsCount(nextRows.length);
+    setPreviewConflicts((prev) => (clearConflicts ? [] : filterIssuesForRows(prev, nextRows)));
+    setPreviewMissingRequirements((prev) =>
+      clearMissingRequirements ? [] : filterIssuesForRows(prev, nextRows),
+    );
+  };
+
   const applyPreviewPayload = (data, importType) => {
-    const rows = Array.isArray(data?.rows) ? data.rows : [];
-    const conflicts = Array.isArray(data?.conflicts) ? data.conflicts : [];
+    const rows = withPreviewRowIds(Array.isArray(data?.rows) ? data.rows : []);
+    const conflicts = mapIssuesToPreviewRows(Array.isArray(data?.conflicts) ? data.conflicts : [], rows);
+    const missingRequirements = mapIssuesToPreviewRows(
+      Array.isArray(data?.missing_requirements) ? data.missing_requirements : [],
+      rows,
+    );
     setPreviewRows(rows);
     setPendingImportRows(rows);
-    setPreviewRowsCount(Number.isFinite(data?.rows_count) ? data.rows_count : rows.length);
+    setPreviewRowsCount(rows.length);
     setPreviewColumnsDetected(Array.isArray(data?.columns_detected) ? data.columns_detected : []);
     setPreviewMappingUsed(
       data?.mapping_used && typeof data.mapping_used === "object" ? data.mapping_used : {},
     );
     setPreviewConflicts(conflicts);
+    setPreviewMissingRequirements(missingRequirements);
     setPreviewFileErrors(Array.isArray(data?.file_errors) ? data.file_errors : []);
     setPreviewImportType(importType);
-    setIsConflictDialogOpen(conflicts.length > 0);
+    setIsMissingDataDialogOpen(missingRequirements.length > 0);
+    setIsConflictDialogOpen(missingRequirements.length === 0 && conflicts.length > 0);
     closeModal();
     setSelectedFiles([]);
   };
@@ -314,8 +373,10 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
     setPreviewMappingUsed({});
     setPreviewImportType(null);
     setPreviewConflicts([]);
+    setPreviewMissingRequirements([]);
     setImportSummary(null);
     setImportError("");
+    setIsMissingDataDialogOpen(false);
     setIsConflictDialogOpen(false);
 
     try {
@@ -374,6 +435,10 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
       setImportError(tr("Token manquant. Reconnectez-vous.", "Missing access token. Please sign in again."));
       return;
     }
+    if (previewMissingRequirements.length > 0) {
+      setIsMissingDataDialogOpen(true);
+      return;
+    }
     if (previewConflicts.length > 0) {
       setIsConflictDialogOpen(true);
       return;
@@ -388,7 +453,17 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
         previewImportType === "collaborateurs" ? importCollaboratorRows : importQualificationRows;
       const { response, data } = await importAction(accessToken, pendingImportRows);
       if (!response.ok) {
-        setImportError(data?.detail || tr("Echec de l'import.", "Import failed."));
+        if (
+          previewImportType === "qualification" &&
+          data?.detail &&
+          typeof data.detail === "object" &&
+          Array.isArray(data.detail.missing_requirements)
+        ) {
+          const remappedWarnings = mapIssuesToPreviewRows(data.detail.missing_requirements, pendingImportRows);
+          setPreviewMissingRequirements(remappedWarnings);
+          setIsMissingDataDialogOpen(remappedWarnings.length > 0);
+        }
+        setImportError(getErrorMessageFromDetail(data?.detail, tr("Echec de l'import.", "Import failed.")));
         return;
       }
 
@@ -410,11 +485,13 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
   };
 
   const handleApplyConflictResolution = (nextRows) => {
-    setPreviewRows(nextRows);
-    setPendingImportRows(nextRows);
-    setPreviewRowsCount(nextRows.length);
-    setPreviewConflicts([]);
+    syncPreviewRows(nextRows, { clearConflicts: true });
     setIsConflictDialogOpen(false);
+  };
+
+  const handleApplyMissingDataResolution = (nextRows) => {
+    syncPreviewRows(nextRows, { clearMissingRequirements: true });
+    setIsMissingDataDialogOpen(false);
   };
 
   const filteredCollaborateurs = collaborateursData.filter((collab) => {
@@ -587,9 +664,11 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
             previewMappingUsed={previewMappingUsed}
             previewImportType={previewImportType}
             previewConflictsCount={previewConflicts.length}
+            previewMissingRequirementsCount={previewMissingRequirements.length}
             canImport={pendingImportRows.length > 0}
             isImporting={isImportingPreview}
             onImport={handleImportPreview}
+            onReviewMissingRequirements={() => setIsMissingDataDialogOpen(true)}
             onReviewConflicts={() => setIsConflictDialogOpen(true)}
             importSummary={importSummary}
             importError={importError}
@@ -601,7 +680,18 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
         </TabsContent>
       </Tabs>
 
+      <ImportMissingDataDialog
+        key={`missing-${isMissingDataDialogOpen}-${previewMissingRequirements.length}-${previewRows.length}`}
+        tr={tr}
+        isOpen={isMissingDataDialogOpen}
+        missingRequirements={previewMissingRequirements}
+        rows={previewRows}
+        onClose={() => setIsMissingDataDialogOpen(false)}
+        onApply={handleApplyMissingDataResolution}
+      />
+
       <ImportConflictDialog
+        key={`conflict-${isConflictDialogOpen}-${previewConflicts.length}-${previewRows.length}`}
         tr={tr}
         isOpen={isConflictDialogOpen}
         conflicts={previewConflicts}

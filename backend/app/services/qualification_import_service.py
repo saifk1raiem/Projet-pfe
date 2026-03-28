@@ -7,6 +7,8 @@ from typing import Any
 from sqlalchemy import Column, Date, Integer, MetaData, String, Table, Text, func, insert, select, update
 from sqlalchemy.orm import Session
 
+from app.schemas.qualification import QualificationMissingField, QualificationMissingRequirement
+
 
 metadata = MetaData()
 
@@ -60,6 +62,13 @@ qualification_table = Table(
     Column("motif", Text),
 )
 
+_MISSING_FIELD_LABELS = {
+    "matricule": "Matricule",
+    "nom": "Nom",
+    "prenom": "Prenom",
+    "formation_id": "ID formation",
+}
+
 
 def _as_date(value: Any) -> date | None:
     if value in (None, ""):
@@ -67,6 +76,13 @@ def _as_date(value: Any) -> date | None:
     if isinstance(value, date):
         return value
     return date.fromisoformat(str(value))
+
+
+def _clean_text(value: Any) -> str | None:
+    if value in (None, ""):
+        return None
+    text = " ".join(str(value).split()).strip()
+    return text or None
 
 
 def _build_collaborateur_values(row: dict[str, Any]) -> dict[str, Any]:
@@ -249,6 +265,74 @@ def _normalize_formation_id(value: Any) -> int | None:
         return int(value)
     except (TypeError, ValueError):
         return None
+
+
+def detect_missing_qualification_requirements(
+    db: Session,
+    rows: list[dict[str, Any]],
+) -> list[QualificationMissingRequirement]:
+    if not rows:
+        return []
+
+    existing_matricules = set()
+    candidate_matricules = sorted(
+        {
+            matricule
+            for row in rows
+            if (matricule := _clean_text(row.get("matricule")))
+        }
+    )
+    if candidate_matricules:
+        existing_matricules = {
+            item
+            for item in db.scalars(
+                select(collaborateurs_table.c.matricule).where(collaborateurs_table.c.matricule.in_(candidate_matricules))
+            ).all()
+            if item
+        }
+
+    missing_requirements: list[QualificationMissingRequirement] = []
+    for row_index, row in enumerate(rows):
+        missing_fields: list[QualificationMissingField] = []
+
+        matricule = _clean_text(row.get("matricule"))
+        if not matricule:
+            missing_fields.append(
+                QualificationMissingField(field="matricule", label=_MISSING_FIELD_LABELS["matricule"])
+            )
+
+        formation_id = _normalize_formation_id(row.get("formation_id"))
+        if formation_id is None:
+            missing_fields.append(
+                QualificationMissingField(field="formation_id", label=_MISSING_FIELD_LABELS["formation_id"])
+            )
+
+        if not matricule or matricule not in existing_matricules:
+            if not _clean_text(row.get("nom")):
+                missing_fields.append(
+                    QualificationMissingField(field="nom", label=_MISSING_FIELD_LABELS["nom"])
+                )
+            if not _clean_text(row.get("prenom")):
+                missing_fields.append(
+                    QualificationMissingField(field="prenom", label=_MISSING_FIELD_LABELS["prenom"])
+                )
+
+        if not missing_fields:
+            continue
+
+        missing_requirements.append(
+            QualificationMissingRequirement(
+                row_index=row_index,
+                matricule=matricule,
+                nom=_clean_text(row.get("nom")),
+                prenom=_clean_text(row.get("prenom")),
+                formation_id=formation_id,
+                formation_label=_clean_text(row.get("formation_label") or row.get("competence")),
+                fields=missing_fields,
+            )
+        )
+
+    return missing_requirements
 
 
 def _qualification_row_aliases(row: dict[str, Any]) -> list[tuple[Any, ...]]:

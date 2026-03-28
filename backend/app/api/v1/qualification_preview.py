@@ -11,6 +11,7 @@ from app.services.collaborateur_import_service import detect_collaborateur_confl
 from app.services.excel_synonyms import get_excel_synonyms
 from app.services.qualification_import_service import (
     collaborateurs_table,
+    detect_missing_qualification_requirements,
     formateurs_table,
     formations_table,
     import_qualification_rows,
@@ -538,6 +539,7 @@ async def preview_qualification_file(
     merged_rows = merge_qualification_rows(merged_rows)
     merged_rows = _enrich_qualification_rows(merged_rows, supplemental_rows)
     conflicts = detect_collaborateur_conflicts(db, merged_rows)
+    missing_requirements = detect_missing_qualification_requirements(db, merged_rows)
 
     return {
         "columns_detected": merged_columns,
@@ -546,6 +548,7 @@ async def preview_qualification_file(
         "rows_count": len(merged_rows),
         "file_errors": file_errors,
         "conflicts": [conflict.model_dump() for conflict in conflicts],
+        "missing_requirements": [item.model_dump() for item in missing_requirements],
     }
 
 
@@ -561,5 +564,16 @@ def import_qualification_preview_rows(
             detail="No qualification rows provided for import",
         )
 
-    summary = import_qualification_rows(db, [row.model_dump() for row in payload.rows])
+    prepared_rows = [row.model_dump() for row in payload.rows]
+    missing_requirements = detect_missing_qualification_requirements(db, prepared_rows)
+    if missing_requirements:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "message": "Some qualification rows are still missing required data",
+                "missing_requirements": [item.model_dump() for item in missing_requirements],
+            },
+        )
+
+    summary = import_qualification_rows(db, prepared_rows)
     return {"import_summary": summary}
