@@ -27,7 +27,6 @@ PREVIEW_FIELDS = [
     "statut",
     "etat",
     "date_association_systeme",
-    "etat_qualification",
     "score",
     "date_recrutement",
     "anciennete",
@@ -420,7 +419,7 @@ def _normalize_statut(value: Any) -> str | None:
     return None
 
 
-def _normalize_etat_qualification(value: Any) -> str | None:
+def _normalize_etat(value: Any) -> str | None:
     normalized = normalize_header(str(value)) if value is not None and not pd.isna(value) else ""
     if not normalized:
         return None
@@ -435,7 +434,7 @@ def _normalize_etat_qualification(value: Any) -> str | None:
     return None
 
 
-def _derive_etat_qualification(statut: str | None) -> str | None:
+def _derive_etat(statut: str | None) -> str | None:
     if statut == "Completee":
         return "Qualifie"
     if statut == "En cours":
@@ -568,12 +567,9 @@ def parse_excel_to_rows(
         normalized_row["date_association_systeme"] = _resolve_association_date(source_row, mapping_used)
 
         etat_header = mapping_used.get("etat") or mapping_used.get("statut")
-        normalized_row["etat_qualification"] = _normalize_etat_qualification(
-            source_row.get(etat_header) if etat_header else None
-        )
-        if normalized_row["etat_qualification"] is None:
-            normalized_row["etat_qualification"] = _derive_etat_qualification(normalized_row["statut"])
-        normalized_row["etat"] = normalized_row["etat_qualification"]
+        normalized_row["etat"] = _normalize_etat(source_row.get(etat_header) if etat_header else None)
+        if normalized_row["etat"] is None:
+            normalized_row["etat"] = _derive_etat(normalized_row["statut"])
 
         score_header = mapping_used.get("score")
         normalized_row["score"] = _as_optional_score(source_row.get(score_header)) if score_header else None

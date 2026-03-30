@@ -85,14 +85,12 @@ def build_preview_rows_with_live_status(db: Session, rows: list[dict]) -> list[d
             normalized_status,
             association_date,
             durations_by_formation_id.get(int(row["formation_id"])) if row.get("formation_id") not in (None, "") else None,
-            etat_qualification=row.get("etat_qualification"),
         )
 
         enriched_rows.append(
             {
                 **row,
                 "statut": normalized_status,
-                "etat_qualification": qualification_status,
                 "etat": qualification_status,
             }
         )
@@ -252,7 +250,6 @@ def _fetch_qualification_listing_rows(db: Session):
             qualification_table.c.formation_id,
             qualification_table.c.statut.label("qualification_statut"),
             qualification_table.c.date_association_systeme,
-            qualification_table.c.etat_qualification,
             qualification_table.c.formateur_id,
             qualification_table.c.motif,
             formations_table.c.nom_formation,
@@ -286,7 +283,6 @@ def list_qualification_rows(
             item["qualification_statut"],
             item["date_association_systeme"],
             item["duree_jours"],
-            etat_qualification=item["etat_qualification"],
         )
         result.append(
             {
@@ -335,7 +331,6 @@ def list_collaborateur_summaries(
             item["qualification_statut"],
             item["date_association_systeme"],
             item["duree_jours"],
-            etat_qualification=item["etat_qualification"],
         )
 
         if current is None:
@@ -392,7 +387,6 @@ def list_collaborateur_formations(
             qualification_table.c.formation_id,
             qualification_table.c.statut,
             qualification_table.c.date_association_systeme,
-            qualification_table.c.etat_qualification,
             qualification_table.c.formateur_id,
             qualification_table.c.motif,
             formations_table.c.code_formation,
@@ -430,7 +424,6 @@ def list_collaborateur_formations(
                 item["statut"],
                 item["date_association_systeme"],
                 item["duree_jours"],
-                etat_qualification=item["etat_qualification"],
             ),
             "statut": item["statut"],
             "score": None,

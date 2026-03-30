@@ -138,7 +138,6 @@ def list_formateur_collaborateurs(
             qualification_table.c.matricule,
             qualification_table.c.statut,
             qualification_table.c.date_association_systeme,
-            qualification_table.c.etat_qualification,
             collaborateurs_table.c.nom,
             collaborateurs_table.c.prenom,
             collaborateurs_table.c.fonction,
@@ -175,7 +174,6 @@ def list_formateur_collaborateurs(
             row["statut"],
             row["date_association_systeme"],
             row["duree_jours"],
-            etat_qualification=row["etat_qualification"],
         )
 
         result.append(

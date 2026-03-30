@@ -57,7 +57,6 @@ qualification_table = Table(
     Column("formation_id", Integer, nullable=False),
     Column("statut", String(20), nullable=False),
     Column("date_association_systeme", Date),
-    Column("etat_qualification", String(30)),
     Column("formateur_id", Integer),
     Column("motif", Text),
 )
@@ -107,7 +106,6 @@ def _build_qualification_values(row: dict[str, Any]) -> dict[str, Any]:
         "formation_id": row.get("formation_id"),
         "statut": row.get("statut"),
         "date_association_systeme": _as_date(row.get("date_association_systeme")),
-        "etat_qualification": row.get("etat_qualification"),
         "formateur_id": row.get("formateur_id"),
         "motif": row.get("motif"),
     }
@@ -140,25 +138,17 @@ def resolve_qualification_status(
     date_association_systeme: date | None,
     duree_jours: int | None,
     *,
-    etat_qualification: str | None = None,
     today: date | None = None,
 ) -> str:
-    computed = compute_etat_qualification(
+    return compute_etat_qualification(
         statut,
         date_association_systeme,
         duree_jours,
         today=today,
     )
-    if computed != "Non associee":
-        return computed
-
-    if etat_qualification in {"Qualifie", "En cours", "Depassement", "Non associee", "Non associe"}:
-        return "Non associee" if etat_qualification == "Non associe" else etat_qualification
-
-    return "Non associee"
 
 
-def _normalize_import_statut(statut: Any, etat_qualification: Any = None) -> str:
+def _normalize_import_statut(statut: Any, etat: Any = None) -> str:
     if isinstance(statut, str):
         normalized = statut.strip().lower().replace("-", "_").replace(" ", "_")
     else:
@@ -169,8 +159,8 @@ def _normalize_import_statut(statut: Any, etat_qualification: Any = None) -> str
     if normalized in {"en_cours", "encours", "in_progress", "ongoing", "depassement", "overdue"}:
         return "En cours"
 
-    if isinstance(etat_qualification, str):
-        normalized_etat = etat_qualification.strip().lower().replace("-", "_").replace(" ", "_")
+    if isinstance(etat, str):
+        normalized_etat = etat.strip().lower().replace("-", "_").replace(" ", "_")
         if normalized_etat in {"qualifie", "qualifiee"}:
             return "Completee"
         if normalized_etat in {"en_cours", "encours", "depassement", "overdue"}:
@@ -360,7 +350,7 @@ def _merge_statut(existing_value: Any, incoming_value: Any) -> Any:
     return existing_value
 
 
-def _merge_etat_qualification(existing_value: Any, incoming_value: Any) -> Any:
+def _merge_etat(existing_value: Any, incoming_value: Any) -> Any:
     priority = {
         None: 0,
         "Non associee": 1,
@@ -392,8 +382,8 @@ def _merge_qualification_row(existing: dict[str, Any], incoming: dict[str, Any])
             merged[field] = _merge_statut(existing_value, incoming_value)
             continue
 
-        if field in {"etat_qualification", "etat"}:
-            merged[field] = _merge_etat_qualification(existing_value, incoming_value)
+        if field == "etat":
+            merged[field] = _merge_etat(existing_value, incoming_value)
             continue
 
         if field == "date_association_systeme":
@@ -467,7 +457,7 @@ def import_qualification_rows(db: Session, rows: list[dict[str, Any]]) -> dict[s
             row_payload = dict(row)
             row_payload["statut"] = _normalize_import_statut(
                 row.get("statut"),
-                row.get("etat_qualification"),
+                row.get("etat"),
             )
 
             collaborator_values = _build_collaborateur_values(row_payload)
@@ -501,11 +491,6 @@ def import_qualification_rows(db: Session, rows: list[dict[str, Any]]) -> dict[s
 
             qualification_values = _build_qualification_values(row_payload)
             qualification_values["formateur_id"] = formateur_id
-            qualification_values["etat_qualification"] = compute_etat_qualification(
-                qualification_values.get("statut"),
-                qualification_values.get("date_association_systeme"),
-                formation.get("duree_jours") if formation else None,
-            )
             existing_qualification = db.execute(
                 select(qualification_table)
                 .where(qualification_table.c.matricule == matricule)
@@ -543,40 +528,8 @@ def import_qualification_rows(db: Session, rows: list[dict[str, Any]]) -> dict[s
 
 
 def recalculate_qualification_rows(db: Session) -> dict[str, int]:
-    rows = db.execute(
-        select(
-            qualification_table.c.id,
-            qualification_table.c.statut,
-            qualification_table.c.date_association_systeme,
-            qualification_table.c.etat_qualification,
-            formations_table.c.duree_jours,
-        )
-        .select_from(
-            qualification_table.outerjoin(
-                formations_table,
-                formations_table.c.id == qualification_table.c.formation_id,
-            )
-        )
-    ).mappings().all()
-
-    updated_rows = 0
-    for row in rows:
-        next_status = resolve_qualification_status(
-            row["statut"],
-            row["date_association_systeme"],
-            row["duree_jours"],
-            etat_qualification=row["etat_qualification"],
-        )
-        if row["etat_qualification"] != next_status:
-            db.execute(
-                update(qualification_table)
-                .where(qualification_table.c.id == row["id"])
-                .values(etat_qualification=next_status)
-            )
-            updated_rows += 1
-
-    db.commit()
+    total_rows = db.execute(select(func.count()).select_from(qualification_table)).scalar_one()
     return {
-        "total_rows": len(rows),
-        "updated_rows": updated_rows,
+        "total_rows": total_rows,
+        "updated_rows": 0,
     }

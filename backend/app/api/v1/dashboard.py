@@ -52,7 +52,6 @@ class QualificationRecord:
     formation_id: int | None
     formateur_id: int | None
     statut: str | None
-    etat_qualification: str | None
     association_date: date | None
     duration_days: int | None
 
@@ -136,7 +135,6 @@ def _status_as_of(record: QualificationRecord, as_of: date) -> str | None:
         record.statut,
         record.association_date,
         record.duration_days,
-        etat_qualification=record.etat_qualification,
         today=as_of,
     )
 
@@ -252,7 +250,6 @@ def _load_dashboard_context(db: Session) -> DashboardContext:
             formation_id=row["formation_id"],
             formateur_id=row["formateur_id"],
             statut=row["statut"],
-            etat_qualification=row["etat_qualification"],
             association_date=row["date_association_systeme"],
             duration_days=row["duree_jours"],
         )
@@ -263,7 +260,6 @@ def _load_dashboard_context(db: Session) -> DashboardContext:
                 qualification_table.c.formation_id,
                 qualification_table.c.formateur_id,
                 qualification_table.c.statut,
-                qualification_table.c.etat_qualification,
                 qualification_table.c.date_association_systeme,
                 formations_table.c.duree_jours,
             ).select_from(
