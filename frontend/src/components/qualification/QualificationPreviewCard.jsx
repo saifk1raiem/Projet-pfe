@@ -1,3 +1,5 @@
+import { useEffect, useMemo, useState } from "react";
+
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
@@ -9,6 +11,8 @@ import {
   TableHeader,
   TableRow,
 } from "../ui/table";
+
+const PREVIEW_PAGE_SIZE = 60;
 
 export function QualificationPreviewCard({
   tr,
@@ -22,16 +26,30 @@ export function QualificationPreviewCard({
   previewImportType,
   previewConflictsCount,
   previewMissingRequirementsCount,
+  previewUnmatchedRowsCount,
   canImport,
   isImporting,
   onImport,
   onReviewMissingRequirements,
   onReviewConflicts,
+  onReviewUnmatchedRows,
   importSummary,
   importError,
 }) {
   const isCollaboratorImport = previewImportType === "collaborateurs";
   const hasPreviewRows = previewRows.length > 0;
+  const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    setPage(1);
+  }, [previewRows, previewImportType]);
+
+  const totalPages = Math.max(1, Math.ceil(previewRows.length / PREVIEW_PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const visiblePreviewRows = useMemo(
+    () => previewRows.slice((safePage - 1) * PREVIEW_PAGE_SIZE, safePage * PREVIEW_PAGE_SIZE),
+    [previewRows, safePage],
+  );
 
   return (
     <Card className="rounded-[20px] border border-[#dfe5e2] bg-white p-4 shadow-sm">
@@ -150,6 +168,30 @@ export function QualificationPreviewCard({
         </div>
       ) : null}
 
+      {previewUnmatchedRowsCount > 0 ? (
+        <div className="mt-2 flex flex-col gap-3 rounded-xl border border-[#f1c59e] bg-[#fff7ed] p-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-sm font-medium text-[#8a4b00]">
+              {previewUnmatchedRowsCount} {tr("lignes n'ont pas ete fusionnees", "rows were not matched automatically")}
+            </p>
+            <p className="text-xs text-[#8a4b00]">
+              {tr(
+                "Completez les colonnes de qualification manquantes pour les ajouter manuellement, ou ignorez-les avant l'import.",
+                "Fill the missing qualification columns to add them manually, or skip them before import.",
+              )}
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            className="h-10 rounded-xl border-[#f1c59e] bg-white text-[#8a4b00] hover:bg-[#fff1de]"
+            onClick={onReviewUnmatchedRows}
+          >
+            {tr("Verifier les lignes non fusionnees", "Review unmatched rows")}
+          </Button>
+        </div>
+      ) : null}
+
       {hasPreviewRows ? (
         <div className="mb-3 flex flex-col gap-3 rounded-xl border border-[#dfe5e2] bg-[#f8fbff] p-3 md:flex-row md:items-center md:justify-between">
           <div>
@@ -196,6 +238,34 @@ export function QualificationPreviewCard({
 
       {hasPreviewRows ? (
         <div className="mt-3 overflow-x-auto">
+          {previewRows.length > PREVIEW_PAGE_SIZE ? (
+            <div className="mb-3 flex flex-col gap-3 rounded-xl border border-[#eef2f5] bg-[#fafcff] p-3 md:flex-row md:items-center md:justify-between">
+              <p className="text-xs text-[#5f6777]">
+                {tr("Affichage", "Showing")} {Math.min((safePage - 1) * PREVIEW_PAGE_SIZE + 1, previewRows.length)}-
+                {Math.min(safePage * PREVIEW_PAGE_SIZE, previewRows.length)} {tr("sur", "of")} {previewRows.length}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-8 rounded-xl px-3"
+                  disabled={safePage <= 1}
+                  onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                >
+                  {tr("Precedent", "Previous")}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-8 rounded-xl px-3"
+                  disabled={safePage >= totalPages}
+                  onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
+                >
+                  {tr("Suivant", "Next")}
+                </Button>
+              </div>
+            </div>
+          ) : null}
           <Table>
             <TableHeader>
               <TableRow>
@@ -220,8 +290,8 @@ export function QualificationPreviewCard({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {previewRows.map((row, idx) => (
-                <TableRow key={`${row.matricule || "row"}-${idx}`}>
+              {visiblePreviewRows.map((row, idx) => (
+                <TableRow key={row.__previewRowId || `${row.matricule || "row"}-${idx}`}>
                   <TableCell>{row.matricule || "-"}</TableCell>
                   <TableCell>{row.nom || "-"}</TableCell>
                   <TableCell>{row.prenom || "-"}</TableCell>

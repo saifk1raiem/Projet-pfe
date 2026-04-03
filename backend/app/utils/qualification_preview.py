@@ -528,8 +528,9 @@ def parse_excel_to_rows(
     mapping_used = _refine_name_mapping(dataframe, mapping_used, active_synonyms)
 
     rows: list[dict[str, Any]] = []
-    for source_row in dataframe.to_dict(orient="records"):
+    for source_row_number, source_row in enumerate(dataframe.to_dict(orient="records"), start=2):
         normalized_row: dict[str, Any] = {field: None for field in PREVIEW_FIELDS}
+        normalized_row["__source_row_number"] = source_row_number
 
         for field in [
             "matricule",

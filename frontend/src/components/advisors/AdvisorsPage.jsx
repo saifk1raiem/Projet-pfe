@@ -6,6 +6,7 @@ import { Card } from "../ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { useAppPreferences } from "../../context/AppPreferencesContext";
 import { apiUrl } from "../../lib/api";
+import { loadQualificationUploadReview } from "../../lib/qualificationUploadReview";
 
 const severityConfig = {
   error: {
@@ -105,6 +106,93 @@ function buildAdvisorFindings(collaborateurs, formations) {
   return findings;
 }
 
+function buildUploadReviewFindings(review, tr) {
+  if (!review || typeof review !== "object") {
+    return [];
+  }
+
+  const findings = [];
+  const unmatchedRows = Array.isArray(review.unmatchedRows) ? review.unmatchedRows : [];
+  const conflicts = Array.isArray(review.conflicts) ? review.conflicts : [];
+  const missingRequirements = Array.isArray(review.missingRequirements) ? review.missingRequirements : [];
+  const fileErrors = Array.isArray(review.fileErrors) ? review.fileErrors : [];
+
+  fileErrors.slice(0, 10).forEach((item, index) => {
+    findings.push({
+      id: `upload-file-error-${index}`,
+      severity: "error",
+      source: "upload",
+      title: tr("Erreur de fichier importe", "Uploaded file issue"),
+      description: `${item.file || tr("Fichier", "File")}: ${item.error || tr("Erreur inconnue", "Unknown error")}`,
+    });
+  });
+
+  if (missingRequirements.length > 0) {
+    findings.push({
+      id: "upload-missing-requirements",
+      severity: "error",
+      source: "upload",
+      title: tr("Donnees manquantes apres upload", "Missing data after upload"),
+      description: tr(
+        `${missingRequirements.length} lignes du dernier apercu ont encore des colonnes obligatoires a completer avant import.`,
+        `${missingRequirements.length} rows from the latest preview still need required columns before import.`,
+      ),
+    });
+  }
+
+  if (conflicts.length > 0) {
+    findings.push({
+      id: "upload-conflicts",
+      severity: "warning",
+      source: "upload",
+      title: tr("Conflits detectes dans le dernier upload", "Conflicts detected in the latest upload"),
+      description: tr(
+        `${conflicts.length} lignes du dernier apercu ne correspondent pas exactement aux donnees deja en base.`,
+        `${conflicts.length} rows from the latest preview do not fully match data already stored in the database.`,
+      ),
+    });
+  }
+
+  unmatchedRows.slice(0, 10).forEach((issue, index) => {
+    const row = issue?.row || {};
+    const identity = [
+      row.matricule,
+      row.nom,
+      row.prenom,
+      row.competence || row.formation_label,
+      row.date_association_systeme,
+    ]
+      .filter(Boolean)
+      .join(" | ");
+    const sourceBits = [issue?.source_file, issue?.source_row_number ? `${tr("Ligne", "Row")} ${issue.source_row_number}` : null]
+      .filter(Boolean)
+      .join(" | ");
+
+    findings.push({
+      id: `upload-unmatched-${index}`,
+      severity: "warning",
+      source: "upload",
+      title: tr("Ligne non fusionnee", "Unmatched upload row"),
+      description: [sourceBits, identity, issue?.reason].filter(Boolean).join(" - "),
+    });
+  });
+
+  if (unmatchedRows.length > 10) {
+    findings.push({
+      id: "upload-unmatched-summary",
+      severity: "info",
+      source: "upload",
+      title: tr("Autres lignes non fusionnees", "Additional unmatched rows"),
+      description: tr(
+        `${unmatchedRows.length - 10} autres lignes du dernier apercu demandent encore une verification manuelle.`,
+        `${unmatchedRows.length - 10} more rows from the latest preview still need manual review.`,
+      ),
+    });
+  }
+
+  return findings;
+}
+
 function FindingCard({ finding }) {
   const config = severityConfig[finding.severity];
 
@@ -186,11 +274,15 @@ export function AdvisorsPage({ accessToken }) {
         }
 
         if (!cancelled) {
+          const uploadReview = loadQualificationUploadReview();
           setFindings(
-            buildAdvisorFindings(
-              Array.isArray(qualificationData) ? qualificationData : [],
-              Array.isArray(formationsData) ? formationsData : [],
-            ),
+            [
+              ...buildUploadReviewFindings(uploadReview, tr),
+              ...buildAdvisorFindings(
+                Array.isArray(qualificationData) ? qualificationData : [],
+                Array.isArray(formationsData) ? formationsData : [],
+              ),
+            ],
           );
         }
       } catch {
@@ -273,6 +365,7 @@ export function AdvisorsPage({ accessToken }) {
                   { value: "collaborateur", label: "Collaborateurs" },
                   { value: "formation", label: "Formations" },
                   { value: "qualification", label: "Qualification" },
+                  { value: "upload", label: "Uploads" },
                 ].map((option) => (
                   <button
                     key={option.value}

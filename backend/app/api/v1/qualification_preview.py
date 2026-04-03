@@ -38,6 +38,16 @@ SUPPLEMENTAL_QUALIFICATION_FIELDS = (
     "date_recrutement",
     "anciennete",
 )
+SUPPLEMENTAL_CONFLICT_FIELDS = (
+    "num_tel",
+    "centre_cout",
+    "groupe",
+    "contre_maitre",
+    "segment",
+    "fonction",
+    "date_recrutement",
+    "anciennete",
+)
 
 
 def resolve_phase(date_association_systeme) -> str:
@@ -73,6 +83,16 @@ def build_preview_rows_with_live_status(db: Session, rows: list[dict]) -> list[d
 
     enriched_rows = []
     for row in rows:
+        if row.get("formation_id") in (None, ""):
+            enriched_rows.append(
+                {
+                    **row,
+                    "statut": "Non associee",
+                    "etat": "Non associee",
+                }
+            )
+            continue
+
         normalized_status = row.get("statut")
         if normalized_status not in {"Completee", "En cours"}:
             normalized_status = "En cours"
@@ -118,7 +138,7 @@ def _qualification_identity_aliases(row: dict) -> list[tuple[str, ...]]:
 
     matricule = _normalize_preview_identity(row.get("matricule"))
     if matricule:
-        aliases.append(("matricule", matricule))
+        return [("matricule", matricule)]
 
     nom = _normalize_preview_identity(row.get("nom"))
     prenom = _normalize_preview_identity(row.get("prenom"))
@@ -137,102 +157,149 @@ def _preview_date(value) -> date | None:
         return None
 
 
-def _merge_supplemental_row(existing: dict, incoming: dict) -> dict:
-    merged = dict(existing)
-    existing_date = _preview_date(existing.get("date_association_systeme"))
-    incoming_date = _preview_date(incoming.get("date_association_systeme"))
-
-    for field in SUPPLEMENTAL_QUALIFICATION_FIELDS:
-        if _is_blank_preview_value(merged.get(field)) and not _is_blank_preview_value(incoming.get(field)):
-            merged[field] = incoming.get(field)
-
-    incoming_motif = incoming.get("motif")
-    if not _is_blank_preview_value(incoming_motif):
-        existing_motif = merged.get("motif")
-        if _is_blank_preview_value(existing_motif):
-            merged["motif"] = incoming_motif
-        elif incoming_date and (existing_date is None or incoming_date >= existing_date):
-            merged["motif"] = incoming_motif
-
-    if incoming_date and (existing_date is None or incoming_date >= existing_date):
-        merged["date_association_systeme"] = incoming.get("date_association_systeme")
-
-    return merged
+def _preview_value_token(value) -> str | None:
+    if _is_blank_preview_value(value):
+        return None
+    if isinstance(value, str):
+        return " ".join(value.split()).strip().casefold() or None
+    return str(value)
 
 
-def _merge_supplemental_rows(rows: list[dict]) -> list[dict]:
-    merged_rows: list[dict | None] = []
-    alias_to_index: dict[tuple[str, ...], int] = {}
+def _qualification_exact_aliases(row: dict) -> list[tuple[str, ...]]:
+    association_date = _preview_date(row.get("date_association_systeme"))
+    if association_date is None:
+        return []
+    return [(*alias, association_date.isoformat()) for alias in _qualification_identity_aliases(row)]
 
+
+def _build_unmatched_supplemental_row(row: dict, reason: str) -> dict:
+    return {
+        "row_index": row.get("__source_row_number") or 0,
+        "source_file": row.get("__source_file"),
+        "source_row_number": row.get("__source_row_number"),
+        "reason": reason,
+        "row": {
+            key: value
+            for key, value in row.items()
+            if not str(key).startswith("__")
+        },
+    }
+
+
+def _distinct_preview_values(rows: list[dict], field: str) -> list:
+    distinct_values = []
+    seen_tokens: set[str] = set()
     for row in rows:
-        aliases = _qualification_identity_aliases(row)
-        if not aliases:
+        token = _preview_value_token(row.get(field))
+        if token is None or token in seen_tokens:
+            continue
+        seen_tokens.add(token)
+        distinct_values.append(row.get(field))
+    return distinct_values
+
+
+def _merge_supplemental_group(rows: list[dict]) -> tuple[dict | None, list[str]]:
+    if not rows:
+        return None, []
+
+    merged = dict(rows[0])
+    conflict_fields: list[str] = []
+    for field in SUPPLEMENTAL_QUALIFICATION_FIELDS:
+        distinct_values = _distinct_preview_values(rows, field)
+        if not distinct_values:
+            merged[field] = None
             continue
 
-        matched_indexes = sorted({alias_to_index[alias] for alias in aliases if alias in alias_to_index})
-        if not matched_indexes:
-            target_index = len(merged_rows)
-            merged_rows.append(dict(row))
-        else:
-            target_index = matched_indexes[0]
-            combined_row = merged_rows[target_index] or {}
-
-            for other_index in matched_indexes[1:]:
-                other_row = merged_rows[other_index]
-                if other_row is None:
-                    continue
-                combined_row = _merge_supplemental_row(combined_row, other_row)
-                for alias in _qualification_identity_aliases(other_row):
-                    alias_to_index[alias] = target_index
-                merged_rows[other_index] = None
-
-            merged_rows[target_index] = _merge_supplemental_row(combined_row, row)
-
-        current_row = merged_rows[target_index]
-        if current_row is None:
+        if field == "motif":
+            merged[field] = "; ".join(str(value).strip() for value in distinct_values)
             continue
 
-        for alias in _qualification_identity_aliases(current_row):
-            alias_to_index[alias] = target_index
+        if field in SUPPLEMENTAL_CONFLICT_FIELDS and len(distinct_values) > 1:
+            merged[field] = None
+            conflict_fields.append(field)
+            continue
 
-    return [row for row in merged_rows if row is not None]
+        merged[field] = distinct_values[0]
+
+    return merged, conflict_fields
+
+
+def _apply_supplemental_to_qualification(row: dict, supplement: dict) -> dict:
+    enriched_row = dict(row)
+    for field in SUPPLEMENTAL_QUALIFICATION_FIELDS:
+        if _is_blank_preview_value(enriched_row.get(field)) and not _is_blank_preview_value(supplement.get(field)):
+            enriched_row[field] = supplement.get(field)
+    return enriched_row
 
 
 def _enrich_qualification_rows(
     qualification_rows: list[dict],
     supplemental_rows: list[dict],
-) -> list[dict]:
+) -> tuple[list[dict], list[dict]]:
     if not qualification_rows or not supplemental_rows:
-        return qualification_rows
+        return qualification_rows, []
 
-    merged_supplemental_rows = _merge_supplemental_rows(supplemental_rows)
-    supplemental_by_alias: dict[tuple[str, ...], dict] = {}
+    qualification_indexes_by_alias: dict[tuple[str, ...], list[int]] = {}
+    for index, row in enumerate(qualification_rows):
+        for alias in _qualification_exact_aliases(row):
+            qualification_indexes_by_alias.setdefault(alias, []).append(index)
 
-    for row in merged_supplemental_rows:
-        for alias in _qualification_identity_aliases(row):
-            supplemental_by_alias[alias] = row
+    matched_supplemental_rows: dict[int, list[dict]] = {}
+    unmatched_rows: list[dict] = []
+
+    for row in supplemental_rows:
+        aliases = _qualification_exact_aliases(row)
+        if not aliases:
+            reason = (
+                "No exact employee/date key was detected for this line. Add the missing qualification data manually or skip it."
+            )
+            unmatched_rows.append(_build_unmatched_supplemental_row(row, reason))
+            continue
+
+        matched_indexes = sorted(
+            {
+                matched_index
+                for alias in aliases
+                for matched_index in qualification_indexes_by_alias.get(alias, [])
+            }
+        )
+        if not matched_indexes:
+            reason = (
+                "No qualification row matched this employee and association date. Complete the missing qualification fields manually or skip it."
+            )
+            unmatched_rows.append(_build_unmatched_supplemental_row(row, reason))
+            continue
+
+        for matched_index in matched_indexes:
+            matched_supplemental_rows.setdefault(matched_index, []).append(row)
 
     enriched_rows: list[dict] = []
-    for row in qualification_rows:
-        supplement = next(
-            (supplemental_by_alias[alias] for alias in _qualification_identity_aliases(row) if alias in supplemental_by_alias),
-            None,
-        )
-        if not supplement:
+    for index, row in enumerate(qualification_rows):
+        grouped_rows = matched_supplemental_rows.get(index, [])
+        if not grouped_rows:
             enriched_rows.append(row)
             continue
 
-        enriched_row = dict(row)
-        for field in SUPPLEMENTAL_QUALIFICATION_FIELDS:
-            if _is_blank_preview_value(enriched_row.get(field)) and not _is_blank_preview_value(supplement.get(field)):
-                enriched_row[field] = supplement.get(field)
+        merged_supplement, conflict_fields = _merge_supplemental_group(grouped_rows)
+        enriched_row = _apply_supplemental_to_qualification(row, merged_supplement) if merged_supplement else row
+
+        if conflict_fields:
+            reason = (
+                "Multiple uploaded lines matched this qualification row with conflicting values for: "
+                + ", ".join(conflict_fields)
+                + ". Review them manually or skip them."
+            )
+            unmatched_rows.extend(_build_unmatched_supplemental_row(item, reason) for item in grouped_rows)
+            enriched_rows.append(enriched_row)
+            continue
+
         enriched_rows.append(enriched_row)
 
-    return enriched_rows
+    return enriched_rows, unmatched_rows
 
 
 def _fetch_qualification_listing_rows(db: Session):
-    stmt = (
+    qualification_stmt = (
         select(
             qualification_table.c.id.label("qualification_row_id"),
             collaborateurs_table.c.matricule,
@@ -262,13 +329,76 @@ def _fetch_qualification_listing_rows(db: Session):
             .outerjoin(formations_table, formations_table.c.id == qualification_table.c.formation_id)
             .outerjoin(formateurs_table, formateurs_table.c.id == qualification_table.c.formateur_id)
         )
-        .order_by(
-            qualification_table.c.date_association_systeme.desc().nullslast(),
-            qualification_table.c.id.desc().nullslast(),
-            collaborateurs_table.c.matricule.asc(),
-        )
     )
-    return db.execute(stmt).mappings().all()
+    qualification_rows = db.execute(qualification_stmt).mappings().all()
+
+    collaborator_only_stmt = (
+        select(
+            collaborateurs_table.c.matricule,
+            collaborateurs_table.c.nom,
+            collaborateurs_table.c.prenom,
+            collaborateurs_table.c.fonction,
+            collaborateurs_table.c.centre_cout,
+            collaborateurs_table.c.groupe,
+            collaborateurs_table.c.contre_maitre,
+            collaborateurs_table.c.segment,
+            collaborateurs_table.c.gender,
+            collaborateurs_table.c.num_tel,
+            collaborateurs_table.c.date_recrutement,
+            collaborateurs_table.c.anciennete,
+        )
+        .select_from(
+            collaborateurs_table.outerjoin(
+                qualification_table,
+                qualification_table.c.matricule == collaborateurs_table.c.matricule,
+            )
+        )
+        .where(qualification_table.c.id.is_(None))
+    )
+    collaborator_only_rows = db.execute(collaborator_only_stmt).mappings().all()
+
+    combined_rows = [dict(row) for row in qualification_rows]
+    combined_rows.extend(
+        [
+            {
+                "qualification_row_id": None,
+                "matricule": row["matricule"],
+                "nom": row["nom"],
+                "prenom": row["prenom"],
+                "fonction": row["fonction"],
+                "centre_cout": row["centre_cout"],
+                "groupe": row["groupe"],
+                "contre_maitre": row["contre_maitre"],
+                "segment": row["segment"],
+                "gender": row["gender"],
+                "num_tel": row["num_tel"],
+                "date_recrutement": row["date_recrutement"],
+                "anciennete": row["anciennete"],
+                "formation_id": None,
+                "qualification_statut": None,
+                "date_association_systeme": None,
+                "formateur_id": None,
+                "motif": None,
+                "nom_formation": None,
+                "duree_jours": None,
+                "nom_formateur": None,
+            }
+            for row in collaborator_only_rows
+        ]
+    )
+
+    def _sort_key(item: dict) -> tuple[bool, int, int, str]:
+        association_date = item.get("date_association_systeme")
+        qualification_row_id = item.get("qualification_row_id")
+        return (
+            association_date is None,
+            -(association_date.toordinal()) if association_date is not None else 0,
+            -(qualification_row_id or 0),
+            item.get("matricule") or "",
+        )
+
+    combined_rows.sort(key=_sort_key)
+    return combined_rows
 
 
 @router.get("")
@@ -286,7 +416,7 @@ def list_qualification_rows(
         )
         result.append(
             {
-                "id": item["qualification_row_id"],
+                "id": item["qualification_row_id"] if item["qualification_row_id"] is not None else item["matricule"],
                 "qualification_row_id": item["qualification_row_id"],
                 "phase": resolve_phase(item["date_association_systeme"]),
                 "matricule": item["matricule"],
@@ -308,7 +438,7 @@ def list_qualification_rows(
                 "statut": qualification_status,
                 "etat": qualification_status,
                 "formation_id": item["formation_id"],
-                "formations": 1,
+                "formations": 1 if item["formation_id"] is not None else 0,
                 "derniereFormation": serialize_date(item["date_association_systeme"]),
             }
         )
@@ -361,7 +491,7 @@ def list_collaborateur_summaries(
             }
             collaborators_by_matricule[matricule] = current
 
-        if item["qualification_row_id"] is not None:
+        if item["formation_id"] is not None:
             current["formations"] += 1
 
     return list(collaborators_by_matricule.values())
@@ -415,9 +545,11 @@ def list_collaborateur_formations(
         {
             "id": item["id"],
             "formation_id": item["formation_id"],
-            "code": item["code_formation"] or str(item["formation_id"]),
-            "titre": item["nom_formation"] or f"Formation {item['formation_id']}",
-            "type": item["domaine"] or "Formation",
+            "code": item["code_formation"] or (str(item["formation_id"]) if item["formation_id"] is not None else None),
+            "titre": item["nom_formation"] or (
+                f"Formation {item['formation_id']}" if item["formation_id"] is not None else "Non associee"
+            ),
+            "type": item["domaine"] or ("Formation" if item["formation_id"] is not None else "Qualification"),
             "date": item["date_association_systeme"].isoformat() if item["date_association_systeme"] else None,
             "duree": item["duree_jours"],
             "resultat": resolve_qualification_status(
@@ -481,6 +613,14 @@ async def preview_qualification_file(
             file_errors.append({"file": upload.filename or "", "error": f"Invalid upload file: {exc}"})
             continue
 
+        rows = [
+            {
+                **row,
+                "__source_file": upload.filename or "",
+            }
+            for row in rows
+        ]
+
         has_matricule = "matricule" in mapping_used
         has_name_info = "nom" in mapping_used or "prenom" in mapping_used or "nomprenom" in mapping_used
         if not (has_matricule or has_name_info):
@@ -518,7 +658,7 @@ async def preview_qualification_file(
             )
             continue
 
-        merged_rows.extend([row for row in rows if row.get("formation_id") not in (None, "")])
+        merged_rows.extend(rows)
 
     if supplemental_only_messages and not merged_rows:
         file_errors.extend(supplemental_only_messages)
@@ -530,7 +670,7 @@ async def preview_qualification_file(
         )
 
     merged_rows = merge_qualification_rows(merged_rows)
-    merged_rows = _enrich_qualification_rows(merged_rows, supplemental_rows)
+    merged_rows, unmatched_rows = _enrich_qualification_rows(merged_rows, supplemental_rows)
     conflicts = detect_collaborateur_conflicts(db, merged_rows)
     missing_requirements = detect_missing_qualification_requirements(db, merged_rows)
 
@@ -542,6 +682,7 @@ async def preview_qualification_file(
         "file_errors": file_errors,
         "conflicts": [conflict.model_dump() for conflict in conflicts],
         "missing_requirements": [item.model_dump() for item in missing_requirements],
+        "unmatched_rows": unmatched_rows,
     }
 
 

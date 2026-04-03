@@ -1,4 +1,4 @@
-import { Fragment } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
   AlertTriangle,
@@ -61,14 +61,55 @@ const getStatusBadge = (statut) => {
   }
 };
 
+const PAGE_SIZE = 50;
+
 export function CollaborateursTable({
   rows,
   onViewDetails,
   selectedCollaborateur,
   onCloseDetails,
 }) {
+  const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    setPage(1);
+  }, [rows]);
+
+  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const visibleRows = useMemo(
+    () => rows.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
+    [rows, safePage],
+  );
+
   return (
     <Card className="rounded-[20px] border border-[#dfe5e2] bg-white shadow-sm">
+      <div className="flex flex-col gap-3 border-b border-[#eef2f5] px-4 py-3 md:flex-row md:items-center md:justify-between">
+        <p className="text-sm text-[#5f6777]">
+          {rows.length} lignes
+          {rows.length > PAGE_SIZE ? ` | page ${safePage}/${totalPages}` : ""}
+        </p>
+        {rows.length > PAGE_SIZE ? (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              className="h-8 rounded-xl px-3"
+              disabled={safePage <= 1}
+              onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+            >
+              Precedent
+            </Button>
+            <Button
+              variant="outline"
+              className="h-8 rounded-xl px-3"
+              disabled={safePage >= totalPages}
+              onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
+            >
+              Suivant
+            </Button>
+          </div>
+        ) : null}
+      </div>
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
@@ -82,7 +123,7 @@ export function CollaborateursTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {rows.map((collab) => (
+          {visibleRows.map((collab) => (
             <Fragment key={collab.id}>
               <TableRow className="h-16">
                 <TableCell className="text-[15px] font-semibold text-[#1d2025]">{collab.matricule}</TableCell>

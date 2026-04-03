@@ -49,6 +49,14 @@ class QualificationMissingRequirement(BaseModel):
     fields: list[QualificationMissingField] = Field(default_factory=list)
 
 
+class QualificationUnmatchedRow(BaseModel):
+    row_index: int
+    source_file: str | None = None
+    source_row_number: int | None = None
+    reason: str
+    row: QualificationImportRow = Field(default_factory=QualificationImportRow)
+
+
 class QualificationPreviewResponse(BaseModel):
     columns_detected: list[str] = Field(default_factory=list)
     mapping_used: dict[str, str] = Field(default_factory=dict)
@@ -57,6 +65,7 @@ class QualificationPreviewResponse(BaseModel):
     file_errors: list[QualificationFileError] = Field(default_factory=list)
     conflicts: list[CollaboratorPreviewConflict] = Field(default_factory=list)
     missing_requirements: list[QualificationMissingRequirement] = Field(default_factory=list)
+    unmatched_rows: list[QualificationUnmatchedRow] = Field(default_factory=list)
 
 
 class QualificationImportRequest(BaseModel):

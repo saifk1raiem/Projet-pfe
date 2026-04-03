@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   AlertTriangle,
@@ -15,14 +15,33 @@ import { apiUrl } from "../../lib/api";
 import { statutOptions } from "./constants";
 import { CollaborateursTable } from "./CollaborateursTable";
 import { ComparisonStat } from "./ComparisonStat";
-import { ImportConflictDialog } from "./ImportConflictDialog";
-import { ImportMissingDataDialog } from "./ImportMissingDataDialog";
 import { QualificationFilters } from "./QualificationFilters";
 import { QualificationMovementTab } from "./QualificationMovementTab";
 import { QualificationPreviewCard } from "./QualificationPreviewCard";
 import { UploadReportModal } from "./UploadReportModal";
+import {
+  saveQualificationUploadReview,
+} from "../../lib/qualificationUploadReview";
 
 const AUTO_REFRESH_INTERVAL_MS = 30000;
+
+const ImportMissingDataDialog = lazy(() =>
+  import("./ImportMissingDataDialog").then((module) => ({
+    default: module.ImportMissingDataDialog,
+  })),
+);
+
+const ImportConflictDialog = lazy(() =>
+  import("./ImportConflictDialog").then((module) => ({
+    default: module.ImportConflictDialog,
+  })),
+);
+
+const ImportUnmatchedRowsDialog = lazy(() =>
+  import("./ImportUnmatchedRowsDialog").then((module) => ({
+    default: module.ImportUnmatchedRowsDialog,
+  })),
+);
 
 const getAuthHeaders = (accessToken, headers = {}) =>
   accessToken ? { ...headers, Authorization: `Bearer ${accessToken}` } : headers;
@@ -101,6 +120,22 @@ const mapIssuesToPreviewRows = (issues, rows) =>
     rowId: rows[issue.row_index]?.__previewRowId ?? null,
   }));
 
+const mapUnmatchedRows = (issues) =>
+  issues.map((issue, index) => {
+    const row = issue?.row && typeof issue.row === "object" ? issue.row : {};
+    const previewRow =
+      row.__previewRowId
+        ? row
+        : {
+            ...row,
+            __previewRowId: buildPreviewRowId(row, index),
+          };
+    return {
+      ...issue,
+      row: previewRow,
+    };
+  });
+
 const filterIssuesForRows = (issues, rows) => {
   const rowIds = new Set(rows.map((row) => row.__previewRowId).filter(Boolean));
   return issues.filter((issue) => issue.rowId && rowIds.has(issue.rowId));
@@ -114,6 +149,22 @@ const getErrorMessageFromDetail = (detail, fallbackMessage) => {
     return detail.message;
   }
   return fallbackMessage;
+};
+
+const persistUploadReview = ({
+  importType,
+  conflicts,
+  missingRequirements,
+  unmatchedRows,
+  fileErrors,
+}) => {
+  saveQualificationUploadReview({
+    importType,
+    conflicts: Array.isArray(conflicts) ? conflicts : [],
+    missingRequirements: Array.isArray(missingRequirements) ? missingRequirements : [],
+    unmatchedRows: Array.isArray(unmatchedRows) ? unmatchedRows : [],
+    fileErrors: Array.isArray(fileErrors) ? fileErrors : [],
+  });
 };
 
 export function QualificationPage({ onNavigateToPage, currentUser, accessToken }) {
@@ -139,6 +190,7 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
   const [previewImportType, setPreviewImportType] = useState(null);
   const [previewConflicts, setPreviewConflicts] = useState([]);
   const [previewMissingRequirements, setPreviewMissingRequirements] = useState([]);
+  const [previewUnmatchedRows, setPreviewUnmatchedRows] = useState([]);
   const [previewFileErrors, setPreviewFileErrors] = useState([]);
   const [previewError, setPreviewError] = useState("");
   const [previewErrorDetails, setPreviewErrorDetails] = useState(null);
@@ -147,13 +199,16 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
   const [pageError, setPageError] = useState("");
   const [isMissingDataDialogOpen, setIsMissingDataDialogOpen] = useState(false);
   const [isConflictDialogOpen, setIsConflictDialogOpen] = useState(false);
+  const [isUnmatchedRowsDialogOpen, setIsUnmatchedRowsDialogOpen] = useState(false);
   const inputRef = useRef(null);
+  const deferredSearchTerm = useDeferredValue(searchTerm);
   const isLiveRefreshPaused =
     isUploadOpen ||
     isPreviewLoading ||
     isImportingPreview ||
     isMissingDataDialogOpen ||
     isConflictDialogOpen ||
+    isUnmatchedRowsDialogOpen ||
     pendingImportRows.length > 0;
 
   const applyQualificationsData = (rows) => {
@@ -183,19 +238,36 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
   };
 
   const totalQualifications = collaborateursData.length;
-  const enCoursCount = collaborateursData.filter((collab) => collab.statut === "En cours").length;
-  const qualifieCount = collaborateursData.filter((collab) => collab.statut === "Qualifie").length;
-  const nonAssocieeCount = collaborateursData.filter(
-    (collab) => collab.statut === "Non associee" || collab.statut === "Non associe",
-  ).length;
-  const depassementCount = collaborateursData.filter((collab) => collab.statut === "Depassement").length;
-  const availableGroups = Array.from(
-    new Set(
-      collaborateursData
-        .map((collab) => collab.groupe)
-        .filter((value) => typeof value === "string" && value.trim().length > 0),
-    ),
-  ).sort((a, b) => a.localeCompare(b));
+  const enCoursCount = useMemo(
+    () => collaborateursData.filter((collab) => collab.statut === "En cours").length,
+    [collaborateursData],
+  );
+  const qualifieCount = useMemo(
+    () => collaborateursData.filter((collab) => collab.statut === "Qualifie").length,
+    [collaborateursData],
+  );
+  const nonAssocieeCount = useMemo(
+    () =>
+      collaborateursData.filter(
+        (collab) => collab.statut === "Non associee" || collab.statut === "Non associe",
+      ).length,
+    [collaborateursData],
+  );
+  const depassementCount = useMemo(
+    () => collaborateursData.filter((collab) => collab.statut === "Depassement").length,
+    [collaborateursData],
+  );
+  const availableGroups = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          collaborateursData
+            .map((collab) => collab.groupe)
+            .filter((value) => typeof value === "string" && value.trim().length > 0),
+        ),
+      ).sort((a, b) => a.localeCompare(b)),
+    [collaborateursData],
+  );
 
   useEffect(() => {
     if (!accessToken) {
@@ -293,6 +365,7 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
       Array.isArray(data?.missing_requirements) ? data.missing_requirements : [],
       rows,
     );
+    const unmatchedRows = mapUnmatchedRows(Array.isArray(data?.unmatched_rows) ? data.unmatched_rows : []);
     setPreviewRows(rows);
     setPendingImportRows(rows);
     setPreviewRowsCount(rows.length);
@@ -302,10 +375,21 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
     );
     setPreviewConflicts(conflicts);
     setPreviewMissingRequirements(missingRequirements);
+    setPreviewUnmatchedRows(unmatchedRows);
     setPreviewFileErrors(Array.isArray(data?.file_errors) ? data.file_errors : []);
     setPreviewImportType(importType);
     setIsMissingDataDialogOpen(missingRequirements.length > 0);
     setIsConflictDialogOpen(missingRequirements.length === 0 && conflicts.length > 0);
+    setIsUnmatchedRowsDialogOpen(
+      missingRequirements.length === 0 && conflicts.length === 0 && unmatchedRows.length > 0,
+    );
+    persistUploadReview({
+      importType,
+      conflicts,
+      missingRequirements,
+      unmatchedRows,
+      fileErrors: Array.isArray(data?.file_errors) ? data.file_errors : [],
+    });
     closeModal();
     setSelectedFiles([]);
   };
@@ -374,10 +458,12 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
     setPreviewImportType(null);
     setPreviewConflicts([]);
     setPreviewMissingRequirements([]);
+    setPreviewUnmatchedRows([]);
     setImportSummary(null);
     setImportError("");
     setIsMissingDataDialogOpen(false);
     setIsConflictDialogOpen(false);
+    setIsUnmatchedRowsDialogOpen(false);
 
     try {
       const { response, data } = await previewQualificationFiles(accessToken, selectedFiles);
@@ -443,6 +529,10 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
       setIsConflictDialogOpen(true);
       return;
     }
+    if (previewUnmatchedRows.length > 0) {
+      setIsUnmatchedRowsDialogOpen(true);
+      return;
+    }
 
     setIsImportingPreview(true);
     setImportError("");
@@ -469,6 +559,7 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
 
       setImportSummary(previewImportType === "collaborateurs" ? data : data?.import_summary ?? null);
       setPendingImportRows([]);
+      setPreviewUnmatchedRows([]);
 
       await loadQualifications();
     } catch (error) {
@@ -487,34 +578,63 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
   const handleApplyConflictResolution = (nextRows) => {
     syncPreviewRows(nextRows, { clearConflicts: true });
     setIsConflictDialogOpen(false);
+    persistUploadReview({
+      importType: previewImportType,
+      conflicts: [],
+      missingRequirements: previewMissingRequirements,
+      unmatchedRows: previewUnmatchedRows,
+      fileErrors: previewFileErrors,
+    });
   };
 
   const handleApplyMissingDataResolution = (nextRows) => {
     syncPreviewRows(nextRows, { clearMissingRequirements: true });
     setIsMissingDataDialogOpen(false);
+    persistUploadReview({
+      importType: previewImportType,
+      conflicts: previewConflicts,
+      missingRequirements: [],
+      unmatchedRows: previewUnmatchedRows,
+      fileErrors: previewFileErrors,
+    });
   };
 
-  const filteredCollaborateurs = collaborateursData.filter((collab) => {
-    const query = searchTerm.trim().toLowerCase();
-    const searchableFields = [
-      collab.nom,
-      collab.prenom,
-      collab.matricule,
-      collab.fonction,
-      collab.centre_cout,
-      collab.groupe,
-      collab.segment,
-      collab.motif,
-    ]
-      .filter((value) => typeof value === "string")
-      .map((value) => value.toLowerCase());
+  const handleApplyUnmatchedResolution = (nextRows, skippedIssues) => {
+    syncPreviewRows(nextRows);
+    setPreviewUnmatchedRows([]);
+    setIsUnmatchedRowsDialogOpen(false);
+    persistUploadReview({
+      importType: previewImportType,
+      conflicts: previewConflicts,
+      missingRequirements: previewMissingRequirements,
+      unmatchedRows: skippedIssues,
+      fileErrors: previewFileErrors,
+    });
+  };
 
-    const matchesSearch = !query || searchableFields.some((value) => value.includes(query));
-    const matchesStatus = statusFilter === "all" || collab.statut === statusFilter;
-    const matchesGroup = groupFilter === "all" || collab.groupe === groupFilter;
+  const filteredCollaborateurs = useMemo(() => {
+    const query = deferredSearchTerm.trim().toLowerCase();
+    return collaborateursData.filter((collab) => {
+      const searchableFields = [
+        collab.nom,
+        collab.prenom,
+        collab.matricule,
+        collab.fonction,
+        collab.centre_cout,
+        collab.groupe,
+        collab.segment,
+        collab.motif,
+      ]
+        .filter((value) => typeof value === "string")
+        .map((value) => value.toLowerCase());
 
-    return matchesSearch && matchesStatus && matchesGroup;
-  });
+      const matchesSearch = !query || searchableFields.some((value) => value.includes(query));
+      const matchesStatus = statusFilter === "all" || collab.statut === statusFilter;
+      const matchesGroup = groupFilter === "all" || collab.groupe === groupFilter;
+
+      return matchesSearch && matchesStatus && matchesGroup;
+    });
+  }, [collaborateursData, deferredSearchTerm, groupFilter, statusFilter]);
 
   return (
     <div className="space-y-5 pb-6">
@@ -665,11 +785,13 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
             previewImportType={previewImportType}
             previewConflictsCount={previewConflicts.length}
             previewMissingRequirementsCount={previewMissingRequirements.length}
+            previewUnmatchedRowsCount={previewUnmatchedRows.length}
             canImport={pendingImportRows.length > 0}
             isImporting={isImportingPreview}
             onImport={handleImportPreview}
             onReviewMissingRequirements={() => setIsMissingDataDialogOpen(true)}
             onReviewConflicts={() => setIsConflictDialogOpen(true)}
+            onReviewUnmatchedRows={() => setIsUnmatchedRowsDialogOpen(true)}
             importSummary={importSummary}
             importError={importError}
           />
@@ -680,25 +802,43 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
         </TabsContent>
       </Tabs>
 
-      <ImportMissingDataDialog
-        key={`missing-${isMissingDataDialogOpen}-${previewMissingRequirements.length}-${previewRows.length}`}
-        tr={tr}
-        isOpen={isMissingDataDialogOpen}
-        missingRequirements={previewMissingRequirements}
-        rows={previewRows}
-        onClose={() => setIsMissingDataDialogOpen(false)}
-        onApply={handleApplyMissingDataResolution}
-      />
+      <Suspense fallback={null}>
+        {isMissingDataDialogOpen ? (
+          <ImportMissingDataDialog
+            key={`missing-${isMissingDataDialogOpen}-${previewMissingRequirements.length}-${previewRows.length}`}
+            tr={tr}
+            isOpen={isMissingDataDialogOpen}
+            missingRequirements={previewMissingRequirements}
+            rows={previewRows}
+            onClose={() => setIsMissingDataDialogOpen(false)}
+            onApply={handleApplyMissingDataResolution}
+          />
+        ) : null}
 
-      <ImportConflictDialog
-        key={`conflict-${isConflictDialogOpen}-${previewConflicts.length}-${previewRows.length}`}
-        tr={tr}
-        isOpen={isConflictDialogOpen}
-        conflicts={previewConflicts}
-        rows={previewRows}
-        onClose={() => setIsConflictDialogOpen(false)}
-        onApply={handleApplyConflictResolution}
-      />
+        {isConflictDialogOpen ? (
+          <ImportConflictDialog
+            key={`conflict-${isConflictDialogOpen}-${previewConflicts.length}-${previewRows.length}`}
+            tr={tr}
+            isOpen={isConflictDialogOpen}
+            conflicts={previewConflicts}
+            rows={previewRows}
+            onClose={() => setIsConflictDialogOpen(false)}
+            onApply={handleApplyConflictResolution}
+          />
+        ) : null}
+
+        {isUnmatchedRowsDialogOpen ? (
+          <ImportUnmatchedRowsDialog
+            key={`unmatched-${isUnmatchedRowsDialogOpen}-${previewUnmatchedRows.length}-${previewRows.length}`}
+            tr={tr}
+            isOpen={isUnmatchedRowsDialogOpen}
+            unmatchedRows={previewUnmatchedRows}
+            existingRows={previewRows}
+            onClose={() => setIsUnmatchedRowsDialogOpen(false)}
+            onApply={handleApplyUnmatchedResolution}
+          />
+        ) : null}
+      </Suspense>
 
       <UploadReportModal
         tr={tr}

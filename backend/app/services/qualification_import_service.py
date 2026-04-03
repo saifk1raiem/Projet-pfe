@@ -54,8 +54,8 @@ qualification_table = Table(
     metadata,
     Column("id", Integer, primary_key=True),
     Column("matricule", String(20), nullable=False),
-    Column("formation_id", Integer, nullable=False),
-    Column("statut", String(20), nullable=False),
+    Column("formation_id", Integer, nullable=True),
+    Column("statut", String(20), nullable=True),
     Column("date_association_systeme", Date),
     Column("formateur_id", Integer),
     Column("motif", Text),
@@ -148,7 +148,7 @@ def resolve_qualification_status(
     )
 
 
-def _normalize_import_statut(statut: Any, etat: Any = None) -> str:
+def _normalize_import_statut(statut: Any, etat: Any = None) -> str | None:
     if isinstance(statut, str):
         normalized = statut.strip().lower().replace("-", "_").replace(" ", "_")
     else:
@@ -158,6 +158,8 @@ def _normalize_import_statut(statut: Any, etat: Any = None) -> str:
         return "Completee"
     if normalized in {"en_cours", "encours", "in_progress", "ongoing", "depassement", "overdue"}:
         return "En cours"
+    if normalized in {"non_associe", "non_associee", "not_associated"}:
+        return None
 
     if isinstance(etat, str):
         normalized_etat = etat.strip().lower().replace("-", "_").replace(" ", "_")
@@ -165,6 +167,8 @@ def _normalize_import_statut(statut: Any, etat: Any = None) -> str:
             return "Completee"
         if normalized_etat in {"en_cours", "encours", "depassement", "overdue"}:
             return "En cours"
+        if normalized_etat in {"non_associe", "non_associee", "not_associated"}:
+            return None
 
     return "En cours"
 
@@ -289,12 +293,6 @@ def detect_missing_qualification_requirements(
         if not matricule:
             missing_fields.append(
                 QualificationMissingField(field="matricule", label=_MISSING_FIELD_LABELS["matricule"])
-            )
-
-        formation_id = _normalize_formation_id(row.get("formation_id"))
-        if formation_id is None:
-            missing_fields.append(
-                QualificationMissingField(field="formation_id", label=_MISSING_FIELD_LABELS["formation_id"])
             )
 
         if not matricule or matricule not in existing_matricules:
@@ -449,8 +447,8 @@ def import_qualification_rows(db: Session, rows: list[dict[str, Any]]) -> dict[s
     try:
         for row in merge_qualification_rows(rows):
             matricule = row.get("matricule")
-            formation_id = row.get("formation_id")
-            if not matricule or formation_id is None:
+            formation_id = _normalize_formation_id(row.get("formation_id"))
+            if not matricule:
                 skipped += 1
                 continue
 
@@ -459,6 +457,9 @@ def import_qualification_rows(db: Session, rows: list[dict[str, Any]]) -> dict[s
                 row.get("statut"),
                 row.get("etat"),
             )
+            if formation_id is None:
+                row_payload["statut"] = None
+                row_payload["formation_id"] = None
 
             collaborator_values = _build_collaborateur_values(row_payload)
             existing_collaborateur = db.execute(
@@ -481,13 +482,14 @@ def import_qualification_rows(db: Session, rows: list[dict[str, Any]]) -> dict[s
                 db.execute(insert(collaborateurs_table).values(**collaborator_values))
                 collaborator_inserted += 1
 
-            _ensure_formation(db, int(formation_id), row_payload.get("formation_label"))
-            formation = _get_formation(db, int(formation_id))
-            formateur_id, formateur_was_created = _ensure_formateur(db, row_payload.get("formateur"))
-            if formateur_was_created:
-                formateurs_created += 1
-            if formateur_id is not None:
-                linked_with_formateur += 1
+            formateur_id = None
+            if formation_id is not None:
+                _ensure_formation(db, formation_id, row_payload.get("formation_label"))
+                formateur_id, formateur_was_created = _ensure_formateur(db, row_payload.get("formateur"))
+                if formateur_was_created:
+                    formateurs_created += 1
+                if formateur_id is not None:
+                    linked_with_formateur += 1
 
             qualification_values = _build_qualification_values(row_payload)
             qualification_values["formateur_id"] = formateur_id
@@ -500,6 +502,11 @@ def import_qualification_rows(db: Session, rows: list[dict[str, Any]]) -> dict[s
 
             if existing_qualification:
                 qualification_changes = _changed_fields(existing_qualification, qualification_values)
+                if formation_id is None:
+                    if existing_qualification.get("statut") is not None:
+                        qualification_changes["statut"] = None
+                    if existing_qualification.get("formateur_id") is not None:
+                        qualification_changes["formateur_id"] = None
                 if qualification_changes:
                     db.execute(
                         update(qualification_table)

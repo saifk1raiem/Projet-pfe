@@ -390,6 +390,11 @@ def _build_qualification_status_distribution(
         "Non associee": 0,
     }
 
+    collaborators_with_qualifications = {qualification.matricule for qualification in context.qualifications}
+    for collaborator in context.collaborators:
+        if collaborator.matricule not in collaborators_with_qualifications:
+            counts["Non associee"] += 1
+
     for qualification in context.qualifications:
         status = _status_as_of(qualification, today)
         counts[status or "Non associee"] += 1

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AlertTriangle } from "lucide-react";
 
 import { Badge } from "../ui/badge";
@@ -11,8 +11,11 @@ const FIELD_LABELS = {
   matricule: "Matricule",
   nom: "Nom",
   prenom: "Prenom",
-  formation_id: "ID formation",
+  formation_id: "ID formation (optionnel)",
 };
+const PAGE_SIZE = 4;
+
+const OPTIONAL_FIELDS = new Set(["formation_id"]);
 
 function buildDrafts(missingRequirements, rows) {
   const rowsById = new Map(rows.map((row) => [row.__previewRowId, row]));
@@ -50,10 +53,20 @@ export function ImportMissingDataDialog({
 }) {
   const [drafts, setDrafts] = useState(() => buildDrafts(missingRequirements, rows));
   const [dialogError, setDialogError] = useState("");
+  const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    setDrafts(buildDrafts(missingRequirements, rows));
+    setDialogError("");
+    setPage(1);
+  }, [missingRequirements, rows, isOpen]);
 
   if (!isOpen) return null;
 
   const getDraftKey = (draft) => draft.rowId || `row-${draft.rowIndex}`;
+  const totalPages = Math.max(1, Math.ceil(drafts.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const visibleDrafts = drafts.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   const handleValueChange = (draftKey, fieldName, nextValue) => {
     setDialogError("");
@@ -75,9 +88,18 @@ export function ImportMissingDataDialog({
     );
   };
 
+  const handleSkipAll = () => {
+    setDialogError("");
+    setDrafts((prev) => prev.map((draft) => ({ ...draft, skip: true })));
+  };
+
   const handleApply = () => {
     const invalidDraft = drafts.find((draft) =>
-      !draft.skip && draft.fields.some((field) => !String(draft.values[field.field] ?? "").trim()),
+      !draft.skip &&
+      draft.fields.some(
+        (field) =>
+          !OPTIONAL_FIELDS.has(field.field) && !String(draft.values[field.field] ?? "").trim(),
+      ),
     );
 
     if (invalidDraft) {
@@ -152,7 +174,34 @@ export function ImportMissingDataDialog({
             </div>
           ) : null}
 
-          {drafts.map((draft) => (
+          {drafts.length > PAGE_SIZE ? (
+            <div className="flex flex-col gap-3 rounded-xl border border-[#eef2f5] bg-[#fafcff] p-3 md:flex-row md:items-center md:justify-between">
+              <p className="text-xs text-[#5f6777]">
+                {tr("Affichage", "Showing")} {Math.min((safePage - 1) * PAGE_SIZE + 1, drafts.length)}-
+                {Math.min(safePage * PAGE_SIZE, drafts.length)} {tr("sur", "of")} {drafts.length}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  className="h-8 rounded-xl px-3"
+                  disabled={safePage <= 1}
+                  onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                >
+                  {tr("Precedent", "Previous")}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="h-8 rounded-xl px-3"
+                  disabled={safePage >= totalPages}
+                  onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
+                >
+                  {tr("Suivant", "Next")}
+                </Button>
+              </div>
+            </div>
+          ) : null}
+
+          {visibleDrafts.map((draft) => (
             <Card key={getDraftKey(draft)} className="rounded-2xl border border-[#dfe5e2] bg-[#fbfdff] p-5 shadow-sm">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -180,8 +229,17 @@ export function ImportMissingDataDialog({
                       <p className="text-[14px] font-medium text-[#171a1f]">
                         {FIELD_LABELS[field.field] || field.label || field.field}
                       </p>
-                      <Badge variant="outline" className="rounded-xl border-[#f1c59e] bg-[#fff7ed] text-[#8a4b00]">
-                        {tr("Obligatoire", "Required")}
+                      <Badge
+                        variant="outline"
+                        className={`rounded-xl ${
+                          OPTIONAL_FIELDS.has(field.field)
+                            ? "border-[#d5dce0] bg-[#f8fafc] text-[#475467]"
+                            : "border-[#f1c59e] bg-[#fff7ed] text-[#8a4b00]"
+                        }`}
+                      >
+                        {OPTIONAL_FIELDS.has(field.field)
+                          ? tr("Optionnel", "Optional")
+                          : tr("Obligatoire", "Required")}
                       </Badge>
                     </div>
                     <Input
@@ -199,6 +257,9 @@ export function ImportMissingDataDialog({
         <div className="flex flex-col-reverse gap-3 border-t border-[#e2e8f0] px-7 py-5 sm:flex-row sm:justify-end">
           <Button variant="outline" className="rounded-xl" onClick={onClose}>
             {tr("Annuler", "Cancel")}
+          </Button>
+          <Button variant="outline" className="rounded-xl" onClick={handleSkipAll}>
+            {tr("Ignorer tout", "Skip all")}
           </Button>
           <Button className="rounded-xl bg-[#005ca9] text-white hover:bg-[#004a87]" onClick={handleApply}>
             {tr("Appliquer les modifications", "Apply changes")}
