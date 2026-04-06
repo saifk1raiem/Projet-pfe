@@ -14,9 +14,22 @@ from app.core.security import (
 from app.db.session import get_db
 from app.models.enums import UserRole
 from app.models.user import User
-from app.schemas.auth import LoginRequest, LoginResponse, RefreshRequest, TokenPair
+from app.schemas.auth import (
+    ForgotPasswordRequest,
+    LoginRequest,
+    LoginResponse,
+    MessageResponse,
+    RefreshRequest,
+    ResetPasswordRequest,
+    TokenPair,
+)
 from app.schemas.user import LoginUserOption, UserCreate, UserRead
-from app.services.auth_service import authenticate_user, create_user
+from app.services.auth_service import (
+    authenticate_user,
+    create_user,
+    request_password_reset,
+    reset_password_with_code,
+)
 
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -27,9 +40,9 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 def register_user(
     payload: UserCreate,
     db: Session = Depends(get_db),
-    _: object = Depends(require_roles(UserRole.admin)),
+    current_user: User = Depends(require_roles(UserRole.super_admin)),
 ):
-    return create_user(db, payload)
+    return create_user(db, payload, acting_user=current_user)
 
 
 @router.post("/login", response_model=LoginResponse)
@@ -40,6 +53,18 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
         refresh_token=create_refresh_token(subject=str(user.id)),
         user=UserRead.model_validate(user),
     )
+
+
+@router.post("/forgot-password", response_model=MessageResponse)
+def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    request_password_reset(db, payload.email)
+    return MessageResponse(detail="Reset code sent to your email")
+
+
+@router.post("/reset-password", response_model=MessageResponse)
+def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db)):
+    reset_password_with_code(db, payload.email, payload.code, payload.new_password)
+    return MessageResponse(detail="Password has been reset successfully")
 
 
 @router.get("/login-users", response_model=list[LoginUserOption])

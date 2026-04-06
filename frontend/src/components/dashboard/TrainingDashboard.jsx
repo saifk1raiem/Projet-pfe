@@ -85,7 +85,7 @@ const KPI = ({ title, value, icon, trend, suffix = "", iconColor, iconBg }) => (
   </Card>
 );
 
-export function TrainingDashboard({ accessToken }) {
+export function TrainingDashboard({ accessToken, currentUser }) {
   const { tr } = useAppPreferences();
   const [metrics, setMetrics] = useState(DEFAULT_DASHBOARD_METRICS);
   const [charts, setCharts] = useState(DEFAULT_DASHBOARD_CHARTS);
@@ -151,7 +151,7 @@ export function TrainingDashboard({ accessToken }) {
               DEFAULT_DASHBOARD_CHARTS.qualification_health_monthly,
           });
         }
-      } catch (error) {
+      } catch {
         if (!isCancelled) {
           setMetrics(DEFAULT_DASHBOARD_METRICS);
           setCharts(DEFAULT_DASHBOARD_CHARTS);
@@ -171,12 +171,18 @@ export function TrainingDashboard({ accessToken }) {
     };
   }, [accessToken, tr]);
 
+  const greetingName =
+    currentUser?.username?.trim() ||
+    currentUser?.first_name?.trim() ||
+    `${currentUser?.first_name ?? ""} ${currentUser?.last_name ?? ""}`.trim() ||
+    tr("Utilisateur", "User");
+
   return (
     <div className="space-y-5 pb-6">
       <div className="flex items-start justify-between">
         <div>
           <h1 className="leoni-display-xl text-[40px] font-semibold leading-tight text-[#171a1f]">
-            {tr("Bonjour, Seef", "Hello, Seef")}
+            {tr(`Bonjour, ${greetingName}`, `Hello, ${greetingName}`)}
           </h1>
           <p className="leoni-subtitle mt-1 text-[18px] text-[#5d6574]">
             {tr(

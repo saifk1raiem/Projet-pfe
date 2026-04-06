@@ -14,22 +14,22 @@ def default_password_hash() -> str:
 def seed() -> None:
     db = SessionLocal()
     try:
-        existing_admin = db.scalar(select(User).where(User.email == settings.SEED_ADMIN_EMAIL))
+        existing_admin = db.scalar(select(User).where(User.email == settings.SUPER_ADMIN_EMAIL))
         if existing_admin:
-            print("Seed skipped: admin already exists")
+            print("Seed skipped: super admin already exists")
             return
 
         admin = User(
-            first_name="Saif",
-            last_name="Kraiem",
-            email=settings.SEED_ADMIN_EMAIL,
+            first_name="Aymen",
+            last_name="Horchani",
+            email=settings.SUPER_ADMIN_EMAIL,
             password_hash=default_password_hash(),
-            role=UserRole.admin,
+            role=UserRole.super_admin,
             is_active=True,
         )
         db.add(admin)
         db.commit()
-        print("Admin seed completed")
+        print("Super admin seed completed")
     finally:
         db.close()
 

@@ -10,13 +10,15 @@ import { AdvisorsPage } from "./advisors/AdvisorsPage";
 import { ParametresPage } from "./parametres/ParametresPage";
 import { RequalificationPage } from "./requalification/RequalificationPage";
 import { StatistiquesPage } from "./statistiques/StatistiquesPage";
+import { ProfileDialog } from "./profile/ProfileDialog";
 import { useAppPreferences } from "../context/AppPreferencesContext";
 
-export function Layout({ onSignOut, currentUser, accessToken }) {
+export function Layout({ onSignOut, currentUser, accessToken, onCurrentUserChange }) {
   const { tr, theme, toggleTheme } = useAppPreferences();
   const [currentPage, setCurrentPage] = useState("dashboard");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [formationDetailsId, setFormationDetailsId] = useState(null);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   const handlePageChange = (page, options = {}) => {
     setCurrentPage(page);
@@ -30,7 +32,7 @@ export function Layout({ onSignOut, currentUser, accessToken }) {
   const renderContent = () => {
     switch (currentPage) {
       case "dashboard":
-        return <TrainingDashboard accessToken={accessToken} />;
+        return <TrainingDashboard accessToken={accessToken} currentUser={currentUser} />;
       case "formation":
         return <FormationPage openFormationId={formationDetailsId} currentUser={currentUser} accessToken={accessToken} />;
       case "qualification":
@@ -52,7 +54,7 @@ export function Layout({ onSignOut, currentUser, accessToken }) {
       case "statistiques":
         return <StatistiquesPage />;
       case "parametres":
-        return <ParametresPage currentUser={currentUser} accessToken={accessToken} />;
+        return <ParametresPage currentUser={currentUser} accessToken={accessToken} onCurrentUserChange={onCurrentUserChange} />;
       default:
         return <TrainingDashboard accessToken={accessToken} />;
     }
@@ -67,6 +69,7 @@ export function Layout({ onSignOut, currentUser, accessToken }) {
           compact={isSidebarCollapsed}
           onToggleCompact={() => setIsSidebarCollapsed((prev) => !prev)}
           onSignOut={onSignOut}
+          onProfileClick={() => setIsProfileOpen(true)}
           currentUser={currentUser}
         />
       </div>
@@ -74,6 +77,14 @@ export function Layout({ onSignOut, currentUser, accessToken }) {
       <div className="leoni-divider" />
 
       <main className="leoni-main flex-1 overflow-y-auto">{renderContent()}</main>
+
+      <ProfileDialog
+        open={isProfileOpen}
+        onOpenChange={setIsProfileOpen}
+        currentUser={currentUser}
+        accessToken={accessToken}
+        onUserUpdated={onCurrentUserChange}
+      />
 
       <button aria-label={tr("Changer le theme", "Toggle theme")} className="leoni-theme-toggle" onClick={toggleTheme}>
         {theme === "night" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}

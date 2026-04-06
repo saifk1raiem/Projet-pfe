@@ -34,6 +34,7 @@ function App() {
         <LoginPage onLogin={handleLogin} />
       ) : (
         <Layout
+          onCurrentUserChange={setCurrentUser}
           onSignOut={() => {
             setCurrentUser(null);
             setAccessToken("");

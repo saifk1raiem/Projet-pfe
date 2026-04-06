@@ -7,8 +7,9 @@ import { Settings, Bell, Shield, UserRound, Sun, Moon, Plus, X, ChevronDown } fr
 import { useAppPreferences } from "../../context/AppPreferencesContext";
 import { apiUrl } from "../../lib/api";
 import { defaultCreateUserForm, defaultFormValues } from "./constants";
+import { ExistingAccountsSection } from "./ExistingAccountsSection";
 
-export function ParametresPage({ currentUser, accessToken }) {
+export function ParametresPage({ currentUser, accessToken, onCurrentUserChange }) {
   const { language, setLanguage, theme, setTheme, tr } = useAppPreferences();
   const [formValues, setFormValues] = useState(defaultFormValues);
   const [lastSavedAt, setLastSavedAt] = useState("");
@@ -16,6 +17,7 @@ export function ParametresPage({ currentUser, accessToken }) {
   const [createUserError, setCreateUserError] = useState("");
   const [createUserSuccess, setCreateUserSuccess] = useState("");
   const [isCreatingUser, setIsCreatingUser] = useState(false);
+  const [accountsRefreshVersion, setAccountsRefreshVersion] = useState(0);
   const [excelSynonyms, setExcelSynonyms] = useState({});
   const [isLoadingSynonyms, setIsLoadingSynonyms] = useState(false);
   const [isSavingSynonyms, setIsSavingSynonyms] = useState(false);
@@ -24,12 +26,20 @@ export function ParametresPage({ currentUser, accessToken }) {
   const [synonymDrafts, setSynonymDrafts] = useState({});
   const [synonymFilter, setSynonymFilter] = useState("");
   const [isSynonymsOpen, setIsSynonymsOpen] = useState(false);
-  const isAdmin = currentUser?.role === "admin";
-  const accountFullName = `${currentUser?.first_name ?? ""} ${currentUser?.last_name ?? ""}`.trim() || tr("Utilisateur", "User");
+  const isSuperAdmin = currentUser?.role === "super_admin";
+  const isAdmin = currentUser?.role === "admin" || isSuperAdmin;
+  const accountFullName =
+    currentUser?.username?.trim() ||
+    `${currentUser?.first_name ?? ""} ${currentUser?.last_name ?? ""}`.trim() ||
+    tr("Utilisateur", "User");
   const accountEmail = currentUser?.email ?? "-";
   const accountRole = currentUser?.role ?? "observer";
   const accountRoleLabel =
-    accountRole === "admin" ? tr("Administrateur", "Administrator") : tr("Observateur", "Observer");
+    accountRole === "super_admin"
+      ? tr("Super administrateur", "Super admin")
+      : accountRole === "admin"
+        ? tr("Administrateur", "Administrator")
+        : tr("Observateur", "Observer");
   const accountStatusLabel = currentUser?.is_active
     ? tr("Actif", "Active")
     : tr("Inactif", "Inactive");
@@ -67,6 +77,7 @@ export function ParametresPage({ currentUser, accessToken }) {
 
       setCreateUserSuccess(tr("Utilisateur cree avec succes", "User created successfully"));
       setCreateUserForm(defaultCreateUserForm);
+      setAccountsRefreshVersion((prev) => prev + 1);
     } catch (error) {
       setCreateUserError(error?.message || tr("Creation echouee", "Creation failed"));
     } finally {
@@ -360,15 +371,21 @@ export function ParametresPage({ currentUser, accessToken }) {
         </div>
       </Card>
 
-      {isAdmin ? (
+      {isSuperAdmin ? (
         <Card className="rounded-[20px] border border-border bg-card p-5 shadow-sm">
           <div className="mb-4 flex items-center gap-2">
             <UserRound className="h-5 w-5 text-[#005ca9]" />
             <h2 className="text-[22px] font-semibold text-card-foreground">{tr("Ajouter un utilisateur", "Add user")}</h2>
           </div>
+          <p className="mb-4 text-[13px] text-muted-foreground">
+            {tr(
+              "Cette section est reservee au super administrateur pour creer et administrer les comptes.",
+              "This section is reserved for the super admin to create and manage accounts.",
+            )}
+          </p>
 
           <form className="space-y-3" onSubmit={handleCreateUser}>
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
               <div>
                 <p className="mb-1 text-[13px] text-muted-foreground">{tr("Prenom", "First name")}</p>
                 <Input
@@ -383,6 +400,14 @@ export function ParametresPage({ currentUser, accessToken }) {
                   value={createUserForm.last_name}
                   onChange={(e) => setCreateUserForm((prev) => ({ ...prev, last_name: e.target.value }))}
                   required
+                />
+              </div>
+              <div>
+                <p className="mb-1 text-[13px] text-muted-foreground">{tr("Username", "Username")}</p>
+                <Input
+                  value={createUserForm.username}
+                  onChange={(e) => setCreateUserForm((prev) => ({ ...prev, username: e.target.value }))}
+                  placeholder={tr("Optionnel", "Optional")}
                 />
               </div>
             </div>
@@ -442,6 +467,15 @@ export function ParametresPage({ currentUser, accessToken }) {
             {createUserSuccess ? <p className="text-sm font-medium text-green-700">{createUserSuccess}</p> : null}
           </form>
         </Card>
+      ) : null}
+
+      {isSuperAdmin ? (
+        <ExistingAccountsSection
+          accessToken={accessToken}
+          currentUser={currentUser}
+          onCurrentUserChange={onCurrentUserChange}
+          refreshToken={accountsRefreshVersion}
+        />
       ) : null}
 
       {isAdmin ? (

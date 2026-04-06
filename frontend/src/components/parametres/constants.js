@@ -12,6 +12,7 @@ export const defaultFormValues = {
 export const defaultCreateUserForm = {
   first_name: "",
   last_name: "",
+  username: "",
   email: "",
   password: "",
   role: "observer",

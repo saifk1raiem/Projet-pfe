@@ -23,9 +23,19 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7
     CORS_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173"
     CORS_ORIGIN_REGEX: str = r"https?://(localhost|127\.0\.0\.1)(:\d+)?$"
-    SEED_ADMIN_EMAIL: str = "saif.kraiem@leoni.com"
+    SUPER_ADMIN_EMAIL: str = "aymen.horchani@leoni.com"
     SEED_DEFAULT_PASSWORD: str = "ChangeMe123!"
     SEED_EMAIL_DOMAIN: str = "leoni.com"
+    PASSWORD_RESET_CODE_EXPIRE_MINUTES: int = 10
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_USE_TLS: bool = True
+    SMTP_USE_SSL: bool = False
+    SMTP_FROM_EMAIL: str = ""
+    SMTP_FROM_NAME: str = "Gestion des formations"
+    SMTP_TIMEOUT_SECONDS: int = 15
 
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
@@ -52,6 +62,10 @@ class Settings(BaseSettings):
         if "supabase" in host:
             return "supabase"
         return "custom"
+
+    @property
+    def smtp_is_configured(self) -> bool:
+        return bool(self.SMTP_HOST and self.SMTP_FROM_EMAIL)
 
 
 @lru_cache

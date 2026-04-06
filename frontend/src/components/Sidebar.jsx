@@ -97,18 +97,37 @@ export function Sidebar({
   compact = false,
   onToggleCompact,
   onSignOut,
+  onProfileClick,
   currentUser,
 }) {
   const { tr } = useAppPreferences();
-  const fullName = currentUser
+  const fullNameFromNames = currentUser
     ? `${currentUser.first_name ?? ""} ${currentUser.last_name ?? ""}`.trim()
-    : "User";
-  const initials = currentUser
-    ? `${(currentUser.first_name ?? "").charAt(0)}${(currentUser.last_name ?? "").charAt(0)}`.toUpperCase()
-    : "U";
-  const roleLabel = currentUser?.role
-    ? currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1)
-    : tr("Utilisateur", "User");
+    : "";
+  const displayName = currentUser?.username?.trim() || fullNameFromNames || tr("Utilisateur", "User");
+  const initialsSource = displayName || fullNameFromNames || "U";
+  const initials = initialsSource
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("") || "U";
+  const roleLabel =
+    currentUser?.role === "super_admin"
+      ? tr("Super administrateur", "Super admin")
+      : currentUser?.role === "admin"
+        ? tr("Administrateur", "Administrator")
+        : tr("Observateur", "Observer");
+
+  const renderProfileAvatar = (sizeClass, textClass) => (
+    <div className={`flex ${sizeClass} items-center justify-center overflow-hidden rounded-full border border-white/20 bg-[#7ae094] ${textClass} text-[#2b6d56]`}>
+      {currentUser?.avatar_url ? (
+        <img src={currentUser.avatar_url} alt={displayName} className="h-full w-full object-cover" />
+      ) : (
+        initials
+      )}
+    </div>
+  );
 
   return (
     <aside
@@ -213,9 +232,14 @@ export function Sidebar({
         {compact ? (
           <div className="space-y-3 pt-4">
             <div className="flex justify-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#7ae094] text-[22px] font-semibold text-[#2b6d56]">
-                {initials}
-              </div>
+              <button
+                type="button"
+                onClick={onProfileClick}
+                aria-label={tr("Ouvrir le profil", "Open profile")}
+                className="rounded-full transition-transform hover:scale-[1.04]"
+              >
+                {renderProfileAvatar("h-12 w-12", "text-[22px] font-semibold")}
+              </button>
             </div>
             <div className="flex justify-center">
               <button
@@ -229,13 +253,17 @@ export function Sidebar({
           </div>
         ) : (
           <div className="pt-4 text-center">
-            <p className="text-[16px] font-medium text-[#f2f8f4]">{fullName}</p>
-            <p className="text-[13px] text-[#cde0d6]">{roleLabel}</p>
-            <div className="mt-3 flex justify-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#7ae094] text-[22px] font-semibold text-[#2b6d56]">
-                {initials}
+            <button
+              type="button"
+              onClick={onProfileClick}
+              className="w-full rounded-[18px] px-3 py-3 transition-colors hover:bg-white/8"
+            >
+              <p className="text-[16px] font-medium text-[#f2f8f4]">{displayName}</p>
+              <p className="text-[13px] text-[#cde0d6]">{roleLabel}</p>
+              <div className="mt-3 flex justify-center">
+                {renderProfileAvatar("h-12 w-12", "text-[22px] font-semibold")}
               </div>
-            </div>
+            </button>
             <button
               onClick={onSignOut}
               className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-[14px] bg-white/12 px-4 text-[14px] font-medium text-[#f2f8f4] transition-colors hover:bg-white/24"
