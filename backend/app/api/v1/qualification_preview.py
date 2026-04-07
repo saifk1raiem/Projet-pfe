@@ -198,6 +198,14 @@ def _distinct_preview_values(rows: list[dict], field: str) -> list:
     return distinct_values
 
 
+def _last_non_blank_preview_value(rows: list[dict], field: str):
+    for row in reversed(rows):
+        value = row.get(field)
+        if _preview_value_token(value) is not None:
+            return value
+    return None
+
+
 def _merge_supplemental_group(rows: list[dict]) -> tuple[dict | None, list[str]]:
     if not rows:
         return None, []
@@ -211,7 +219,7 @@ def _merge_supplemental_group(rows: list[dict]) -> tuple[dict | None, list[str]]
             continue
 
         if field == "motif":
-            merged[field] = "; ".join(str(value).strip() for value in distinct_values)
+            merged[field] = _last_non_blank_preview_value(rows, field)
             continue
 
         if field in SUPPLEMENTAL_CONFLICT_FIELDS and len(distinct_values) > 1:

@@ -277,6 +277,23 @@ def _as_clean_string(value: Any) -> str | None:
     return text or None
 
 
+def _normalize_motif(value: Any) -> str | None:
+    text = _as_clean_string(value)
+    if not text:
+        return None
+
+    separators = [r"\r?\n", r"\s*;\s*", r"\s*\|\s*", r"\s*,\s*", r"\s*/\s*"]
+    parts = [text]
+    for separator in separators:
+        next_parts: list[str] = []
+        for part in parts:
+            next_parts.extend(re.split(separator, part))
+        parts = next_parts
+
+    cleaned_parts = [part.strip() for part in parts if part and part.strip()]
+    return cleaned_parts[-1] if cleaned_parts else text
+
+
 def _as_optional_int(value: Any) -> int | None:
     if value is None or pd.isna(value):
         return None
@@ -547,7 +564,12 @@ def parse_excel_to_rows(
             "date_recrutement",
         ]:
             header = mapping_used.get(field)
-            normalized_row[field] = _as_clean_string(source_row.get(header)) if header else None
+            if not header:
+                normalized_row[field] = None
+            elif field == "motif":
+                normalized_row[field] = _normalize_motif(source_row.get(header))
+            else:
+                normalized_row[field] = _as_clean_string(source_row.get(header))
 
         anciennete_header = mapping_used.get("anciennete")
         normalized_row["anciennete"] = _as_optional_int(source_row.get(anciennete_header)) if anciennete_header else None

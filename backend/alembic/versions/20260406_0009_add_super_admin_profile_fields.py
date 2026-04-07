@@ -25,6 +25,7 @@ def upgrade() -> None:
 
     op.execute("ALTER TABLE users DROP CONSTRAINT IF EXISTS user_role")
     op.execute("ALTER TABLE users DROP CONSTRAINT IF EXISTS ck_users_role")
+    op.execute("ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check")
     op.execute("ALTER TABLE users ALTER COLUMN role TYPE VARCHAR(11)")
     op.execute(
         """
@@ -56,6 +57,7 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.execute("DROP INDEX IF EXISTS uq_users_single_super_admin")
     op.execute("ALTER TABLE users DROP CONSTRAINT IF EXISTS ck_users_role")
+    op.execute("ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check")
     op.execute("UPDATE users SET role = 'admin' WHERE role = 'super_admin'")
     op.execute("ALTER TABLE users ALTER COLUMN role TYPE VARCHAR(8)")
     op.create_check_constraint(
