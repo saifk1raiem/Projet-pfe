@@ -1,17 +1,18 @@
 from datetime import date
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
-from sqlalchemy import select
+from sqlalchemy import insert, select, update
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, require_roles
 from app.models.enums import UserRole
-from app.schemas.qualification import QualificationImportRequest
+from app.schemas.qualification import QualificationImportRequest, QualificationUpdateRequest
 from app.services.collaborateur_import_service import detect_collaborateur_conflicts
 from app.services.excel_synonyms import get_excel_synonyms
 from app.services.qualification_import_service import (
     collaborateurs_table,
     detect_missing_qualification_requirements,
+    formateur_formations_table,
     formateurs_table,
     formations_table,
     import_qualification_rows,
@@ -21,6 +22,7 @@ from app.services.qualification_import_service import (
     resolve_qualification_status,
 )
 from app.utils.qualification_preview import SUPPORTED_UPLOAD_EXTENSIONS, parse_excel_to_rows
+from app.utils.reporting_period import REPORTING_MONTHS, get_reporting_period_bounds
 
 
 router = APIRouter(prefix="/qualification", tags=["qualification"])
@@ -63,6 +65,102 @@ def serialize_date(value) -> str | None:
     if hasattr(value, "isoformat"):
         return value.isoformat()
     return str(value)
+
+
+def _clean_optional_text(value) -> str | None:
+    if value is None:
+        return None
+    text = " ".join(str(value).split()).strip()
+    return text or None
+
+
+def _parse_optional_iso_date(value, field_name: str) -> date | None:
+    cleaned_value = _clean_optional_text(value)
+    if cleaned_value is None:
+        return None
+
+    try:
+        return date.fromisoformat(cleaned_value)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"{field_name} must use YYYY-MM-DD format",
+        ) from exc
+
+
+def _normalize_editable_qualification_status(value) -> str | None:
+    cleaned_value = _clean_optional_text(value)
+    if cleaned_value is None:
+        return None
+
+    normalized = cleaned_value.lower().replace("-", "_").replace(" ", "_")
+    if normalized in {"completee", "complete", "completed", "qualifie", "qualifiee"}:
+        return "Completee"
+    if normalized in {"en_cours", "encours", "in_progress", "ongoing"}:
+        return "En cours"
+    if normalized in {"non_associe", "non_associee", "not_associated"}:
+        return None
+
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="Invalid qualification status",
+    )
+
+
+def _ensure_formateur_formation_link(db: Session, formateur_id: int | None, formation_id: int | None) -> None:
+    if formateur_id is None or formation_id is None:
+        return
+
+    existing_link = db.execute(
+        select(formateur_formations_table.c.formateur_id)
+        .where(formateur_formations_table.c.formateur_id == formateur_id)
+        .where(formateur_formations_table.c.formation_id == formation_id)
+    ).first()
+    if existing_link:
+        return
+
+    db.execute(
+        insert(formateur_formations_table).values(
+            formateur_id=formateur_id,
+            formation_id=formation_id,
+        )
+    )
+
+
+def _serialize_qualification_listing_item(item: dict) -> dict:
+    qualification_status = resolve_qualification_status(
+        item["qualification_statut"],
+        item["date_association_systeme"],
+        item["duree_jours"],
+    )
+    return {
+        "id": item["qualification_row_id"] if item["qualification_row_id"] is not None else item["matricule"],
+        "qualification_row_id": item["qualification_row_id"],
+        "phase": resolve_phase(item["date_association_systeme"]),
+        "matricule": item["matricule"],
+        "nom": item["nom"],
+        "prenom": item["prenom"],
+        "fonction": item["fonction"],
+        "centre_cout": item["centre_cout"],
+        "groupe": item["groupe"],
+        "competence": item["nom_formation"],
+        "formateur": item["nom_formateur"],
+        "formateur_id": item["formateur_id"],
+        "motif": item["motif"],
+        "contre_maitre": item["contre_maitre"],
+        "segment": item["segment"],
+        "gender": item["gender"],
+        "num_tel": item["num_tel"],
+        "date_recrutement": serialize_date(item["date_recrutement"]),
+        "anciennete": item["anciennete"],
+        "date_association_systeme": serialize_date(item["date_association_systeme"]),
+        "statut": qualification_status,
+        "qualification_statut": item["qualification_statut"],
+        "etat": qualification_status,
+        "formation_id": item["formation_id"],
+        "formations": 1 if item["formation_id"] is not None else 0,
+        "derniereFormation": serialize_date(item["date_association_systeme"]),
+    }
 
 
 def build_preview_rows_with_live_status(db: Session, rows: list[dict]) -> list[dict]:
@@ -409,48 +507,118 @@ def _fetch_qualification_listing_rows(db: Session):
     return combined_rows
 
 
+def _fetch_qualification_listing_row_by_id(db: Session, qualification_id: int) -> dict | None:
+    rows = _fetch_qualification_listing_rows(db)
+    return next(
+        (item for item in rows if item.get("qualification_row_id") == qualification_id),
+        None,
+    )
+
+
 @router.get("")
 def list_qualification_rows(
     db: Session = Depends(get_db),
     _: object = Depends(require_roles(UserRole.admin, UserRole.observer)),
 ):
     raw_rows = _fetch_qualification_listing_rows(db)
-    result: list[dict] = []
-    for item in raw_rows:
-        qualification_status = resolve_qualification_status(
-            item["qualification_statut"],
-            item["date_association_systeme"],
-            item["duree_jours"],
+    return [_serialize_qualification_listing_item(item) for item in raw_rows]
+
+
+@router.patch("/{qualification_id}")
+def update_qualification_row(
+    qualification_id: int,
+    payload: QualificationUpdateRequest,
+    db: Session = Depends(get_db),
+    _: object = Depends(require_roles(UserRole.admin)),
+):
+    existing_row = db.execute(
+        select(qualification_table).where(qualification_table.c.id == qualification_id)
+    ).mappings().first()
+    if not existing_row:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Qualification not found")
+
+    changes = payload.model_dump(exclude_unset=True)
+    if not changes:
+        listing_row = _fetch_qualification_listing_row_by_id(db, qualification_id)
+        if listing_row is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Qualification not found")
+        return _serialize_qualification_listing_item(listing_row)
+
+    next_formation_id = existing_row.get("formation_id")
+    next_formateur_id = existing_row.get("formateur_id")
+    update_values = {}
+
+    if "formation_id" in changes:
+        next_formation_id = changes.get("formation_id")
+        if next_formation_id is not None:
+            formation_exists = db.execute(
+                select(formations_table.c.id).where(formations_table.c.id == next_formation_id)
+            ).first()
+            if not formation_exists:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Formation not found")
+
+            duplicate_row = db.execute(
+                select(qualification_table.c.id)
+                .where(qualification_table.c.matricule == existing_row["matricule"])
+                .where(qualification_table.c.formation_id == next_formation_id)
+                .where(qualification_table.c.id != qualification_id)
+            ).first()
+            if duplicate_row:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="A qualification already exists for this collaborator and formation",
+                )
+
+        update_values["formation_id"] = next_formation_id
+
+    if "formateur_id" in changes:
+        next_formateur_id = changes.get("formateur_id")
+        if next_formateur_id is not None:
+            formateur_exists = db.execute(
+                select(formateurs_table.c.id).where(formateurs_table.c.id == next_formateur_id)
+            ).first()
+            if not formateur_exists:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Formateur not found")
+        update_values["formateur_id"] = next_formateur_id
+
+    if next_formateur_id is not None and next_formation_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Select a formation before assigning a formateur",
         )
-        result.append(
-            {
-                "id": item["qualification_row_id"] if item["qualification_row_id"] is not None else item["matricule"],
-                "qualification_row_id": item["qualification_row_id"],
-                "phase": resolve_phase(item["date_association_systeme"]),
-                "matricule": item["matricule"],
-                "nom": item["nom"],
-                "prenom": item["prenom"],
-                "fonction": item["fonction"],
-                "centre_cout": item["centre_cout"],
-                "groupe": item["groupe"],
-                "competence": item["nom_formation"],
-                "formateur": item["nom_formateur"],
-                "motif": item["motif"],
-                "contre_maitre": item["contre_maitre"],
-                "segment": item["segment"],
-                "gender": item["gender"],
-                "num_tel": item["num_tel"],
-                "date_recrutement": serialize_date(item["date_recrutement"]),
-                "anciennete": item["anciennete"],
-                "date_association_systeme": serialize_date(item["date_association_systeme"]),
-                "statut": qualification_status,
-                "etat": qualification_status,
-                "formation_id": item["formation_id"],
-                "formations": 1 if item["formation_id"] is not None else 0,
-                "derniereFormation": serialize_date(item["date_association_systeme"]),
-            }
+
+    if "statut" in changes:
+        update_values["statut"] = _normalize_editable_qualification_status(changes.get("statut"))
+
+    if "date_association_systeme" in changes:
+        update_values["date_association_systeme"] = _parse_optional_iso_date(
+            changes.get("date_association_systeme"),
+            "date_association_systeme",
         )
-    return result
+
+    if "motif" in changes:
+        update_values["motif"] = _clean_optional_text(changes.get("motif"))
+
+    if not update_values:
+        listing_row = _fetch_qualification_listing_row_by_id(db, qualification_id)
+        if listing_row is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Qualification not found")
+        return _serialize_qualification_listing_item(listing_row)
+
+    if next_formateur_id is not None and next_formation_id is not None:
+        _ensure_formateur_formation_link(db, next_formateur_id, next_formation_id)
+
+    db.execute(
+        update(qualification_table)
+        .where(qualification_table.c.id == qualification_id)
+        .values(**update_values)
+    )
+    db.commit()
+
+    listing_row = _fetch_qualification_listing_row_by_id(db, qualification_id)
+    if listing_row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Qualification not found")
+    return _serialize_qualification_listing_item(listing_row)
 
 
 @router.get("/collaborateurs")
@@ -513,6 +681,100 @@ def recalculate_collaborateur_qualification_statuses(
     return recalculate_qualification_rows(db)
 
 
+@router.get("/{matricule}/presence-history")
+def get_collaborateur_presence_history(
+    matricule: str,
+    db: Session = Depends(get_db),
+    _: object = Depends(require_roles(UserRole.admin, UserRole.observer)),
+):
+    today = date.today()
+    period_start, period_end = get_reporting_period_bounds(today)
+    stmt = (
+        select(
+            qualification_table.c.id,
+            qualification_table.c.formation_id,
+            qualification_table.c.statut,
+            qualification_table.c.date_association_systeme,
+            qualification_table.c.formateur_id,
+            qualification_table.c.motif,
+            formations_table.c.code_formation,
+            formations_table.c.nom_formation,
+            formations_table.c.domaine,
+            formations_table.c.duree_jours,
+            formateurs_table.c.nom_formateur,
+        )
+        .select_from(
+            qualification_table
+            .outerjoin(
+                formations_table,
+                formations_table.c.id == qualification_table.c.formation_id,
+            )
+            .outerjoin(
+                formateurs_table,
+                formateurs_table.c.id == qualification_table.c.formateur_id,
+            )
+        )
+        .where(qualification_table.c.matricule == matricule)
+        .where(qualification_table.c.date_association_systeme.is_not(None))
+        .where(qualification_table.c.date_association_systeme >= period_start)
+        .where(qualification_table.c.date_association_systeme <= period_end)
+        .order_by(qualification_table.c.date_association_systeme.desc(), qualification_table.c.id.desc())
+    )
+
+    rows = db.execute(stmt).mappings().all()
+    history: list[dict] = []
+    on_track_count = 0
+    overdue_count = 0
+
+    for item in rows:
+        qualification_status = resolve_qualification_status(
+            item["statut"],
+            item["date_association_systeme"],
+            item["duree_jours"],
+        )
+        if qualification_status in {"Qualifie", "En cours"}:
+            on_track_count += 1
+        elif qualification_status == "Depassement":
+            overdue_count += 1
+
+        history.append(
+            {
+                "id": item["id"],
+                "formation_id": item["formation_id"],
+                "code": item["code_formation"]
+                or (str(item["formation_id"]) if item["formation_id"] is not None else None),
+                "titre": item["nom_formation"]
+                or (f"Formation {item['formation_id']}" if item["formation_id"] is not None else "Non associee"),
+                "type": item["domaine"] or ("Formation" if item["formation_id"] is not None else "Qualification"),
+                "date": item["date_association_systeme"].isoformat() if item["date_association_systeme"] else None,
+                "duree": item["duree_jours"],
+                "statut": item["statut"],
+                "etat": qualification_status,
+                "formateur_id": item["formateur_id"],
+                "formateur": item["nom_formateur"],
+                "motif": item["motif"],
+            }
+        )
+
+    tracked_rows = len(history)
+    presence_rate = round((on_track_count / tracked_rows) * 100, 1) if tracked_rows else 0.0
+
+    return {
+        "matricule": matricule,
+        "period_start": period_start.isoformat(),
+        "period_end": period_end.isoformat(),
+        "reporting_months": REPORTING_MONTHS,
+        "summary": {
+            "tracked_rows": tracked_rows,
+            "on_track_count": on_track_count,
+            "overdue_count": overdue_count,
+            "presence_rate": presence_rate,
+            "latest_status": history[0]["etat"] if history else None,
+        },
+        "history": history,
+    }
+
+
 @router.get("/{matricule}/formations")
 def list_collaborateur_formations(
     matricule: str,
@@ -573,7 +835,6 @@ def list_collaborateur_formations(
         }
         for item in rows
     ]
-
 
 @router.post("/preview")
 async def preview_qualification_file(

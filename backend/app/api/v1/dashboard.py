@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from calendar import monthrange
 from dataclasses import dataclass
 from datetime import date, timedelta
 
@@ -27,6 +26,10 @@ from app.services.qualification_import_service import (
     formations_table,
     qualification_table,
     resolve_qualification_status,
+)
+from app.utils.reporting_period import (
+    get_previous_reporting_period_bounds,
+    get_reporting_period_bounds,
 )
 
 
@@ -65,17 +68,6 @@ class DashboardContext:
     effective_entry_dates: list[date | None]
 
 
-def _same_day_previous_month(day: date) -> date:
-    if day.month == 1:
-        year = day.year - 1
-        month = 12
-    else:
-        year = day.year
-        month = day.month - 1
-
-    return date(year, month, min(day.day, monthrange(year, month)[1]))
-
-
 def _percentage_change(current: float, previous: float) -> float:
     if previous == 0:
         return 0.0 if current == 0 else 100.0
@@ -88,19 +80,24 @@ def _next_month_start(day: date) -> date:
     return date(day.year, day.month + 1, 1)
 
 
-def _month_starts_including(reference_day: date, count: int) -> list[date]:
-    current = reference_day.replace(day=1)
+def _month_starts_covering_range(period_start: date, period_end: date) -> list[date]:
+    current = period_start.replace(day=1)
     starts: list[date] = []
-    for _ in range(count):
+    end_month_start = period_end.replace(day=1)
+    while current <= end_month_start:
         starts.append(current)
-        current = _same_day_previous_month(current).replace(day=1)
-    starts.reverse()
+        current = _next_month_start(current)
     return starts
 
 
-def _week_starts_including(reference_day: date, count: int) -> list[date]:
-    current_week_start = reference_day - timedelta(days=reference_day.weekday())
-    return [current_week_start - timedelta(weeks=offset) for offset in range(count - 1, -1, -1)]
+def _week_starts_covering_range(period_start: date, period_end: date) -> list[date]:
+    current_week_start = period_start - timedelta(days=period_start.weekday())
+    end_week_start = period_end - timedelta(days=period_end.weekday())
+    starts: list[date] = []
+    while current_week_start <= end_week_start:
+        starts.append(current_week_start)
+        current_week_start += timedelta(weeks=1)
+    return starts
 
 
 def _month_label(day: date) -> str:
@@ -302,9 +299,9 @@ def _load_dashboard_context(db: Session) -> DashboardContext:
 
 
 def _build_dashboard_metrics(context: DashboardContext, *, today: date) -> DashboardMetricsResponse:
-    comparison_day = _same_day_previous_month(today)
-    current_period_start = today.replace(day=1)
-    comparison_period_start = comparison_day.replace(day=1)
+    current_period_start, current_period_end = get_reporting_period_bounds(today)
+    comparison_period_start, comparison_period_end = get_previous_reporting_period_bounds(today)
+    comparison_day = comparison_period_end
 
     total_collaborateurs_current = len(context.collaborators)
     total_collaborateurs_previous = sum(
@@ -314,25 +311,25 @@ def _build_dashboard_metrics(context: DashboardContext, *, today: date) -> Dashb
     nouvelles_recrues_current = _count_new_entries(
         context.effective_entry_dates,
         current_period_start,
-        today,
+        current_period_end,
     )
     nouvelles_recrues_previous = _count_new_entries(
         context.effective_entry_dates,
         comparison_period_start,
-        comparison_day,
+        comparison_period_end,
     )
 
     sorties_current = _count_pipeline_exits(
         context.qualifications_by_collaborateur,
         current_period_start,
-        today,
-        today,
+        current_period_end,
+        current_period_end,
     )
     sorties_previous = _count_pipeline_exits(
         context.qualifications_by_collaborateur,
         comparison_period_start,
-        comparison_day,
-        comparison_day,
+        comparison_period_end,
+        comparison_period_end,
     )
 
     formateurs_disponibles_current = _count_available_trainers(context.trainer_ids, context.qualifications, today)
@@ -350,6 +347,10 @@ def _build_dashboard_metrics(context: DashboardContext, *, today: date) -> Dashb
 
     return DashboardMetricsResponse(
         generated_at=today,
+        period_start=current_period_start,
+        period_end=current_period_end,
+        comparison_period_start=comparison_period_start,
+        comparison_period_end=comparison_period_end,
         comparison_date=comparison_day,
         total_collaborateurs=_build_metric(total_collaborateurs_current, total_collaborateurs_previous),
         nouvelles_recrues=_build_metric(nouvelles_recrues_current, nouvelles_recrues_previous),
@@ -408,19 +409,22 @@ def _build_entries_exits_monthly(
     *,
     today: date,
 ) -> list[DashboardMonthlyEntriesExitsPoint]:
+    period_start, period_end = get_reporting_period_bounds(today)
     points: list[DashboardMonthlyEntriesExitsPoint] = []
-    for month_start in _month_starts_including(today, 12):
-        month_end = min(_next_month_start(month_start) - timedelta(days=1), today)
+    for month_start in _month_starts_covering_range(period_start, period_end):
+        month_end = _next_month_start(month_start) - timedelta(days=1)
+        effective_start = max(month_start, period_start)
+        effective_end = min(month_end, period_end)
         points.append(
             DashboardMonthlyEntriesExitsPoint(
                 period_start=month_start,
                 label=_month_label(month_start),
-                entries=_count_new_entries(context.effective_entry_dates, month_start, month_end),
+                entries=_count_new_entries(context.effective_entry_dates, effective_start, effective_end),
                 exits=_count_pipeline_exits(
                     context.qualifications_by_collaborateur,
-                    month_start,
-                    month_end,
-                    month_end,
+                    effective_start,
+                    effective_end,
+                    effective_end,
                 ),
             )
         )
@@ -432,9 +436,10 @@ def _build_trainer_availability_weekly(
     *,
     today: date,
 ) -> list[DashboardWeeklyAvailabilityPoint]:
+    period_start, period_end = get_reporting_period_bounds(today)
     points: list[DashboardWeeklyAvailabilityPoint] = []
-    for week_start in _week_starts_including(today, 8):
-        week_end = min(week_start + timedelta(days=6), today)
+    for week_start in _week_starts_covering_range(period_start, period_end):
+        week_end = min(week_start + timedelta(days=6), period_end)
         available = _count_available_trainers(context.trainer_ids, context.qualifications, week_end)
         total_trainers = len(context.trainer_ids)
         points.append(
@@ -453,20 +458,23 @@ def _build_qualification_activity_monthly(
     *,
     today: date,
 ) -> list[DashboardMonthlyActivityPoint]:
+    period_start, period_end = get_reporting_period_bounds(today)
     points: list[DashboardMonthlyActivityPoint] = []
-    for month_start in _month_starts_including(today, 12):
-        next_month_start = min(_next_month_start(month_start), today + timedelta(days=1))
-        month_end = min(_next_month_start(month_start) - timedelta(days=1), today)
+    for month_start in _month_starts_covering_range(period_start, period_end):
+        month_end = _next_month_start(month_start) - timedelta(days=1)
+        effective_start = max(month_start, period_start)
+        effective_end = min(month_end, period_end)
+        effective_end_exclusive = effective_end + timedelta(days=1)
         associations = sum(
             1
             for row in context.qualifications
-            if row.association_date is not None and month_start <= row.association_date < next_month_start
+            if row.association_date is not None and effective_start <= row.association_date < effective_end_exclusive
         )
         completions = sum(
             1
             for row in context.qualifications
-            if (completion_date := _effective_completion_date(row, month_end)) is not None
-            and month_start <= completion_date < next_month_start
+            if (completion_date := _effective_completion_date(row, effective_end)) is not None
+            and effective_start <= completion_date < effective_end_exclusive
         )
         points.append(
             DashboardMonthlyActivityPoint(
@@ -484,9 +492,10 @@ def _build_qualification_health_monthly(
     *,
     today: date,
 ) -> list[DashboardMonthlyHealthPoint]:
+    period_start, period_end = get_reporting_period_bounds(today)
     points: list[DashboardMonthlyHealthPoint] = []
-    for month_start in _month_starts_including(today, 12):
-        snapshot_day = min(_next_month_start(month_start) - timedelta(days=1), today)
+    for month_start in _month_starts_covering_range(period_start, period_end):
+        snapshot_day = min(_next_month_start(month_start) - timedelta(days=1), period_end)
         on_track = 0
         overdue = 0
         for row in context.qualifications:

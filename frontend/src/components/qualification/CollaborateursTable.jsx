@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   Eye,
   MoreVertical,
+  Pencil,
   XCircle,
 } from "lucide-react";
 import { Badge } from "../ui/badge";
@@ -24,6 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from "../ui/table";
+import { PresenceHistoryPanel } from "../collaborateurs/PresenceHistoryPanel";
 
 const getStatusBadge = (statut) => {
   switch (statut) {
@@ -66,8 +68,12 @@ const PAGE_SIZE = 50;
 export function CollaborateursTable({
   rows,
   onViewDetails,
+  onEditQualification,
   selectedCollaborateur,
   onCloseDetails,
+  presenceHistoryByMatricule,
+  canEdit,
+  tr,
 }) {
   const [page, setPage] = useState(1);
 
@@ -128,8 +134,10 @@ export function CollaborateursTable({
               <TableRow className="h-16">
                 <TableCell className="text-[15px] font-semibold text-[#1d2025]">{collab.matricule}</TableCell>
                 <TableCell>
-                  <div className="text-[15px] font-medium text-[#1d2025]">{collab.nom}</div>
-                  <div className="text-[13px] text-[#6b7280]">{collab.prenom}</div>
+                  <button type="button" className="text-left" onClick={() => onViewDetails(collab)}>
+                    <div className="text-[15px] font-medium text-[#1d2025]">{collab.nom}</div>
+                    <div className="text-[13px] text-[#6b7280]">{collab.prenom}</div>
+                  </button>
                 </TableCell>
                 <TableCell className="text-[15px]">{collab.fonction}</TableCell>
                 <TableCell className="text-[15px]">
@@ -150,6 +158,12 @@ export function CollaborateursTable({
                         <Eye className="h-4 w-4" />
                         Voir details
                       </DropdownMenuItem>
+                      {canEdit && collab.qualification_row_id ? (
+                        <DropdownMenuItem onClick={() => onEditQualification?.(collab)}>
+                          <Pencil className="h-4 w-4" />
+                          {tr("Modifier", "Edit")}
+                        </DropdownMenuItem>
+                      ) : null}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>
@@ -162,9 +176,21 @@ export function CollaborateursTable({
                         <p className="text-[16px] font-semibold text-[#171a1f]">
                           {collab.nom} ({collab.matricule})
                         </p>
-                        <Button variant="outline" className="h-8 rounded-xl px-3" onClick={onCloseDetails}>
-                          Fermer
-                        </Button>
+                        <div className="flex flex-wrap gap-2">
+                          {canEdit && collab.qualification_row_id ? (
+                            <Button
+                              variant="outline"
+                              className="h-8 rounded-xl px-3"
+                              onClick={() => onEditQualification?.(collab)}
+                            >
+                              <Pencil className="mr-2 h-4 w-4" />
+                              {tr("Modifier", "Edit")}
+                            </Button>
+                          ) : null}
+                          <Button variant="outline" className="h-8 rounded-xl px-3" onClick={onCloseDetails}>
+                            Fermer
+                          </Button>
+                        </div>
                       </div>
                       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
                         <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3"><p className="text-[12px] text-[#64748b]">Matricule</p><p className="text-[15px] font-medium text-[#1d2025]">{collab.matricule}</p></div>
@@ -181,6 +207,11 @@ export function CollaborateursTable({
                         <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3"><p className="text-[12px] text-[#64748b]">Segment</p><p className="text-[15px] font-medium text-[#1d2025]">{collab.segment || "-"}</p></div>
                         <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3"><p className="text-[12px] text-[#64748b]">Etat</p><div className="mt-1">{getStatusBadge(collab.statut)}</div></div>
                       </div>
+
+                      <PresenceHistoryPanel
+                        tr={tr}
+                        historyState={presenceHistoryByMatricule?.[collab.matricule]}
+                      />
                     </div>
                   </TableCell>
                 </TableRow>

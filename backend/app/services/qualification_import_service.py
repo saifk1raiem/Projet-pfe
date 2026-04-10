@@ -49,6 +49,13 @@ formateurs_table = Table(
     Column("specialite", String(100)),
 )
 
+formateur_formations_table = Table(
+    "formateur_formations",
+    metadata,
+    Column("formateur_id", Integer, primary_key=True),
+    Column("formation_id", Integer, primary_key=True),
+)
+
 qualification_table = Table(
     "qualification",
     metadata,
@@ -235,6 +242,26 @@ def _ensure_formateur(db: Session, nom_formateur: str | None) -> tuple[int | Non
         .returning(formateurs_table.c.id)
     ).scalar_one()
     return inserted, True
+
+
+def _ensure_formateur_formation_link(db: Session, formateur_id: int | None, formation_id: int | None) -> None:
+    if formateur_id is None or formation_id is None:
+        return
+
+    existing = db.execute(
+        select(formateur_formations_table.c.formateur_id)
+        .where(formateur_formations_table.c.formateur_id == formateur_id)
+        .where(formateur_formations_table.c.formation_id == formation_id)
+    ).first()
+    if existing:
+        return
+
+    db.execute(
+        insert(formateur_formations_table).values(
+            formateur_id=formateur_id,
+            formation_id=formation_id,
+        )
+    )
 
 
 def _is_blank_merge_value(value: Any) -> bool:
@@ -490,6 +517,7 @@ def import_qualification_rows(db: Session, rows: list[dict[str, Any]]) -> dict[s
                     formateurs_created += 1
                 if formateur_id is not None:
                     linked_with_formateur += 1
+                    _ensure_formateur_formation_link(db, formateur_id, formation_id)
 
             qualification_values = _build_qualification_values(row_payload)
             qualification_values["formateur_id"] = formateur_id

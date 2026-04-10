@@ -19,8 +19,13 @@ import { HeuresPresenceChart } from "../charts/HeuresPresenceChart";
 import { AnalyseDefautsChart } from "../charts/AnalyseDefautsChart";
 import { useAppPreferences } from "../../context/AppPreferencesContext";
 import { apiUrl } from "../../lib/api";
+import { formatDisplayDateRange } from "../collaborateurs/helpers";
 
 const DEFAULT_DASHBOARD_METRICS = {
+  period_start: null,
+  period_end: null,
+  comparison_period_start: null,
+  comparison_period_end: null,
   total_collaborateurs: { value: null, trend: null },
   nouvelles_recrues: { value: null, trend: null },
   sorties: { value: null, trend: null },
@@ -122,6 +127,12 @@ export function TrainingDashboard({ accessToken, currentUser }) {
           const nextMetrics = data.metrics ?? {};
           const nextCharts = data.charts ?? {};
           setMetrics({
+            period_start: nextMetrics.period_start ?? DEFAULT_DASHBOARD_METRICS.period_start,
+            period_end: nextMetrics.period_end ?? DEFAULT_DASHBOARD_METRICS.period_end,
+            comparison_period_start:
+              nextMetrics.comparison_period_start ?? DEFAULT_DASHBOARD_METRICS.comparison_period_start,
+            comparison_period_end:
+              nextMetrics.comparison_period_end ?? DEFAULT_DASHBOARD_METRICS.comparison_period_end,
             total_collaborateurs:
               nextMetrics.total_collaborateurs ?? DEFAULT_DASHBOARD_METRICS.total_collaborateurs,
             nouvelles_recrues: nextMetrics.nouvelles_recrues ?? DEFAULT_DASHBOARD_METRICS.nouvelles_recrues,
@@ -179,7 +190,7 @@ export function TrainingDashboard({ accessToken, currentUser }) {
 
   return (
     <div className="space-y-5 pb-6">
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="leoni-display-xl text-[40px] font-semibold leading-tight text-[#171a1f]">
             {tr(`Bonjour, ${greetingName}`, `Hello, ${greetingName}`)}
@@ -191,10 +202,21 @@ export function TrainingDashboard({ accessToken, currentUser }) {
             )}
           </p>
         </div>
-        <Badge className="mt-2 rounded-xl border border-[#b9d3ea] bg-[#e8f1fb] px-4 py-2 text-[14px] font-medium text-[#005ca9]">
-          <span className="mr-2 inline-block h-2.5 w-2.5 rounded-full bg-[#2e8ad7]" />
-          {tr("Donnees mises a jour aujourd'hui", "Data updated today")}
-        </Badge>
+        <div className="mt-2 flex flex-col items-end gap-2">
+          <Badge className="rounded-xl border border-[#b9d3ea] bg-[#e8f1fb] px-4 py-2 text-[14px] font-medium text-[#005ca9]">
+            <span className="mr-2 inline-block h-2.5 w-2.5 rounded-full bg-[#2e8ad7]" />
+            {tr("Donnees mises a jour aujourd'hui", "Data updated today")}
+          </Badge>
+          {metrics.period_start && metrics.period_end ? (
+            <Badge
+              variant="outline"
+              className="rounded-xl border-[#d5dce0] bg-white px-4 py-2 text-[13px] font-medium text-[#4f5f75]"
+            >
+              {tr("Periode active", "Active period")}:{" "}
+              {formatDisplayDateRange(metrics.period_start, metrics.period_end)}
+            </Badge>
+          ) : null}
+        </div>
       </div>
 
       {loadError ? (

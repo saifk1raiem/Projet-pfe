@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   AlertCircle,
   AlertTriangle,
@@ -16,10 +16,30 @@ import { apiUrl } from "../../lib/api";
 import { EntityFiltersCard } from "../filters/EntityFiltersCard";
 import { CollaborateursStat } from "./CollaborateursStat";
 import { CollaborateursTable } from "./CollaborateursTable";
+import { EditCollaborateurDialog } from "./EditCollaborateurDialog";
 import { FormationsDialog } from "./FormationsDialog";
 import { mapCollaborateur } from "./helpers";
+import {
+  fetchCollaborateurPresenceHistory,
+  getEmptyPresenceHistoryState,
+  normalizePresenceHistoryPayload,
+} from "./presenceHistory";
 
 const AUTO_REFRESH_INTERVAL_MS = 30000;
+const EMPTY_COLLABORATEUR_FORM = {
+  matricule: "",
+  nom: "",
+  prenom: "",
+  fonction: "",
+  centre_cout: "",
+  groupe: "",
+  contre_maitre: "",
+  segment: "",
+  gender: "",
+  num_tel: "",
+  date_recrutement: "",
+  anciennete: "",
+};
 
 const getAuthHeaders = (accessToken, headers = {}) =>
   accessToken ? { ...headers, Authorization: `Bearer ${accessToken}` } : headers;
@@ -52,6 +72,16 @@ async function recalculateQualificationStatuses(accessToken) {
   });
 }
 
+async function updateCollaborateur(accessToken, matricule, payload) {
+  return readJsonResponse(apiUrl(`/admin/collaborateurs/${encodeURIComponent(matricule)}`), {
+    method: "PATCH",
+    headers: getAuthHeaders(accessToken, {
+      "Content-Type": "application/json",
+    }),
+    body: JSON.stringify(payload),
+  });
+}
+
 export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken }) {
   const { tr } = useAppPreferences();
   const isObserver = currentUser?.role === "observer";
@@ -69,12 +99,27 @@ export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken 
   const [formationsHistory, setFormationsHistory] = useState([]);
   const [formationsHistoryLoading, setFormationsHistoryLoading] = useState(false);
   const [formationsHistoryError, setFormationsHistoryError] = useState("");
+  const [presenceHistoryByMatricule, setPresenceHistoryByMatricule] = useState({});
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingCollaborateur, setEditingCollaborateur] = useState(null);
+  const [editCollaborateurValues, setEditCollaborateurValues] = useState(EMPTY_COLLABORATEUR_FORM);
+  const [editCollaborateurError, setEditCollaborateurError] = useState("");
+  const [isSavingCollaborateur, setIsSavingCollaborateur] = useState(false);
+  const selectedCollaborateurMatriculeRef = useRef("");
+  const formationsCollaborateurMatriculeRef = useRef("");
 
   const closeFormationsDialog = () => {
     setIsFormationsDialogOpen(false);
     setFormationsCollaborateur(null);
     setFormationsHistory([]);
     setFormationsHistoryError("");
+  };
+
+  const closeEditDialog = () => {
+    setIsEditDialogOpen(false);
+    setEditingCollaborateur(null);
+    setEditCollaborateurValues(EMPTY_COLLABORATEUR_FORM);
+    setEditCollaborateurError("");
   };
 
   const applyCollaborateursData = (rows) => {
@@ -88,6 +133,14 @@ export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken 
       return rows.find((item) => item.id === prev.id) ?? null;
     });
   };
+
+  useEffect(() => {
+    selectedCollaborateurMatriculeRef.current = selectedCollaborateur?.matricule ?? "";
+  }, [selectedCollaborateur?.matricule]);
+
+  useEffect(() => {
+    formationsCollaborateurMatriculeRef.current = formationsCollaborateur?.matricule ?? "";
+  }, [formationsCollaborateur?.matricule]);
 
   const loadCollaborateurs = async () => {
     const { response, data } = await fetchCollaborateurs(accessToken);
@@ -118,18 +171,69 @@ export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken 
     setFormationsHistoryError("");
   };
 
+  const loadCollaborateurPresenceHistory = async (matricule) => {
+    if (!accessToken || !matricule) {
+      return;
+    }
+
+    setPresenceHistoryByMatricule((prev) => ({
+      ...prev,
+      [matricule]: getEmptyPresenceHistoryState({
+        ...prev[matricule],
+        loading: true,
+        error: "",
+      }),
+    }));
+
+    try {
+      const { response, data } = await fetchCollaborateurPresenceHistory(accessToken, matricule);
+      if (!response.ok) {
+        setPresenceHistoryByMatricule((prev) => ({
+          ...prev,
+          [matricule]: getEmptyPresenceHistoryState({
+            ...prev[matricule],
+            loaded: true,
+            error: tr(
+              "Impossible de charger l'historique de presence.",
+              "Failed to load attendance history.",
+            ),
+          }),
+        }));
+        return;
+      }
+
+      setPresenceHistoryByMatricule((prev) => ({
+        ...prev,
+        [matricule]: normalizePresenceHistoryPayload(data),
+      }));
+    } catch {
+      setPresenceHistoryByMatricule((prev) => ({
+        ...prev,
+        [matricule]: getEmptyPresenceHistoryState({
+          ...prev[matricule],
+          loaded: true,
+          error: tr(
+            "Impossible de charger l'historique de presence.",
+            "Failed to load attendance history.",
+          ),
+        }),
+      }));
+    }
+  };
+
   useEffect(() => {
     if (!accessToken) {
       setCollaborateursData([]);
       setLoadError("");
       setPageError("");
+      setPresenceHistoryByMatricule({});
       return;
     }
 
     let cancelled = false;
 
     const syncCollaborateurs = async () => {
-      if (isRefreshingData) {
+      if (isRefreshingData || isEditDialogOpen || isSavingCollaborateur) {
         return;
       }
 
@@ -139,8 +243,14 @@ export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken 
           return;
         }
 
-        if (formationsCollaborateur?.matricule) {
-          await loadCollaborateurHistory(formationsCollaborateur.matricule);
+        const selectedMatricule = selectedCollaborateurMatriculeRef.current;
+        if (selectedMatricule) {
+          await loadCollaborateurPresenceHistory(selectedMatricule);
+        }
+
+        const formationsMatricule = formationsCollaborateurMatriculeRef.current;
+        if (formationsMatricule) {
+          await loadCollaborateurHistory(formationsMatricule);
         }
       } catch {
         if (!cancelled) {
@@ -174,7 +284,15 @@ export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken 
       window.removeEventListener("focus", handleWindowFocus);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [accessToken, formationsCollaborateur?.matricule, isRefreshingData, tr]);
+  }, [accessToken, formationsCollaborateur?.matricule, isEditDialogOpen, isRefreshingData, isSavingCollaborateur, tr]);
+
+  useEffect(() => {
+    if (!selectedCollaborateur?.matricule || !accessToken) {
+      return;
+    }
+
+    loadCollaborateurPresenceHistory(selectedCollaborateur.matricule);
+  }, [accessToken, selectedCollaborateur?.matricule, tr]);
 
   const totalCollaborateurs = collaborateursData.length;
   const qualifiesCount = collaborateursData.filter((collab) => collab.statut === "Qualifie").length;
@@ -248,8 +366,12 @@ export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken 
 
       await loadCollaborateurs();
 
-      if (formationsCollaborateur?.matricule) {
-        await loadCollaborateurHistory(formationsCollaborateur.matricule);
+      if (selectedCollaborateurMatriculeRef.current) {
+        await loadCollaborateurPresenceHistory(selectedCollaborateurMatriculeRef.current);
+      }
+
+      if (formationsCollaborateurMatriculeRef.current) {
+        await loadCollaborateurHistory(formationsCollaborateurMatriculeRef.current);
       }
     } catch {
       setPageError(tr("Impossible d'actualiser les collaborateurs.", "Failed to refresh collaborators."));
@@ -261,6 +383,118 @@ export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken 
   const handleGoToFormationSection = (formation) => {
     closeFormationsDialog();
     onNavigateToPage?.("formation", { formationId: formation.formation_id });
+  };
+
+  const handleToggleCollaborateurDetails = (collab) => {
+    setSelectedCollaborateur((prev) => {
+      const shouldClose = prev?.id === collab.id;
+      if (shouldClose) {
+        return null;
+      }
+
+      if (collab?.matricule) {
+        setPresenceHistoryByMatricule((currentState) => ({
+          ...currentState,
+          [collab.matricule]: getEmptyPresenceHistoryState({
+            ...currentState[collab.matricule],
+            loading: true,
+            error: "",
+          }),
+        }));
+      }
+
+      return collab;
+    });
+  };
+
+  const handleOpenEditDialog = (collab) => {
+    setEditingCollaborateur(collab);
+    setEditCollaborateurValues({
+      matricule: collab.matricule || "",
+      nom: collab.nom || "",
+      prenom: collab.prenom || "",
+      fonction: collab.fonction || "",
+      centre_cout: collab.centre_cout || "",
+      groupe: collab.groupe || "",
+      contre_maitre: collab.contre_maitre || "",
+      segment: collab.segment || "",
+      gender: collab.gender || "",
+      num_tel: collab.num_tel || "",
+      date_recrutement: collab.date_recrutement || "",
+      anciennete: collab.anciennete || "",
+    });
+    setEditCollaborateurError("");
+    setIsEditDialogOpen(true);
+  };
+
+  const handleEditFieldChange = (field, value) => {
+    setEditCollaborateurValues((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const handleSubmitEditCollaborateur = async () => {
+    if (!editingCollaborateur?.matricule) {
+      setEditCollaborateurError(tr("Collaborateur introuvable.", "Collaborator not found."));
+      return;
+    }
+    if (!accessToken) {
+      setEditCollaborateurError(tr("Token manquant. Reconnectez-vous.", "Missing access token. Please sign in again."));
+      return;
+    }
+    if (!editCollaborateurValues.nom.trim() || !editCollaborateurValues.prenom.trim()) {
+      setEditCollaborateurError(tr("Le nom et le prenom sont obligatoires.", "Last name and first name are required."));
+      return;
+    }
+
+    setIsSavingCollaborateur(true);
+    setEditCollaborateurError("");
+    try {
+      const payload = {
+        nom: editCollaborateurValues.nom,
+        prenom: editCollaborateurValues.prenom,
+        fonction: editCollaborateurValues.fonction,
+        centre_cout: editCollaborateurValues.centre_cout,
+        groupe: editCollaborateurValues.groupe,
+        contre_maitre: editCollaborateurValues.contre_maitre,
+        segment: editCollaborateurValues.segment,
+        gender: editCollaborateurValues.gender,
+        num_tel: editCollaborateurValues.num_tel,
+        date_recrutement: editCollaborateurValues.date_recrutement || null,
+        anciennete:
+          editCollaborateurValues.anciennete === ""
+            ? null
+            : Number.parseInt(editCollaborateurValues.anciennete, 10),
+      };
+
+      const { response, data } = await updateCollaborateur(
+        accessToken,
+        editingCollaborateur.matricule,
+        payload,
+      );
+      if (!response.ok) {
+        setEditCollaborateurError(
+          typeof data?.detail === "string"
+            ? data.detail
+            : tr("Impossible de modifier le collaborateur.", "Failed to update collaborator."),
+        );
+        return;
+      }
+
+      await loadCollaborateurs();
+      if (selectedCollaborateurMatriculeRef.current) {
+        await loadCollaborateurPresenceHistory(selectedCollaborateurMatriculeRef.current);
+      }
+      if (formationsCollaborateurMatriculeRef.current) {
+        await loadCollaborateurHistory(formationsCollaborateurMatriculeRef.current);
+      }
+      closeEditDialog();
+    } catch {
+      setEditCollaborateurError(tr("Impossible de modifier le collaborateur.", "Failed to update collaborator."));
+    } finally {
+      setIsSavingCollaborateur(false);
+    }
   };
 
   return (
@@ -351,9 +585,12 @@ export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken 
       <CollaborateursTable
         rows={filteredCollaborateurs}
         selectedCollaborateur={selectedCollaborateur}
-        onViewDetails={(collab) => setSelectedCollaborateur((prev) => (prev?.id === collab.id ? null : collab))}
+        onViewDetails={handleToggleCollaborateurDetails}
         onCloseDetails={() => setSelectedCollaborateur(null)}
         onViewFormations={handleOpenFormationsDialog}
+        onEditCollaborateur={handleOpenEditDialog}
+        presenceHistoryByMatricule={presenceHistoryByMatricule}
+        canEdit={!isObserver}
         tr={tr}
       />
 
@@ -366,6 +603,17 @@ export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken 
         formationsHistoryError={formationsHistoryError}
         onClose={closeFormationsDialog}
         onOpenFormationDetails={handleGoToFormationSection}
+      />
+
+      <EditCollaborateurDialog
+        tr={tr}
+        isOpen={!isObserver && isEditDialogOpen}
+        onClose={closeEditDialog}
+        formValues={editCollaborateurValues}
+        onChange={handleEditFieldChange}
+        onSubmit={handleSubmitEditCollaborateur}
+        isSubmitting={isSavingCollaborateur}
+        error={editCollaborateurError}
       />
     </div>
   );

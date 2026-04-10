@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.schemas.extraction_contract import CollaboratorPreviewConflict
 
@@ -70,6 +70,22 @@ class QualificationPreviewResponse(BaseModel):
 
 class QualificationImportRequest(BaseModel):
     rows: list[QualificationImportRow] = Field(default_factory=list)
+
+
+class QualificationUpdateRequest(BaseModel):
+    formation_id: int | None = Field(default=None, ge=1)
+    formateur_id: int | None = Field(default=None, ge=1)
+    statut: str | None = None
+    date_association_systeme: str | None = None
+    motif: str | None = None
+
+    @field_validator("statut", "date_association_systeme", "motif", mode="before")
+    @classmethod
+    def normalize_optional_text(cls, value: str | None):
+        if value is None:
+            return None
+        text = str(value).strip()
+        return text or None
 
 
 class QualificationImportSummary(BaseModel):

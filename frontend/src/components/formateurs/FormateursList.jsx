@@ -2,10 +2,12 @@ import { useEffect, useState } from "react";
 import { Card } from "../ui/card";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
-import { GraduationCap, Mail, BookOpen, AlertCircle } from "lucide-react";
+import { GraduationCap, Mail, BookOpen, AlertCircle, Pencil, Plus, Trash2 } from "lucide-react";
 import { useAppPreferences } from "../../context/AppPreferencesContext";
 import { apiUrl } from "../../lib/api";
 import { CollaborateursDialog } from "./CollaborateursDialog";
+import { CreateFormateurDialog } from "./CreateFormateurDialog";
+import { DeleteFormateurDialog } from "./DeleteFormateurDialog";
 import { FormateursStat } from "./FormateursStat";
 import { getInitials, getSpecialites } from "./formateursUtils";
 
@@ -18,11 +20,36 @@ const getAuthHeaders = (accessToken) =>
     }
     : {};
 
-export function FormateursList({ onNavigateToPage, accessToken }) {
+const EMPTY_FORMATEUR_FORM = {
+  nom: "",
+  telephone: "",
+  email: "",
+  specialite: "",
+  formationIds: [],
+};
+
+export function FormateursList({ onNavigateToPage, currentUser, accessToken }) {
   const { tr } = useAppPreferences();
+  const isObserver = currentUser?.role === "observer";
   const [selectedFormateur, setSelectedFormateur] = useState(null);
   const [formateurs, setFormateurs] = useState([]);
   const [loadError, setLoadError] = useState("");
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [createError, setCreateError] = useState("");
+  const [isCreatingFormateur, setIsCreatingFormateur] = useState(false);
+  const [newFormateur, setNewFormateur] = useState(EMPTY_FORMATEUR_FORM);
+  const [availableFormations, setAvailableFormations] = useState([]);
+  const [isLoadingAvailableFormations, setIsLoadingAvailableFormations] = useState(false);
+  const [availableFormationsError, setAvailableFormationsError] = useState("");
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editError, setEditError] = useState("");
+  const [isUpdatingFormateur, setIsUpdatingFormateur] = useState(false);
+  const [editingFormateur, setEditingFormateur] = useState(null);
+  const [editFormateurValues, setEditFormateurValues] = useState(EMPTY_FORMATEUR_FORM);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+  const [isDeletingFormateur, setIsDeletingFormateur] = useState(false);
+  const [deletingFormateur, setDeletingFormateur] = useState(null);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [formateurFormations, setFormateurFormations] = useState([]);
   const [formationsLoading, setFormationsLoading] = useState(false);
@@ -58,6 +85,61 @@ export function FormateursList({ onNavigateToPage, accessToken }) {
     applyFormateursData(rows);
     setLoadError("");
     return rows;
+  };
+
+  const createFormateur = async (payload) => {
+    const response = await fetch(apiUrl("/formateurs"), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthHeaders(accessToken),
+      },
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json().catch(() => ({}));
+    return { response, data };
+  };
+
+  const loadAvailableFormations = async () => {
+    if (!accessToken) {
+      setAvailableFormationsError(tr("Impossible de charger les formations.", "Failed to load trainings."));
+      return [];
+    }
+
+    const response = await fetch(apiUrl("/formations"), {
+      headers: getAuthHeaders(accessToken),
+    });
+    const data = await response.json().catch(() => []);
+    if (!response.ok) {
+      throw new Error("load_formations_failed");
+    }
+
+    const rows = Array.isArray(data) ? data : [];
+    setAvailableFormations(rows);
+    setAvailableFormationsError("");
+    return rows;
+  };
+
+  const updateFormateur = async (formateurId, payload) => {
+    const response = await fetch(apiUrl(`/formateurs/${formateurId}`), {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthHeaders(accessToken),
+      },
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json().catch(() => ({}));
+    return { response, data };
+  };
+
+  const deleteFormateur = async (formateurId) => {
+    const response = await fetch(apiUrl(`/formateurs/${formateurId}`), {
+      method: "DELETE",
+      headers: getAuthHeaders(accessToken),
+    });
+    const data = response.status === 204 ? {} : await response.json().catch(() => ({}));
+    return { response, data };
   };
 
   const loadFormateurFormations = async (formateurId) => {
@@ -108,6 +190,17 @@ export function FormateursList({ onNavigateToPage, accessToken }) {
     let cancelled = false;
 
     const syncFormateurs = async () => {
+      if (
+        isCreateDialogOpen ||
+        isCreatingFormateur ||
+        isEditDialogOpen ||
+        isUpdatingFormateur ||
+        isDeleteDialogOpen ||
+        isDeletingFormateur
+      ) {
+        return;
+      }
+
       try {
         await loadFormateurs();
         if (cancelled) {
@@ -152,7 +245,19 @@ export function FormateursList({ onNavigateToPage, accessToken }) {
       window.removeEventListener("focus", handleWindowFocus);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [accessToken, collaborateursDialogFormateur?.id, isDetailsDialogOpen, selectedFormateur?.id, tr]);
+  }, [
+    accessToken,
+    collaborateursDialogFormateur?.id,
+    isCreateDialogOpen,
+    isCreatingFormateur,
+    isDeleteDialogOpen,
+    isDeletingFormateur,
+    isEditDialogOpen,
+    isDetailsDialogOpen,
+    isUpdatingFormateur,
+    selectedFormateur?.id,
+    tr,
+  ]);
 
   const totalFormateurs = formateurs.length;
   const activeFormateurs = formateurs.filter((formateur) => formateur.formations > 0).length;
@@ -218,13 +323,250 @@ export function FormateursList({ onNavigateToPage, accessToken }) {
     setCollaborateursError("");
   };
 
+  const closeCreateDialog = () => {
+    setIsCreateDialogOpen(false);
+    setCreateError("");
+    setNewFormateur(EMPTY_FORMATEUR_FORM);
+    setAvailableFormationsError("");
+  };
+
+  const handleCreateFieldChange = (field, value) => {
+    setNewFormateur((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const handleToggleCreateFormation = (formationId) => {
+    setNewFormateur((prev) => ({
+      ...prev,
+      formationIds: prev.formationIds.includes(formationId)
+        ? prev.formationIds.filter((item) => item !== formationId)
+        : [...prev.formationIds, formationId],
+    }));
+  };
+
+  const closeEditDialog = () => {
+    setIsEditDialogOpen(false);
+    setEditingFormateur(null);
+    setEditError("");
+    setEditFormateurValues(EMPTY_FORMATEUR_FORM);
+    setAvailableFormationsError("");
+  };
+
+  const handleEditFieldChange = (field, value) => {
+    setEditFormateurValues((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const handleToggleEditFormation = (formationId) => {
+    setEditFormateurValues((prev) => ({
+      ...prev,
+      formationIds: prev.formationIds.includes(formationId)
+        ? prev.formationIds.filter((item) => item !== formationId)
+        : [...prev.formationIds, formationId],
+    }));
+  };
+
+  const handleOpenEditDialog = async (formateur) => {
+    setEditingFormateur(formateur);
+    setEditFormateurValues({
+      nom: formateur.nom || "",
+      telephone: formateur.telephone || "",
+      email: formateur.email || "",
+      specialite: formateur.specialite || "",
+      formationIds: [],
+    });
+    setEditError("");
+    setIsEditDialogOpen(true);
+
+    setIsLoadingAvailableFormations(true);
+    try {
+      await loadAvailableFormations();
+      const response = await fetch(apiUrl(`/formateurs/${formateur.id}/formations`), {
+        headers: getAuthHeaders(accessToken),
+      });
+      const data = await response.json().catch(() => []);
+      if (!response.ok) {
+        setEditError(tr("Impossible de charger les formations du formateur.", "Failed to load trainer trainings."));
+        return;
+      }
+
+      setEditFormateurValues((prev) => ({
+        ...prev,
+        formationIds: Array.isArray(data)
+          ? data
+            .map((item) => item?.formation_id)
+            .filter((value) => value !== null && value !== undefined)
+            .map((value) => String(value))
+          : [],
+      }));
+    } catch {
+      setEditError(tr("Impossible de charger les formations du formateur.", "Failed to load trainer trainings."));
+    } finally {
+      setIsLoadingAvailableFormations(false);
+    }
+  };
+
+  const closeDeleteDialog = () => {
+    setIsDeleteDialogOpen(false);
+    setDeletingFormateur(null);
+    setDeleteError("");
+  };
+
+  const handleOpenDeleteDialog = (formateur) => {
+    setDeletingFormateur(formateur);
+    setDeleteError("");
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleSubmitCreateFormateur = async () => {
+    if (!newFormateur.nom.trim()) {
+      setCreateError(tr("Le nom du formateur est obligatoire.", "Trainer name is required."));
+      return;
+    }
+    if (!accessToken) {
+      setCreateError(tr("Token manquant. Reconnectez-vous.", "Missing access token. Please sign in again."));
+      return;
+    }
+
+    setIsCreatingFormateur(true);
+    setCreateError("");
+    try {
+      const { response, data } = await createFormateur({
+        nom: newFormateur.nom,
+        telephone: newFormateur.telephone,
+        email: newFormateur.email,
+        specialite: newFormateur.specialite,
+        formation_ids: newFormateur.formationIds.map((item) => Number(item)),
+      });
+      if (!response.ok) {
+        const detail = typeof data?.detail === "string"
+          ? data.detail
+          : tr("Impossible de creer le formateur.", "Failed to create trainer.");
+        setCreateError(detail);
+        return;
+      }
+
+      await loadFormateurs();
+      closeCreateDialog();
+    } catch {
+      setCreateError(tr("Impossible de creer le formateur.", "Failed to create trainer."));
+    } finally {
+      setIsCreatingFormateur(false);
+    }
+  };
+
+  const handleSubmitEditFormateur = async () => {
+    if (!editingFormateur?.id) {
+      setEditError(tr("Formateur introuvable.", "Trainer not found."));
+      return;
+    }
+    if (!editFormateurValues.nom.trim()) {
+      setEditError(tr("Le nom du formateur est obligatoire.", "Trainer name is required."));
+      return;
+    }
+    if (!accessToken) {
+      setEditError(tr("Token manquant. Reconnectez-vous.", "Missing access token. Please sign in again."));
+      return;
+    }
+
+    setIsUpdatingFormateur(true);
+    setEditError("");
+    try {
+      const { response, data } = await updateFormateur(editingFormateur.id, {
+        nom: editFormateurValues.nom,
+        telephone: editFormateurValues.telephone,
+        email: editFormateurValues.email,
+        specialite: editFormateurValues.specialite,
+        formation_ids: editFormateurValues.formationIds.map((item) => Number(item)),
+      });
+      if (!response.ok) {
+        const detail = typeof data?.detail === "string"
+          ? data.detail
+          : tr("Impossible de modifier le formateur.", "Failed to update trainer.");
+        setEditError(detail);
+        return;
+      }
+
+      await loadFormateurs();
+      closeEditDialog();
+    } catch {
+      setEditError(tr("Impossible de modifier le formateur.", "Failed to update trainer."));
+    } finally {
+      setIsUpdatingFormateur(false);
+    }
+  };
+
+  const handleSubmitDeleteFormateur = async () => {
+    if (!deletingFormateur?.id) {
+      setDeleteError(tr("Formateur introuvable.", "Trainer not found."));
+      return;
+    }
+    if (!accessToken) {
+      setDeleteError(tr("Token manquant. Reconnectez-vous.", "Missing access token. Please sign in again."));
+      return;
+    }
+
+    setIsDeletingFormateur(true);
+    setDeleteError("");
+    try {
+      const { response, data } = await deleteFormateur(deletingFormateur.id);
+      if (!response.ok) {
+        const detail = typeof data?.detail === "string"
+          ? data.detail
+          : tr("Impossible de supprimer le formateur.", "Failed to delete trainer.");
+        setDeleteError(detail);
+        return;
+      }
+
+      if (selectedFormateur?.id === deletingFormateur.id) {
+        closeDetailsDialog();
+      }
+      if (collaborateursDialogFormateur?.id === deletingFormateur.id) {
+        closeCollaborateursDialog();
+      }
+
+      await loadFormateurs();
+      closeDeleteDialog();
+    } catch {
+      setDeleteError(tr("Impossible de supprimer le formateur.", "Failed to delete trainer."));
+    } finally {
+      setIsDeletingFormateur(false);
+    }
+  };
+
   return (
     <div className="space-y-5 pb-6">
-      <div>
+      <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="leoni-display-xl text-[40px] font-semibold leading-tight text-[#171a1f]">{tr("Gestion des Formateurs", "Trainer Management")}</h1>
           <p className="leoni-subtitle mt-1 text-[18px] text-[#5d6574]">{tr("Liste et disponibilite des formateurs", "Trainer list and availability")}</p>
         </div>
+        {!isObserver ? (
+          <Button
+            className="h-10 rounded-[10px] bg-[#005ca9] px-5 text-[16px] font-medium text-white hover:bg-[#004a87]"
+            onClick={async () => {
+              setIsCreateDialogOpen(true);
+              setCreateError("");
+              setIsLoadingAvailableFormations(true);
+              try {
+                await loadAvailableFormations();
+              } catch {
+                setAvailableFormationsError(
+                  tr("Impossible de charger les formations.", "Failed to load trainings."),
+                );
+              } finally {
+                setIsLoadingAvailableFormations(false);
+              }
+            }}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            {tr("Definir un formateur", "Create a trainer")}
+          </Button>
+        ) : null}
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
@@ -305,6 +647,26 @@ export function FormateursList({ onNavigateToPage, accessToken }) {
                   {tr("Voir liste collaborateurs", "View collaborator list")}
                 </Button>
               </div>
+              {!isObserver ? (
+                <div className="mt-2 flex gap-2">
+                  <Button
+                    variant="outline"
+                    className="h-9 flex-1 rounded-xl border-[#ccd4d8] text-[16px]"
+                    onClick={() => handleOpenEditDialog(formateur)}
+                  >
+                    <Pencil className="mr-2 h-4 w-4" />
+                    {tr("Modifier", "Edit")}
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    className="h-9 flex-1 rounded-xl"
+                    onClick={() => handleOpenDeleteDialog(formateur)}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    {tr("Supprimer", "Delete")}
+                  </Button>
+                </div>
+              ) : null}
             </Card>
           );
         })}
@@ -323,9 +685,23 @@ export function FormateursList({ onNavigateToPage, accessToken }) {
                 </h2>
                 <p className="mt-1 text-[15px] text-[#64748b]">{selectedFormateur.nom}</p>
               </div>
-              <Button variant="outline" className="rounded-xl" onClick={closeDetailsDialog}>
-                {tr("Fermer", "Close")}
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                {!isObserver ? (
+                  <>
+                    <Button variant="outline" className="rounded-xl" onClick={() => handleOpenEditDialog(selectedFormateur)}>
+                      <Pencil className="mr-2 h-4 w-4" />
+                      {tr("Modifier", "Edit")}
+                    </Button>
+                    <Button variant="destructive" className="rounded-xl" onClick={() => handleOpenDeleteDialog(selectedFormateur)}>
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      {tr("Supprimer", "Delete")}
+                    </Button>
+                  </>
+                ) : null}
+                <Button variant="outline" className="rounded-xl" onClick={closeDetailsDialog}>
+                  {tr("Fermer", "Close")}
+                </Button>
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto px-7 py-6">
@@ -402,6 +778,55 @@ export function FormateursList({ onNavigateToPage, accessToken }) {
         collaborateursLoading={collaborateursLoading}
         collaborateursError={collaborateursError}
         onClose={closeCollaborateursDialog}
+      />
+
+      <CreateFormateurDialog
+        tr={tr}
+        isOpen={!isObserver && isCreateDialogOpen}
+        onClose={closeCreateDialog}
+        formValues={newFormateur}
+        onChange={handleCreateFieldChange}
+        formations={availableFormations}
+        selectedFormationIds={newFormateur.formationIds}
+        onToggleFormation={handleToggleCreateFormation}
+        onSubmit={handleSubmitCreateFormateur}
+        isSubmitting={isCreatingFormateur}
+        error={createError}
+        isFormationsLoading={isLoadingAvailableFormations}
+        formationsError={availableFormationsError}
+      />
+
+      <CreateFormateurDialog
+        tr={tr}
+        isOpen={!isObserver && isEditDialogOpen}
+        onClose={closeEditDialog}
+        formValues={editFormateurValues}
+        onChange={handleEditFieldChange}
+        formations={availableFormations}
+        selectedFormationIds={editFormateurValues.formationIds}
+        onToggleFormation={handleToggleEditFormation}
+        onSubmit={handleSubmitEditFormateur}
+        isSubmitting={isUpdatingFormateur}
+        error={editError}
+        title={tr("Modifier le formateur", "Edit trainer")}
+        description={tr(
+          "Mettez a jour les informations du formateur dans la base de donnees.",
+          "Update the trainer information in the database.",
+        )}
+        submitLabel={tr("Enregistrer", "Save")}
+        submittingLabel={tr("Enregistrement...", "Saving...")}
+        isFormationsLoading={isLoadingAvailableFormations}
+        formationsError={availableFormationsError}
+      />
+
+      <DeleteFormateurDialog
+        tr={tr}
+        isOpen={!isObserver && isDeleteDialogOpen}
+        onClose={closeDeleteDialog}
+        formateur={deletingFormateur}
+        onSubmit={handleSubmitDeleteFormateur}
+        isSubmitting={isDeletingFormateur}
+        error={deleteError}
       />
     </div>
   );

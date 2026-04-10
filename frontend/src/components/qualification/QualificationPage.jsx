@@ -18,12 +18,32 @@ import { ComparisonStat } from "./ComparisonStat";
 import { QualificationFilters } from "./QualificationFilters";
 import { QualificationMovementTab } from "./QualificationMovementTab";
 import { QualificationPreviewCard } from "./QualificationPreviewCard";
+import { EditQualificationDialog } from "./EditQualificationDialog";
+import { UploadNotificationStack } from "./UploadNotificationStack";
 import { UploadReportModal } from "./UploadReportModal";
 import {
   saveQualificationUploadReview,
 } from "../../lib/qualificationUploadReview";
+import {
+  buildUploadNotifications,
+  filterPreviewRowsByAlert,
+  PREVIEW_ALERT_FILTERS,
+} from "./uploadAlertUtils";
+import {
+  fetchCollaborateurPresenceHistory,
+  getEmptyPresenceHistoryState,
+  normalizePresenceHistoryPayload,
+} from "../collaborateurs/presenceHistory";
+import { toDateInputValue } from "../collaborateurs/helpers";
 
 const AUTO_REFRESH_INTERVAL_MS = 30000;
+const EMPTY_EDIT_QUALIFICATION_FORM = {
+  formation_id: "",
+  formateur_id: "",
+  statut: "Non associee",
+  date_association_systeme: "",
+  motif: "",
+};
 
 const ImportMissingDataDialog = lazy(() =>
   import("./ImportMissingDataDialog").then((module) => ({
@@ -100,6 +120,28 @@ async function importCollaboratorRows(accessToken, rows) {
   });
 }
 
+async function fetchFormationOptions(accessToken) {
+  return readJsonResponse(apiUrl("/formations"), {
+    headers: getAuthHeaders(accessToken),
+  });
+}
+
+async function fetchFormateurOptions(accessToken) {
+  return readJsonResponse(apiUrl("/formateurs"), {
+    headers: getAuthHeaders(accessToken),
+  });
+}
+
+async function updateQualification(accessToken, qualificationId, payload) {
+  return readJsonResponse(apiUrl(`/qualification/${qualificationId}`), {
+    method: "PATCH",
+    headers: getAuthHeaders(accessToken, {
+      "Content-Type": "application/json",
+    }),
+    body: JSON.stringify(payload),
+  });
+}
+
 const buildPreviewRowId = (row, index) =>
   [
     row.matricule || `${row.nom || "unknown"}-${row.prenom || "unknown"}`,
@@ -171,12 +213,23 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
   const { tr } = useAppPreferences();
   const isObserver = currentUser?.role === "observer";
 
+  const [activeTab, setActiveTab] = useState("tracking");
   const [searchTerm, setSearchTerm] = useState("");
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
   const [groupFilter, setGroupFilter] = useState("all");
   const [collaborateursData, setCollaborateursData] = useState([]);
   const [selectedCollaborateur, setSelectedCollaborateur] = useState(null);
+  const [presenceHistoryByMatricule, setPresenceHistoryByMatricule] = useState({});
+  const [availableFormations, setAvailableFormations] = useState([]);
+  const [availableFormateurs, setAvailableFormateurs] = useState([]);
+  const [isEditQualificationOpen, setIsEditQualificationOpen] = useState(false);
+  const [editingQualification, setEditingQualification] = useState(null);
+  const [editQualificationValues, setEditQualificationValues] = useState(EMPTY_EDIT_QUALIFICATION_FORM);
+  const [editQualificationError, setEditQualificationError] = useState("");
+  const [isSavingQualification, setIsSavingQualification] = useState(false);
+  const [isLoadingQualificationOptions, setIsLoadingQualificationOptions] = useState(false);
+  const [qualificationOptionsError, setQualificationOptionsError] = useState("");
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState([]);
@@ -191,6 +244,7 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
   const [previewConflicts, setPreviewConflicts] = useState([]);
   const [previewMissingRequirements, setPreviewMissingRequirements] = useState([]);
   const [previewUnmatchedRows, setPreviewUnmatchedRows] = useState([]);
+  const [activePreviewAlertFilter, setActivePreviewAlertFilter] = useState(null);
   const [previewFileErrors, setPreviewFileErrors] = useState([]);
   const [previewError, setPreviewError] = useState("");
   const [previewErrorDetails, setPreviewErrorDetails] = useState(null);
@@ -201,8 +255,12 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
   const [isConflictDialogOpen, setIsConflictDialogOpen] = useState(false);
   const [isUnmatchedRowsDialogOpen, setIsUnmatchedRowsDialogOpen] = useState(false);
   const inputRef = useRef(null);
+  const previewCardRef = useRef(null);
+  const selectedCollaborateurMatriculeRef = useRef("");
   const deferredSearchTerm = useDeferredValue(searchTerm);
   const isLiveRefreshPaused =
+    isEditQualificationOpen ||
+    isSavingQualification ||
     isUploadOpen ||
     isPreviewLoading ||
     isImportingPreview ||
@@ -219,10 +277,15 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
     });
   };
 
+  useEffect(() => {
+    selectedCollaborateurMatriculeRef.current = selectedCollaborateur?.matricule ?? "";
+  }, [selectedCollaborateur?.matricule]);
+
   const loadQualifications = async () => {
     if (!accessToken) {
       applyQualificationsData([]);
       setPageError("");
+      setPresenceHistoryByMatricule({});
       return [];
     }
 
@@ -235,6 +298,186 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
     applyQualificationsData(rows);
     setPageError("");
     return rows;
+  };
+
+  const loadCollaborateurPresenceHistory = async (matricule) => {
+    if (!accessToken || !matricule) {
+      return;
+    }
+
+    setPresenceHistoryByMatricule((prev) => ({
+      ...prev,
+      [matricule]: getEmptyPresenceHistoryState({
+        ...prev[matricule],
+        loading: true,
+        error: "",
+      }),
+    }));
+
+    try {
+      const { response, data } = await fetchCollaborateurPresenceHistory(accessToken, matricule);
+      if (!response.ok) {
+        setPresenceHistoryByMatricule((prev) => ({
+          ...prev,
+          [matricule]: getEmptyPresenceHistoryState({
+            ...prev[matricule],
+            loaded: true,
+            error: tr(
+              "Impossible de charger l'historique de presence.",
+              "Failed to load attendance history.",
+            ),
+          }),
+        }));
+        return;
+      }
+
+      setPresenceHistoryByMatricule((prev) => ({
+        ...prev,
+        [matricule]: normalizePresenceHistoryPayload(data),
+      }));
+    } catch {
+      setPresenceHistoryByMatricule((prev) => ({
+        ...prev,
+        [matricule]: getEmptyPresenceHistoryState({
+          ...prev[matricule],
+          loaded: true,
+          error: tr(
+            "Impossible de charger l'historique de presence.",
+            "Failed to load attendance history.",
+          ),
+        }),
+      }));
+    }
+  };
+
+  const loadQualificationOptions = async () => {
+    if (!accessToken) {
+      setQualificationOptionsError(tr("Token manquant. Reconnectez-vous.", "Missing access token. Please sign in again."));
+      return;
+    }
+
+    const [formationsResult, formateursResult] = await Promise.all([
+      fetchFormationOptions(accessToken),
+      fetchFormateurOptions(accessToken),
+    ]);
+
+    if (!formationsResult.response.ok || !formateursResult.response.ok) {
+      throw new Error("load_options_failed");
+    }
+
+    setAvailableFormations(Array.isArray(formationsResult.data) ? formationsResult.data : []);
+    setAvailableFormateurs(Array.isArray(formateursResult.data) ? formateursResult.data : []);
+    setQualificationOptionsError("");
+  };
+
+  const closeEditQualificationDialog = () => {
+    setIsEditQualificationOpen(false);
+    setEditingQualification(null);
+    setEditQualificationValues(EMPTY_EDIT_QUALIFICATION_FORM);
+    setEditQualificationError("");
+    setQualificationOptionsError("");
+  };
+
+  const handleEditQualificationFieldChange = (field, value) => {
+    setEditQualificationValues((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const handleOpenEditQualificationDialog = async (row) => {
+    if (!row?.qualification_row_id) {
+      return;
+    }
+
+    const storedStatus =
+      row.qualification_statut === "Completee"
+        ? "Qualifie"
+        : row.qualification_statut === "En cours"
+          ? "En cours"
+          : "Non associee";
+
+    setEditingQualification(row);
+    setEditQualificationValues({
+      formation_id: row.formation_id === null || row.formation_id === undefined ? "" : String(row.formation_id),
+      formateur_id: row.formateur_id === null || row.formateur_id === undefined ? "" : String(row.formateur_id),
+      statut: storedStatus,
+      date_association_systeme: toDateInputValue(row.date_association_systeme),
+      motif: row.motif || "",
+    });
+    setEditQualificationError("");
+    setQualificationOptionsError("");
+    setIsEditQualificationOpen(true);
+
+    setIsLoadingQualificationOptions(true);
+    try {
+      await loadQualificationOptions();
+    } catch {
+      setQualificationOptionsError(
+        tr(
+          "Impossible de charger les formations et formateurs.",
+          "Failed to load trainings and trainers.",
+        ),
+      );
+    } finally {
+      setIsLoadingQualificationOptions(false);
+    }
+  };
+
+  const handleSubmitEditQualification = async () => {
+    if (!editingQualification?.qualification_row_id) {
+      setEditQualificationError(tr("Qualification introuvable.", "Qualification not found."));
+      return;
+    }
+    if (!accessToken) {
+      setEditQualificationError(tr("Token manquant. Reconnectez-vous.", "Missing access token. Please sign in again."));
+      return;
+    }
+    if (!editQualificationValues.formation_id && editQualificationValues.formateur_id) {
+      setEditQualificationError(
+        tr(
+          "Choisissez d'abord une formation avant d'affecter un formateur.",
+          "Select a training before assigning a trainer.",
+        ),
+      );
+      return;
+    }
+
+    setIsSavingQualification(true);
+    setEditQualificationError("");
+    try {
+      const payload = {
+        formation_id: editQualificationValues.formation_id ? Number(editQualificationValues.formation_id) : null,
+        formateur_id: editQualificationValues.formateur_id ? Number(editQualificationValues.formateur_id) : null,
+        statut: editQualificationValues.statut || "Non associee",
+        date_association_systeme: editQualificationValues.date_association_systeme || null,
+        motif: editQualificationValues.motif || null,
+      };
+
+      const { response, data } = await updateQualification(
+        accessToken,
+        editingQualification.qualification_row_id,
+        payload,
+      );
+      if (!response.ok) {
+        setEditQualificationError(
+          typeof data?.detail === "string"
+            ? data.detail
+            : tr("Impossible de modifier la qualification.", "Failed to update qualification."),
+        );
+        return;
+      }
+
+      await loadQualifications();
+      if (selectedCollaborateurMatriculeRef.current) {
+        await loadCollaborateurPresenceHistory(selectedCollaborateurMatriculeRef.current);
+      }
+      closeEditQualificationDialog();
+    } catch {
+      setEditQualificationError(tr("Impossible de modifier la qualification.", "Failed to update qualification."));
+    } finally {
+      setIsSavingQualification(false);
+    }
   };
 
   const totalQualifications = collaborateursData.length;
@@ -273,6 +516,7 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
     if (!accessToken) {
       applyQualificationsData([]);
       setPageError("");
+      setPresenceHistoryByMatricule({});
       return;
     }
 
@@ -285,6 +529,11 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
 
       try {
         await loadQualifications();
+        if (cancelled) return;
+
+        if (selectedCollaborateurMatriculeRef.current) {
+          await loadCollaborateurPresenceHistory(selectedCollaborateurMatriculeRef.current);
+        }
         if (cancelled) return;
       } catch {
         if (!cancelled) {
@@ -320,6 +569,25 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
     };
   }, [accessToken, isLiveRefreshPaused, tr]);
 
+  useEffect(() => {
+    if (!selectedCollaborateur?.matricule || !accessToken) {
+      return;
+    }
+
+    loadCollaborateurPresenceHistory(selectedCollaborateur.matricule);
+  }, [accessToken, selectedCollaborateur?.matricule, tr]);
+
+  useEffect(() => {
+    if (!activePreviewAlertFilter) {
+      return;
+    }
+
+    const filteredRows = filterPreviewRowsByAlert(previewRows, activePreviewAlertFilter);
+    if (filteredRows.length === 0) {
+      setActivePreviewAlertFilter(null);
+    }
+  }, [activePreviewAlertFilter, previewRows]);
+
   const handleFileChange = (fileList) => {
     const incoming = Array.from(fileList || []).filter((file) => {
       const name = (file?.name || "").toLowerCase();
@@ -346,6 +614,18 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
   const closeModal = () => {
     setIsUploadOpen(false);
     setIsDragging(false);
+  };
+
+  const scrollToPreviewCard = () => {
+    setActiveTab("tracking");
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        previewCardRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      });
+    });
   };
 
   const syncPreviewRows = (nextRows, { clearConflicts = false, clearMissingRequirements = false } = {}) => {
@@ -376,13 +656,13 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
     setPreviewConflicts(conflicts);
     setPreviewMissingRequirements(missingRequirements);
     setPreviewUnmatchedRows(unmatchedRows);
+    setActivePreviewAlertFilter(null);
     setPreviewFileErrors(Array.isArray(data?.file_errors) ? data.file_errors : []);
     setPreviewImportType(importType);
-    setIsMissingDataDialogOpen(missingRequirements.length > 0);
-    setIsConflictDialogOpen(missingRequirements.length === 0 && conflicts.length > 0);
-    setIsUnmatchedRowsDialogOpen(
-      missingRequirements.length === 0 && conflicts.length === 0 && unmatchedRows.length > 0,
-    );
+    setActiveTab("tracking");
+    setIsMissingDataDialogOpen(false);
+    setIsConflictDialogOpen(false);
+    setIsUnmatchedRowsDialogOpen(false);
     persistUploadReview({
       importType,
       conflicts,
@@ -402,6 +682,8 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
       setPreviewError(detail || fallbackMessage);
       setPreviewErrorDetails(null);
     }
+    setActiveTab("tracking");
+    closeModal();
   };
 
   const shouldFallbackToCollaboratorPreview = (detail) => {
@@ -459,6 +741,7 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
     setPreviewConflicts([]);
     setPreviewMissingRequirements([]);
     setPreviewUnmatchedRows([]);
+    setActivePreviewAlertFilter(null);
     setImportSummary(null);
     setImportError("");
     setIsMissingDataDialogOpen(false);
@@ -510,6 +793,8 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
         error?.message || tr("Erreur reseau lors de l'envoi du fichier.", "Network error while uploading file."),
       );
       setPreviewErrorDetails(null);
+      setActiveTab("tracking");
+      closeModal();
     } finally {
       setIsPreviewLoading(false);
     }
@@ -571,8 +856,56 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
     }
   };
 
+  const handleOpenUploadErrors = () => {
+    setActivePreviewAlertFilter(null);
+    setActiveTab("tracking");
+    setIsMissingDataDialogOpen(false);
+    setIsConflictDialogOpen(false);
+    setIsUnmatchedRowsDialogOpen(false);
+
+    if (previewMissingRequirements.length > 0) {
+      setIsMissingDataDialogOpen(true);
+      return;
+    }
+
+    if (previewConflicts.length > 0) {
+      setIsConflictDialogOpen(true);
+      return;
+    }
+
+    if (previewUnmatchedRows.length > 0) {
+      setIsUnmatchedRowsDialogOpen(true);
+      return;
+    }
+
+    scrollToPreviewCard();
+  };
+
+  const handleOpenPreviewAlert = (filter) => {
+    setActivePreviewAlertFilter(filter);
+    scrollToPreviewCard();
+  };
+
   const handleViewCollaborateur = (collab) => {
-    setSelectedCollaborateur((prev) => (prev?.id === collab.id ? null : collab));
+    setSelectedCollaborateur((prev) => {
+      const shouldClose = prev?.id === collab.id;
+      if (shouldClose) {
+        return null;
+      }
+
+      if (collab?.matricule) {
+        setPresenceHistoryByMatricule((currentState) => ({
+          ...currentState,
+          [collab.matricule]: getEmptyPresenceHistoryState({
+            ...currentState[collab.matricule],
+            loading: true,
+            error: "",
+          }),
+        }));
+      }
+
+      return collab;
+    });
   };
 
   const handleApplyConflictResolution = (nextRows) => {
@@ -636,8 +969,66 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
     });
   }, [collaborateursData, deferredSearchTerm, groupFilter, statusFilter]);
 
+  const uploadNotifications = useMemo(
+    () =>
+      buildUploadNotifications({
+        tr,
+        previewError,
+        previewFileErrors,
+        previewMissingRequirements,
+        previewConflicts,
+        previewUnmatchedRows,
+        previewRows,
+        onOpenErrors: handleOpenUploadErrors,
+        onOpenAbsence: () => handleOpenPreviewAlert(PREVIEW_ALERT_FILTERS.absence),
+        onOpenReturnAbsence: () => handleOpenPreviewAlert(PREVIEW_ALERT_FILTERS.returnAbsence),
+        onOpenConsecutiveAbsence: () => handleOpenPreviewAlert(PREVIEW_ALERT_FILTERS.consecutiveAbsence),
+      }),
+    [
+      tr,
+      previewError,
+      previewFileErrors,
+      previewMissingRequirements,
+      previewConflicts,
+      previewUnmatchedRows,
+      previewRows,
+    ],
+  );
+
+  const uploadNotificationSignature = useMemo(
+    () =>
+      JSON.stringify({
+        previewImportType,
+        previewError,
+        previewFileErrors: previewFileErrors.map((item) => `${item.file}:${item.error}`),
+        previewMissingRequirements: previewMissingRequirements.map((item) => item.rowId || item.row_index || ""),
+        previewConflicts: previewConflicts.map((item) => item.rowId || item.row_index || ""),
+        previewUnmatchedRows: previewUnmatchedRows.map(
+          (item) => item.row?.__previewRowId || item.row_index || item.source_row_number || "",
+        ),
+        previewRows: previewRows.map(
+          (row) => `${row.__previewRowId || ""}:${row.motif || ""}:${row.date_association_systeme || row.date || ""}`,
+        ),
+      }),
+    [
+      previewImportType,
+      previewError,
+      previewFileErrors,
+      previewMissingRequirements,
+      previewConflicts,
+      previewUnmatchedRows,
+      previewRows,
+    ],
+  );
+
   return (
     <div className="space-y-5 pb-6">
+      <UploadNotificationStack
+        tr={tr}
+        notifications={uploadNotifications}
+        signature={uploadNotificationSignature}
+      />
+
       <div className="flex items-start justify-between gap-4">
         <div className="leoni-rise-up-soft">
           <h1 className="leoni-display-xl text-[40px] font-semibold leading-tight text-[#171a1f]">
@@ -667,7 +1058,7 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
         </Card>
       ) : null}
 
-      <Tabs defaultValue="tracking" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="grid h-auto w-full max-w-[560px] grid-cols-2 rounded-[22px] border border-[#dfe5e2] bg-white p-2 shadow-sm">
           <TabsTrigger
             value="tracking"
@@ -768,33 +1159,41 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
             <CollaborateursTable
               rows={filteredCollaborateurs}
               onViewDetails={handleViewCollaborateur}
+              onEditQualification={handleOpenEditQualificationDialog}
               selectedCollaborateur={selectedCollaborateur}
               onCloseDetails={() => setSelectedCollaborateur(null)}
+              presenceHistoryByMatricule={presenceHistoryByMatricule}
+              canEdit={!isObserver}
+              tr={tr}
             />
           </div>
 
-          <QualificationPreviewCard
-            tr={tr}
-            previewRowsCount={previewRowsCount}
-            previewError={previewError}
-            previewErrorDetails={previewErrorDetails}
-            previewFileErrors={previewFileErrors}
-            previewRows={previewRows}
-            previewColumnsDetected={previewColumnsDetected}
-            previewMappingUsed={previewMappingUsed}
-            previewImportType={previewImportType}
-            previewConflictsCount={previewConflicts.length}
-            previewMissingRequirementsCount={previewMissingRequirements.length}
-            previewUnmatchedRowsCount={previewUnmatchedRows.length}
-            canImport={pendingImportRows.length > 0}
-            isImporting={isImportingPreview}
-            onImport={handleImportPreview}
-            onReviewMissingRequirements={() => setIsMissingDataDialogOpen(true)}
-            onReviewConflicts={() => setIsConflictDialogOpen(true)}
-            onReviewUnmatchedRows={() => setIsUnmatchedRowsDialogOpen(true)}
-            importSummary={importSummary}
-            importError={importError}
-          />
+          <div ref={previewCardRef} className="scroll-mt-24">
+            <QualificationPreviewCard
+              tr={tr}
+              previewRowsCount={previewRowsCount}
+              previewError={previewError}
+              previewErrorDetails={previewErrorDetails}
+              previewFileErrors={previewFileErrors}
+              previewRows={previewRows}
+              previewColumnsDetected={previewColumnsDetected}
+              previewMappingUsed={previewMappingUsed}
+              previewImportType={previewImportType}
+              previewConflictsCount={previewConflicts.length}
+              previewMissingRequirementsCount={previewMissingRequirements.length}
+              previewUnmatchedRowsCount={previewUnmatchedRows.length}
+              activeAlertFilter={activePreviewAlertFilter}
+              canImport={pendingImportRows.length > 0}
+              isImporting={isImportingPreview}
+              onImport={handleImportPreview}
+              onReviewMissingRequirements={() => setIsMissingDataDialogOpen(true)}
+              onReviewConflicts={() => setIsConflictDialogOpen(true)}
+              onReviewUnmatchedRows={() => setIsUnmatchedRowsDialogOpen(true)}
+              onClearAlertFilter={() => setActivePreviewAlertFilter(null)}
+              importSummary={importSummary}
+              importError={importError}
+            />
+          </div>
         </TabsContent>
 
         <TabsContent value="movement">
@@ -851,6 +1250,22 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
         selectedFiles={selectedFiles}
         isPreviewLoading={isPreviewLoading}
         onSubmit={handleSubmit}
+      />
+
+      <EditQualificationDialog
+        tr={tr}
+        isOpen={!isObserver && isEditQualificationOpen}
+        onClose={closeEditQualificationDialog}
+        row={editingQualification}
+        formValues={editQualificationValues}
+        onChange={handleEditQualificationFieldChange}
+        onSubmit={handleSubmitEditQualification}
+        isSubmitting={isSavingQualification}
+        error={editQualificationError}
+        formations={availableFormations}
+        formateurs={availableFormateurs}
+        isOptionsLoading={isLoadingQualificationOptions}
+        optionsError={qualificationOptionsError}
       />
     </div>
   );

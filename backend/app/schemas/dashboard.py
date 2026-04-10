@@ -10,6 +10,10 @@ class DashboardMetric(BaseModel):
 
 class DashboardMetricsResponse(BaseModel):
     generated_at: date
+    period_start: date
+    period_end: date
+    comparison_period_start: date
+    comparison_period_end: date
     comparison_date: date
     total_collaborateurs: DashboardMetric
     nouvelles_recrues: DashboardMetric

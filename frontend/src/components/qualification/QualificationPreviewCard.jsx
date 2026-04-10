@@ -11,6 +11,10 @@ import {
   TableHeader,
   TableRow,
 } from "../ui/table";
+import {
+  filterPreviewRowsByAlert,
+  getPreviewAlertFilterMeta,
+} from "./uploadAlertUtils";
 
 const PREVIEW_PAGE_SIZE = 60;
 
@@ -27,28 +31,39 @@ export function QualificationPreviewCard({
   previewConflictsCount,
   previewMissingRequirementsCount,
   previewUnmatchedRowsCount,
+  activeAlertFilter,
   canImport,
   isImporting,
   onImport,
   onReviewMissingRequirements,
   onReviewConflicts,
   onReviewUnmatchedRows,
+  onClearAlertFilter,
   importSummary,
   importError,
 }) {
   const isCollaboratorImport = previewImportType === "collaborateurs";
   const hasPreviewRows = previewRows.length > 0;
   const [page, setPage] = useState(1);
+  const filteredPreviewRows = useMemo(
+    () => filterPreviewRowsByAlert(previewRows, activeAlertFilter),
+    [activeAlertFilter, previewRows],
+  );
+  const alertFilterMeta = useMemo(
+    () => getPreviewAlertFilterMeta(tr, activeAlertFilter),
+    [activeAlertFilter, tr],
+  );
+  const hasActiveAlertFilter = Boolean(activeAlertFilter);
 
   useEffect(() => {
     setPage(1);
-  }, [previewRows, previewImportType]);
+  }, [previewRows, previewImportType, activeAlertFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(previewRows.length / PREVIEW_PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(filteredPreviewRows.length / PREVIEW_PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
   const visiblePreviewRows = useMemo(
-    () => previewRows.slice((safePage - 1) * PREVIEW_PAGE_SIZE, safePage * PREVIEW_PAGE_SIZE),
-    [previewRows, safePage],
+    () => filteredPreviewRows.slice((safePage - 1) * PREVIEW_PAGE_SIZE, safePage * PREVIEW_PAGE_SIZE),
+    [filteredPreviewRows, safePage],
   );
 
   return (
@@ -57,9 +72,16 @@ export function QualificationPreviewCard({
         <h3 className="text-[20px] font-semibold text-[#171a1f]">
           {tr("Apercu Import", "Import Preview")}
         </h3>
-        <Badge variant="outline" className="rounded-xl border-[#d5dce0] bg-[#f7f8f9] text-[14px]">
-          {previewRowsCount} {tr("lignes", "rows")}
-        </Badge>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <Badge variant="outline" className="rounded-xl border-[#d5dce0] bg-[#f7f8f9] text-[14px]">
+            {previewRowsCount} {tr("lignes", "rows")}
+          </Badge>
+          {hasActiveAlertFilter ? (
+            <Badge variant="outline" className="rounded-xl border-[#b9d3ea] bg-[#f5f9ff] text-[13px] text-[#005ca9]">
+              {alertFilterMeta.label}: {filteredPreviewRows.length}
+            </Badge>
+          ) : null}
+        </div>
       </div>
 
       {importSummary ? (
@@ -192,6 +214,30 @@ export function QualificationPreviewCard({
         </div>
       ) : null}
 
+      {hasPreviewRows && hasActiveAlertFilter ? (
+        <div className="mt-2 flex flex-col gap-3 rounded-xl border border-[#b9d3ea] bg-[#f5f9ff] p-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-sm font-medium text-[#005ca9]">
+              {tr("Filtre actif", "Active filter")}: {alertFilterMeta.label}
+            </p>
+            <p className="text-xs text-[#4f5d75]">
+              {tr(
+                `${filteredPreviewRows.length} lignes visibles sur ${previewRows.length}`,
+                `${filteredPreviewRows.length} visible rows out of ${previewRows.length}`,
+              )}
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            className="h-10 rounded-xl border-[#b9d3ea] bg-white text-[#005ca9] hover:bg-[#edf5ff]"
+            onClick={onClearAlertFilter}
+          >
+            {tr("Tout afficher", "Show all")}
+          </Button>
+        </div>
+      ) : null}
+
       {hasPreviewRows ? (
         <div className="mb-3 flex flex-col gap-3 rounded-xl border border-[#dfe5e2] bg-[#f8fbff] p-3 md:flex-row md:items-center md:justify-between">
           <div>
@@ -238,11 +284,11 @@ export function QualificationPreviewCard({
 
       {hasPreviewRows ? (
         <div className="mt-3 overflow-x-auto">
-          {previewRows.length > PREVIEW_PAGE_SIZE ? (
+          {filteredPreviewRows.length > PREVIEW_PAGE_SIZE ? (
             <div className="mb-3 flex flex-col gap-3 rounded-xl border border-[#eef2f5] bg-[#fafcff] p-3 md:flex-row md:items-center md:justify-between">
               <p className="text-xs text-[#5f6777]">
-                {tr("Affichage", "Showing")} {Math.min((safePage - 1) * PREVIEW_PAGE_SIZE + 1, previewRows.length)}-
-                {Math.min(safePage * PREVIEW_PAGE_SIZE, previewRows.length)} {tr("sur", "of")} {previewRows.length}
+                {tr("Affichage", "Showing")} {Math.min((safePage - 1) * PREVIEW_PAGE_SIZE + 1, filteredPreviewRows.length)}-
+                {Math.min(safePage * PREVIEW_PAGE_SIZE, filteredPreviewRows.length)} {tr("sur", "of")} {filteredPreviewRows.length}
               </p>
               <div className="flex items-center gap-2">
                 <Button
@@ -266,54 +312,60 @@ export function QualificationPreviewCard({
               </div>
             </div>
           ) : null}
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>matricule</TableHead>
-                <TableHead>nom</TableHead>
-                <TableHead>prenom</TableHead>
-                <TableHead>fonction_sap</TableHead>
-                {isCollaboratorImport ? <TableHead>centre_cout</TableHead> : null}
-                {isCollaboratorImport ? <TableHead>groupe</TableHead> : null}
-                <TableHead>{isCollaboratorImport ? "competence" : "qualification"}</TableHead>
-                <TableHead>formateur</TableHead>
-                {isCollaboratorImport ? <TableHead>contre_maitre</TableHead> : null}
-                {isCollaboratorImport ? <TableHead>segment</TableHead> : null}
-                {isCollaboratorImport ? <TableHead>gender</TableHead> : null}
-                {isCollaboratorImport ? <TableHead>num_tel</TableHead> : null}
-                {isCollaboratorImport ? <TableHead>date_recrutement</TableHead> : null}
-                {isCollaboratorImport ? <TableHead>anciennete</TableHead> : null}
-                {!isCollaboratorImport ? <TableHead>date_association</TableHead> : null}
-                {!isCollaboratorImport ? <TableHead>motif</TableHead> : null}
-                {!isCollaboratorImport ? <TableHead>statut</TableHead> : null}
-                <TableHead>etat</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {visiblePreviewRows.map((row, idx) => (
-                <TableRow key={row.__previewRowId || `${row.matricule || "row"}-${idx}`}>
-                  <TableCell>{row.matricule || "-"}</TableCell>
-                  <TableCell>{row.nom || "-"}</TableCell>
-                  <TableCell>{row.prenom || "-"}</TableCell>
-                  <TableCell>{row.fonction_sap || row.fonction || "-"}</TableCell>
-                  {isCollaboratorImport ? <TableCell>{row.centre_cout || "-"}</TableCell> : null}
-                  {isCollaboratorImport ? <TableCell>{row.groupe || "-"}</TableCell> : null}
-                  <TableCell>{row.competence || "-"}</TableCell>
-                  <TableCell>{row.formateur || "-"}</TableCell>
-                  {isCollaboratorImport ? <TableCell>{row.contre_maitre || "-"}</TableCell> : null}
-                  {isCollaboratorImport ? <TableCell>{row.segment || "-"}</TableCell> : null}
-                  {isCollaboratorImport ? <TableCell>{row.gender || "-"}</TableCell> : null}
-                  {isCollaboratorImport ? <TableCell>{row.num_tel || "-"}</TableCell> : null}
-                  {isCollaboratorImport ? <TableCell>{row.date_recrutement || "-"}</TableCell> : null}
-                  {isCollaboratorImport ? <TableCell>{row.anciennete ?? "-"}</TableCell> : null}
-                  {!isCollaboratorImport ? <TableCell>{row.date_association_systeme || "-"}</TableCell> : null}
-                  {!isCollaboratorImport ? <TableCell>{row.motif || "-"}</TableCell> : null}
-                  {!isCollaboratorImport ? <TableCell>{row.statut || "-"}</TableCell> : null}
-                  <TableCell>{row.etat || "-"}</TableCell>
+          {filteredPreviewRows.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>matricule</TableHead>
+                  <TableHead>nom</TableHead>
+                  <TableHead>prenom</TableHead>
+                  <TableHead>fonction_sap</TableHead>
+                  {isCollaboratorImport ? <TableHead>centre_cout</TableHead> : null}
+                  {isCollaboratorImport ? <TableHead>groupe</TableHead> : null}
+                  <TableHead>{isCollaboratorImport ? "competence" : "qualification"}</TableHead>
+                  <TableHead>formateur</TableHead>
+                  {isCollaboratorImport ? <TableHead>contre_maitre</TableHead> : null}
+                  {isCollaboratorImport ? <TableHead>segment</TableHead> : null}
+                  {isCollaboratorImport ? <TableHead>gender</TableHead> : null}
+                  {isCollaboratorImport ? <TableHead>num_tel</TableHead> : null}
+                  {isCollaboratorImport ? <TableHead>date_recrutement</TableHead> : null}
+                  {isCollaboratorImport ? <TableHead>anciennete</TableHead> : null}
+                  {!isCollaboratorImport ? <TableHead>date_association</TableHead> : null}
+                  {!isCollaboratorImport ? <TableHead>motif</TableHead> : null}
+                  {!isCollaboratorImport ? <TableHead>statut</TableHead> : null}
+                  <TableHead>etat</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {visiblePreviewRows.map((row, idx) => (
+                  <TableRow key={row.__previewRowId || `${row.matricule || "row"}-${idx}`}>
+                    <TableCell>{row.matricule || "-"}</TableCell>
+                    <TableCell>{row.nom || "-"}</TableCell>
+                    <TableCell>{row.prenom || "-"}</TableCell>
+                    <TableCell>{row.fonction_sap || row.fonction || "-"}</TableCell>
+                    {isCollaboratorImport ? <TableCell>{row.centre_cout || "-"}</TableCell> : null}
+                    {isCollaboratorImport ? <TableCell>{row.groupe || "-"}</TableCell> : null}
+                    <TableCell>{row.competence || "-"}</TableCell>
+                    <TableCell>{row.formateur || "-"}</TableCell>
+                    {isCollaboratorImport ? <TableCell>{row.contre_maitre || "-"}</TableCell> : null}
+                    {isCollaboratorImport ? <TableCell>{row.segment || "-"}</TableCell> : null}
+                    {isCollaboratorImport ? <TableCell>{row.gender || "-"}</TableCell> : null}
+                    {isCollaboratorImport ? <TableCell>{row.num_tel || "-"}</TableCell> : null}
+                    {isCollaboratorImport ? <TableCell>{row.date_recrutement || "-"}</TableCell> : null}
+                    {isCollaboratorImport ? <TableCell>{row.anciennete ?? "-"}</TableCell> : null}
+                    {!isCollaboratorImport ? <TableCell>{row.date_association_systeme || "-"}</TableCell> : null}
+                    {!isCollaboratorImport ? <TableCell>{row.motif || "-"}</TableCell> : null}
+                    {!isCollaboratorImport ? <TableCell>{row.statut || "-"}</TableCell> : null}
+                    <TableCell>{row.etat || "-"}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="rounded-xl border border-dashed border-[#d7e2ef] bg-[#fafcff] p-4 text-sm text-[#5f6777]">
+              {alertFilterMeta.emptyLabel}
+            </div>
+          )}
         </div>
       ) : (
         <p className="mt-2 text-sm text-[#5f6777]">
