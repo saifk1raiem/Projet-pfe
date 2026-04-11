@@ -1,8 +1,16 @@
 import { useEffect, useState } from "react";
-import { AlertCircle, ChevronDown, CircleAlert, Info } from "lucide-react";
+import { AlertCircle, ChevronDown, CircleAlert, Info, RefreshCcw } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { useAppPreferences } from "../../context/AppPreferencesContext";
 import { apiUrl } from "../../lib/api";
@@ -30,6 +38,26 @@ const severityConfig = {
     iconColor: "text-[#12b76a]",
     badge: "border-[#b7ebcd] bg-[#ecfdf3] text-[#027a48]",
   },
+};
+
+const riskBucketStyles = {
+  high: "border-[#f2c4c4] bg-[#fdeeee] text-[#b42318]",
+  medium: "border-[#f1c59e] bg-[#fff7ed] text-[#b45309]",
+  low: "border-[#b7ebcd] bg-[#ecfdf3] text-[#027a48]",
+};
+
+const formatProbability = (value) => {
+  if (typeof value !== "number" || Number.isNaN(value)) {
+    return "-";
+  }
+  return `${Math.round(value * 100)}%`;
+};
+
+const formatScoreDate = (value) => {
+  if (!value) return "-";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "-";
+  return parsed.toLocaleDateString("fr-FR");
 };
 
 function buildAdvisorFindings(collaborateurs, formations) {
@@ -239,6 +267,11 @@ export function AdvisorsPage({ accessToken }) {
   const [findings, setFindings] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
+  const [riskRows, setRiskRows] = useState([]);
+  const [riskLoading, setRiskLoading] = useState(false);
+  const [riskError, setRiskError] = useState("");
+  const [isScoringRisk, setIsScoringRisk] = useState(false);
+  const [riskSummary, setRiskSummary] = useState(null);
   const [sourceFilter, setSourceFilter] = useState("all");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
@@ -248,6 +281,34 @@ export function AdvisorsPage({ accessToken }) {
     }
 
     let cancelled = false;
+
+    const loadRiskData = async () => {
+      setRiskLoading(true);
+      setRiskError("");
+      try {
+        const response = await fetch(apiUrl("/risk?limit=8&recent=true"), {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        const data = await response.json().catch(() => []);
+        if (!response.ok) {
+          if (!cancelled) {
+            setRiskError(tr("Impossible de charger le scoring.", "Failed to load risk scores."));
+          }
+          return;
+        }
+        if (!cancelled) {
+          setRiskRows(Array.isArray(data) ? data : []);
+        }
+      } catch {
+        if (!cancelled) {
+          setRiskError(tr("Impossible de charger le scoring.", "Failed to load risk scores."));
+        }
+      } finally {
+        if (!cancelled) {
+          setRiskLoading(false);
+        }
+      }
+    };
 
     const loadAdvisorData = async () => {
       setLoading(true);
@@ -296,11 +357,51 @@ export function AdvisorsPage({ accessToken }) {
       }
     };
 
+    loadRiskData();
     loadAdvisorData();
     return () => {
       cancelled = true;
     };
   }, [accessToken, tr]);
+
+  const handleRefreshRisk = async () => {
+    if (!accessToken) {
+      setRiskError(tr("Token manquant. Reconnectez-vous.", "Missing access token. Please sign in again."));
+      return;
+    }
+
+    setIsScoringRisk(true);
+    setRiskError("");
+
+    try {
+      const response = await fetch(apiUrl("/risk/score"), {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setRiskError(
+          typeof data?.detail === "string"
+            ? data.detail
+            : tr("Impossible de recalculer le scoring.", "Failed to refresh risk scores."),
+        );
+        return;
+      }
+      setRiskSummary(data || null);
+
+      const refreshed = await fetch(apiUrl("/risk?limit=8&recent=true"), {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const refreshedData = await refreshed.json().catch(() => []);
+      if (refreshed.ok) {
+        setRiskRows(Array.isArray(refreshedData) ? refreshedData : []);
+      }
+    } catch {
+      setRiskError(tr("Impossible de recalculer le scoring.", "Failed to refresh risk scores."));
+    } finally {
+      setIsScoringRisk(false);
+    }
+  };
 
   const counts = {
     error: findings.filter((finding) => finding.severity === "error").length,
@@ -324,6 +425,111 @@ export function AdvisorsPage({ accessToken }) {
           )}
         </p>
       </div>
+
+      <Card className="rounded-[20px] border border-[#dfe5e2] bg-white p-5 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-[22px] font-semibold text-[#171a1f]">
+              {tr("Risque de depart", "Quit risk")}
+            </h2>
+            <p className="mt-1 text-sm text-[#5f6777]">
+              {tr(
+                "Scores bases sur l'historique de presence et mis a jour quotidiennement.",
+                "Scores based on attendance history, refreshed on demand.",
+              )}
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            className="h-10 rounded-xl border-[#ccd4d8] px-4 text-[14px] text-[#344054]"
+            onClick={handleRefreshRisk}
+            disabled={isScoringRisk}
+          >
+            {isScoringRisk ? (
+              <RefreshCcw className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCcw className="mr-2 h-4 w-4" />
+            )}
+            {tr("Actualiser", "Refresh")}
+          </Button>
+        </div>
+
+        {riskSummary ? (
+          <div className="mt-3 flex flex-wrap gap-2 text-xs text-[#5f6777]">
+            <Badge variant="outline" className="rounded-xl border-[#d5dce0] bg-[#f7f8f9] text-[12px]">
+              {tr("Modele", "Model")}: {riskSummary.model_version || "n/a"}
+            </Badge>
+            <Badge variant="outline" className="rounded-xl border-[#d5dce0] bg-[#f7f8f9] text-[12px]">
+              {tr("Dataset fin", "Dataset end")}: {riskSummary.dataset_end || "-"}
+            </Badge>
+          </div>
+        ) : null}
+
+        {riskError ? (
+          <div className="mt-4 rounded-xl border border-[#f2c4c4] bg-[#fdeeee] p-3 text-sm text-[#8a1d1d]">
+            {riskError}
+          </div>
+        ) : null}
+
+        {riskLoading ? (
+          <div className="mt-4 text-sm text-[#5f6777]">{tr("Chargement...", "Loading...")}</div>
+        ) : null}
+
+        {!riskLoading && riskRows.length === 0 ? (
+          <div className="mt-4 text-sm text-[#5f6777]">
+            {tr("Aucune prediction disponible.", "No predictions available yet.")}
+          </div>
+        ) : null}
+
+        {!riskLoading && riskRows.length > 0 ? (
+          <div className="mt-4 overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="text-[13px] font-semibold text-[#344054]">
+                    {tr("Collaborateur", "Collaborator")}
+                  </TableHead>
+                  <TableHead className="text-[13px] font-semibold text-[#344054]">Groupe</TableHead>
+                  <TableHead className="text-[13px] font-semibold text-[#344054]">Segment</TableHead>
+                  <TableHead className="text-[13px] font-semibold text-[#344054]">
+                    {tr("Probabilite", "Probability")}
+                  </TableHead>
+                  <TableHead className="text-[13px] font-semibold text-[#344054]">
+                    {tr("Niveau", "Risk")}
+                  </TableHead>
+                  <TableHead className="text-[13px] font-semibold text-[#344054]">
+                    {tr("Score le", "Scored")}
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {riskRows.map((row) => (
+                  <TableRow key={row.matricule}>
+                    <TableCell className="text-[14px] font-medium text-[#1d2025]">
+                      {[row.nom, row.prenom].filter(Boolean).join(" ") || row.matricule}
+                    </TableCell>
+                    <TableCell className="text-[14px]">{row.groupe || "-"}</TableCell>
+                    <TableCell className="text-[14px]">{row.segment || "-"}</TableCell>
+                    <TableCell className="text-[14px]">{formatProbability(row.prob_leave)}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className={`rounded-xl text-[12px] ${riskBucketStyles[row.risk_bucket] || riskBucketStyles.low}`}
+                      >
+                        {row.risk_bucket}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-[13px] text-[#5f6777]">
+                      {formatScoreDate(row.scored_at)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        ) : null}
+      </Card>
 
       <Tabs defaultValue="error" className="space-y-4">
         <TabsList className="grid h-auto w-full max-w-[760px] grid-cols-3 rounded-[22px] border border-[#dfe5e2] bg-white p-2 shadow-sm">

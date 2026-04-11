@@ -5,6 +5,7 @@ import { TrainingDashboard } from "./dashboard/TrainingDashboard";
 import { FormationPage } from "./formation/FormationPage";
 import { FormateursList } from "./formateurs/FormateursList";
 import { CollaborateursPage } from "./collaborateurs/CollaborateursPage";
+import { HistoryPage } from "./history/HistoryPage";
 import { QualificationPage } from "./qualification/QualificationPage";
 import { AdvisorsPage } from "./advisors/AdvisorsPage";
 import { ParametresPage } from "./parametres/ParametresPage";
@@ -43,6 +44,8 @@ export function Layout({ onSignOut, currentUser, accessToken, onCurrentUserChang
             accessToken={accessToken}
           />
         );
+      case "historique":
+        return <HistoryPage currentUser={currentUser} accessToken={accessToken} />;
       case "requalification":
         return <RequalificationPage />;
       case "formateurs":

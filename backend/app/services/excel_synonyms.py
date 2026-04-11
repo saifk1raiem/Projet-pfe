@@ -33,6 +33,65 @@ DEFAULT_EXCEL_SYNONYMS["etat"] = [
     "etat_qualifie",
     "etatqualifies",
 ]
+DEFAULT_EXCEL_SYNONYMS["nature"] = [
+    "nature",
+    "absence type",
+    "type absence",
+    "type",
+]
+DEFAULT_EXCEL_SYNONYMS["entree_sorie"] = [
+    "entree sortie",
+    "entree_sorie",
+    "entree-sortie",
+]
+DEFAULT_EXCEL_SYNONYMS["heures_de_presences"] = [
+    "heures de presences",
+    "heures de presence",
+    "heure presence",
+    "heure_presence",
+]
+DEFAULT_EXCEL_SYNONYMS["eff_actif"] = [
+    "eff actif",
+    "effectif actif",
+]
+DEFAULT_EXCEL_SYNONYMS["eff_presente"] = [
+    "eff presente",
+    "effectif presente",
+]
+DEFAULT_EXCEL_SYNONYMS["eff_mr"] = [
+    "eff mr",
+    "effectif mr",
+]
+DEFAULT_EXCEL_SYNONYMS["abs_p_par_per"] = [
+    "abs p par per",
+    "absence payee",
+    "abs p",
+]
+DEFAULT_EXCEL_SYNONYMS["abs_np_par"] = [
+    "abs np par",
+    "absence non payee",
+    "abs np",
+]
+DEFAULT_EXCEL_SYNONYMS["nbr_de_retard"] = [
+    "nbr de retard",
+    "retard",
+    "late count",
+]
+DEFAULT_EXCEL_SYNONYMS["heurs_sup"] = [
+    "heurs sup",
+    "heures sup",
+    "heures supp",
+    "overtime",
+]
+DEFAULT_EXCEL_SYNONYMS["moin"] = [
+    "moin",
+    "mois",
+    "month",
+]
+DEFAULT_EXCEL_SYNONYMS["jour"] = [
+    "jour",
+    "day",
+]
 LEGACY_FIELD_MAP = {
     "fonction": "fonction_sap",
     "nomprenom": "full_name",

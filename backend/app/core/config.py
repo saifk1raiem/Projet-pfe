@@ -8,6 +8,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
+DEFAULT_LOCAL_CORS_ORIGINS = (
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://[::1]:5173",
+)
+DEFAULT_LOCAL_CORS_REGEX = r"https?://(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$"
 
 
 class Settings(BaseSettings):
@@ -21,8 +27,8 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7
-    CORS_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173"
-    CORS_ORIGIN_REGEX: str = r"https?://(localhost|127\.0\.0\.1)(:\d+)?$"
+    CORS_ORIGINS: str = ",".join(DEFAULT_LOCAL_CORS_ORIGINS)
+    CORS_ORIGIN_REGEX: str = DEFAULT_LOCAL_CORS_REGEX
     SUPER_ADMIN_EMAIL: str = "aymen.horchani@leoni.com"
     SEED_DEFAULT_PASSWORD: str = "ChangeMe123!"
     SEED_EMAIL_DOMAIN: str = "leoni.com"
@@ -48,7 +54,22 @@ class Settings(BaseSettings):
 
     @property
     def cors_origins_list(self) -> list[str]:
-        return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
+        origins = [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
+        for local_origin in DEFAULT_LOCAL_CORS_ORIGINS:
+            if local_origin not in origins:
+                origins.append(local_origin)
+        return origins
+
+    @property
+    def cors_origin_regex_pattern(self) -> str:
+        pattern = self.CORS_ORIGIN_REGEX.strip()
+        if not pattern:
+            return DEFAULT_LOCAL_CORS_REGEX
+        if "::1" in pattern:
+            return pattern
+        if pattern == r"https?://(localhost|127\.0\.0\.1)(:\d+)?$":
+            return DEFAULT_LOCAL_CORS_REGEX
+        return pattern
 
     @property
     def database_host(self) -> str:

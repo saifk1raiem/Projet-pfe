@@ -29,9 +29,41 @@ export function CollaborateursTable({
   onViewFormations,
   onEditCollaborateur,
   presenceHistoryByMatricule,
+  riskByMatricule,
   canEdit,
   tr,
 }) {
+  const riskBadgeStyles = {
+    high: "border-[#f2c4c4] bg-[#fdeeee] text-[#b42318]",
+    medium: "border-[#f1c59e] bg-[#fff7ed] text-[#b45309]",
+    low: "border-[#b7ebcd] bg-[#ecfdf3] text-[#027a48]",
+  };
+
+  const formatProbability = (value) => {
+    if (typeof value !== "number" || Number.isNaN(value)) {
+      return "-";
+    }
+    return `${Math.round(value * 100)}%`;
+  };
+
+  const formatFeatureValue = (value, digits = 0) => {
+    if (value === null || value === undefined || Number.isNaN(value)) {
+      return "-";
+    }
+    if (typeof value === "number") {
+      return digits > 0 ? value.toFixed(digits) : Math.round(value);
+    }
+    return value;
+  };
+
+  const featureFields = [
+    { key: "recent_mise_en_demeure_streak", label: "Streak mise en demeure", digits: 0 },
+    { key: "mise_en_demeure_days_14d", label: "Mise en demeure (14j)", digits: 0 },
+    { key: "abs_np_sum_14d", label: "Abs. NP (14j)", digits: 0 },
+    { key: "zero_hour_days_14d", label: "Zero heures (14j)", digits: 0 },
+    { key: "hours_mean_14d", label: "Heures moy. (14j)", digits: 2 },
+  ];
+
   return (
     <Card className="rounded-[20px] border border-[#dfe5e2] bg-white shadow-sm">
       <Table>
@@ -45,12 +77,16 @@ export function CollaborateursTable({
             <TableHead className="text-[15px] font-semibold text-[#252930]">Statut</TableHead>
             <TableHead className="text-[15px] font-semibold text-[#252930]">Formations</TableHead>
             <TableHead className="text-[15px] font-semibold text-[#252930]">Derniere formation</TableHead>
+            <TableHead className="text-[15px] font-semibold text-[#252930]">Risque</TableHead>
             <TableHead className="text-right text-[15px] font-semibold text-[#252930]">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {rows.map((collab) => (
             <Fragment key={collab.id}>
+              {(() => {
+                const risk = riskByMatricule?.[collab.matricule];
+                return (
               <TableRow className="h-16">
                 <TableCell className="text-[15px] font-semibold text-[#1d2025]">{collab.matricule}</TableCell>
                 <TableCell>
@@ -69,6 +105,18 @@ export function CollaborateursTable({
                   </Badge>
                 </TableCell>
                 <TableCell className="text-[15px]">{collab.derniereFormation}</TableCell>
+                <TableCell>
+                  {risk ? (
+                    <Badge
+                      variant="outline"
+                      className={`rounded-xl text-[12px] ${riskBadgeStyles[risk.risk_bucket] || riskBadgeStyles.low}`}
+                    >
+                      {risk.risk_bucket} {formatProbability(risk.prob_leave)}
+                    </Badge>
+                  ) : (
+                    "-"
+                  )}
+                </TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -95,9 +143,21 @@ export function CollaborateursTable({
                   </DropdownMenu>
                 </TableCell>
               </TableRow>
+              );
+              })()}
               {selectedCollaborateur?.id === collab.id ? (
+                (() => {
+                  const risk = riskByMatricule?.[collab.matricule];
+                  const featureSnapshot = risk?.feature_snapshot || {};
+                  const drivers = Array.isArray(risk?.drivers)
+                    ? risk.drivers
+                        .map((driver) => `${driver.label}: ${driver.value ?? "-"}`)
+                        .filter(Boolean)
+                        .join(", ")
+                    : "";
+                  return (
                 <TableRow className="bg-[#f8fbff]">
-                  <TableCell colSpan={9}>
+                  <TableCell colSpan={10}>
                     <div className="rounded-xl border border-[#dfe5e2] bg-white p-4">
                       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                         <p className="text-[16px] font-semibold text-[#171a1f]">
@@ -129,6 +189,39 @@ export function CollaborateursTable({
                         <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3"><p className="text-[12px] text-[#64748b]">Formations</p><p className="text-[15px] font-medium text-[#1d2025]">{collab.formations}</p></div>
                         <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3"><p className="text-[12px] text-[#64748b]">Derniere formation</p><p className="text-[15px] font-medium text-[#1d2025]">{collab.derniereFormation}</p></div>
                         <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3"><p className="text-[12px] text-[#64748b]">Statut</p><div className="mt-1">{getStatusBadge(collab.statut)}</div></div>
+                        <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3">
+                          <p className="text-[12px] text-[#64748b]">Risque de depart</p>
+                          {risk ? (
+                            <div className="mt-1 flex flex-col gap-1">
+                              <Badge
+                                variant="outline"
+                                className={`w-fit rounded-xl text-[12px] ${riskBadgeStyles[risk.risk_bucket] || riskBadgeStyles.low}`}
+                              >
+                                {risk.risk_bucket} {formatProbability(risk.prob_leave)}
+                              </Badge>
+                              {drivers ? (
+                                <p className="text-[12px] text-[#6b7280]">{drivers}</p>
+                              ) : null}
+                              {featureSnapshot ? (
+                                <div className="mt-2 grid grid-cols-1 gap-2 text-[12px] text-[#6b7280] sm:grid-cols-2">
+                                  {featureFields.map((field) => (
+                                    <div
+                                      key={field.key}
+                                      className="rounded-lg border border-[#e2e8f0] bg-white/70 px-2 py-1"
+                                    >
+                                      <p className="text-[11px] text-[#94a3b8]">{field.label}</p>
+                                      <p className="text-[13px] font-medium text-[#1d2025]">
+                                        {formatFeatureValue(featureSnapshot[field.key], field.digits)}
+                                      </p>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : null}
+                            </div>
+                          ) : (
+                            <p className="text-[14px] text-[#6b7280]">-</p>
+                          )}
+                        </div>
                       </div>
 
                       <PresenceHistoryPanel
@@ -138,6 +231,8 @@ export function CollaborateursTable({
                     </div>
                   </TableCell>
                 </TableRow>
+                  );
+                })()
               ) : null}
             </Fragment>
           ))}

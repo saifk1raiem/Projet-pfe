@@ -72,6 +72,12 @@ async function recalculateQualificationStatuses(accessToken) {
   });
 }
 
+async function fetchRiskOverview(accessToken, limit = 200) {
+  return readJsonResponse(apiUrl(`/risk?limit=${limit}`), {
+    headers: getAuthHeaders(accessToken),
+  });
+}
+
 async function updateCollaborateur(accessToken, matricule, payload) {
   return readJsonResponse(apiUrl(`/admin/collaborateurs/${encodeURIComponent(matricule)}`), {
     method: "PATCH",
@@ -100,6 +106,8 @@ export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken 
   const [formationsHistoryLoading, setFormationsHistoryLoading] = useState(false);
   const [formationsHistoryError, setFormationsHistoryError] = useState("");
   const [presenceHistoryByMatricule, setPresenceHistoryByMatricule] = useState({});
+  const [riskByMatricule, setRiskByMatricule] = useState({});
+  const [riskLoadError, setRiskLoadError] = useState("");
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingCollaborateur, setEditingCollaborateur] = useState(null);
   const [editCollaborateurValues, setEditCollaborateurValues] = useState(EMPTY_COLLABORATEUR_FORM);
@@ -221,6 +229,33 @@ export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken 
     }
   };
 
+  const loadRiskOverview = async () => {
+    if (!accessToken) {
+      return;
+    }
+
+    try {
+      const { response, data } = await fetchRiskOverview(accessToken);
+      if (!response.ok) {
+        setRiskLoadError(tr("Impossible de charger le scoring.", "Failed to load risk scores."));
+        return;
+      }
+
+      const riskMap = Array.isArray(data)
+        ? data.reduce((acc, row) => {
+            if (row?.matricule) {
+              acc[row.matricule] = row;
+            }
+            return acc;
+          }, {})
+        : {};
+      setRiskByMatricule(riskMap);
+      setRiskLoadError("");
+    } catch {
+      setRiskLoadError(tr("Impossible de charger le scoring.", "Failed to load risk scores."));
+    }
+  };
+
   useEffect(() => {
     if (!accessToken) {
       setCollaborateursData([]);
@@ -242,6 +277,8 @@ export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken 
         if (cancelled) {
           return;
         }
+
+        await loadRiskOverview();
 
         const selectedMatricule = selectedCollaborateurMatriculeRef.current;
         if (selectedMatricule) {
@@ -365,6 +402,7 @@ export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken 
       }
 
       await loadCollaborateurs();
+      await loadRiskOverview();
 
       if (selectedCollaborateurMatriculeRef.current) {
         await loadCollaborateurPresenceHistory(selectedCollaborateurMatriculeRef.current);
@@ -545,6 +583,12 @@ export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken 
         </Card>
       ) : null}
 
+      {riskLoadError ? (
+        <Card className="rounded-[20px] border border-[#f2c4c4] bg-[#fdeeee] p-4 text-sm text-[#8a1d1d] shadow-sm">
+          {riskLoadError}
+        </Card>
+      ) : null}
+
       <EntityFiltersCard
         tr={tr}
         searchPlaceholder={tr("Rechercher par nom, matricule ou departement...", "Search by name, ID, or department...")}
@@ -590,6 +634,7 @@ export function CollaborateursPage({ onNavigateToPage, currentUser, accessToken 
         onViewFormations={handleOpenFormationsDialog}
         onEditCollaborateur={handleOpenEditDialog}
         presenceHistoryByMatricule={presenceHistoryByMatricule}
+        riskByMatricule={riskByMatricule}
         canEdit={!isObserver}
         tr={tr}
       />

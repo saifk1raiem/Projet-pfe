@@ -2,6 +2,7 @@ import {
   LayoutDashboard,
   BookOpen,
   Award,
+  Database,
   RefreshCcw,
   GraduationCap,
   Users,
@@ -40,6 +41,14 @@ const navigationItems = [
     subtitleFr: "Suivi des qualifications",
     subtitleEn: "Qualification tracking",
     icon: Award,
+  },
+  {
+    id: "historique",
+    nameFr: "Historique",
+    nameEn: "History",
+    subtitleFr: "Import historique",
+    subtitleEn: "History import",
+    icon: Database,
   },
   {
     id: "requalification",

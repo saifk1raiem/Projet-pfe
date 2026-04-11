@@ -1,5 +1,6 @@
 import { Loader2, Paperclip, Upload, X } from "lucide-react";
 import { Button } from "../ui/button";
+import { Progress } from "../ui/progress";
 
 export function UploadReportModal({
   tr,
@@ -17,6 +18,11 @@ export function UploadReportModal({
   dropLabel,
   chooseFilesLabel,
   submitLabel,
+  accept,
+  allowMultiple,
+  formatsLabel,
+  uploadProgress,
+  progressLabel,
 }) {
   if (!isOpen) return null;
 
@@ -30,6 +36,9 @@ export function UploadReportModal({
   const resolvedDropLabel = dropLabel || tr("Deposez votre rapport ici", "Drag and drop your report here");
   const resolvedChooseFilesLabel = chooseFilesLabel || tr("Choisir des fichiers", "Choose files");
   const resolvedSubmitLabel = submitLabel || tr("Previsualiser", "Preview");
+  const resolvedAccept = accept || ".xlsx,.xls,.csv";
+  const resolvedAllowMultiple = allowMultiple ?? true;
+  const resolvedFormatsLabel = formatsLabel || "XLSX, XLS, CSV";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
@@ -60,8 +69,8 @@ export function UploadReportModal({
           <input
             ref={inputRef}
             type="file"
-            multiple
-            accept=".xlsx,.xls,.csv"
+            multiple={resolvedAllowMultiple}
+            accept={resolvedAccept}
             className="hidden"
             onChange={(e) => onFileChange(e.target.files)}
           />
@@ -87,7 +96,7 @@ export function UploadReportModal({
             <p className="text-[22px] font-medium text-white">
               {resolvedDropLabel}
             </p>
-            <p className="mt-2 text-[15px] text-[#9aabbe]">XLSX, XLS, CSV</p>
+            <p className="mt-2 text-[15px] text-[#9aabbe]">{resolvedFormatsLabel}</p>
           </div>
 
           {selectedFiles.length > 0 && (
@@ -105,6 +114,18 @@ export function UploadReportModal({
               </div>
             </div>
           )}
+
+          {typeof uploadProgress === "number" ? (
+            <div className="rounded-2xl border border-[#2f3a48] bg-[#161b23] p-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <p className="text-sm font-medium text-[#cfe1f4]">
+                  {progressLabel || tr("Progression du televersement", "Upload progress")}
+                </p>
+                <span className="text-xs text-[#9aabbe]">{Math.round(uploadProgress)}%</span>
+              </div>
+              <Progress value={uploadProgress} className="h-2 bg-[#223142]" />
+            </div>
+          ) : null}
 
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
             <Button
