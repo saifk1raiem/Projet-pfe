@@ -42,7 +42,6 @@ const EMPTY_EDIT_QUALIFICATION_FORM = {
   formateur_id: "",
   statut: "Non associee",
   date_association_systeme: "",
-  motif: "",
 };
 
 const ImportMissingDataDialog = lazy(() =>
@@ -403,7 +402,6 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
       formateur_id: row.formateur_id === null || row.formateur_id === undefined ? "" : String(row.formateur_id),
       statut: storedStatus,
       date_association_systeme: toDateInputValue(row.date_association_systeme),
-      motif: row.motif || "",
     });
     setEditQualificationError("");
     setQualificationOptionsError("");
@@ -451,7 +449,6 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
         formateur_id: editQualificationValues.formateur_id ? Number(editQualificationValues.formateur_id) : null,
         statut: editQualificationValues.statut || "Non associee",
         date_association_systeme: editQualificationValues.date_association_systeme || null,
-        motif: editQualificationValues.motif || null,
       };
 
       const { response, data } = await updateQualification(
@@ -956,7 +953,6 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
         collab.centre_cout,
         collab.groupe,
         collab.segment,
-        collab.motif,
       ]
         .filter((value) => typeof value === "string")
         .map((value) => value.toLowerCase());
@@ -1007,7 +1003,7 @@ export function QualificationPage({ onNavigateToPage, currentUser, accessToken }
           (item) => item.row?.__previewRowId || item.row_index || item.source_row_number || "",
         ),
         previewRows: previewRows.map(
-          (row) => `${row.__previewRowId || ""}:${row.motif || ""}:${row.date_association_systeme || row.date || ""}`,
+          (row) => `${row.__previewRowId || ""}:${row.date_association_systeme || row.date || ""}`,
         ),
       }),
     [

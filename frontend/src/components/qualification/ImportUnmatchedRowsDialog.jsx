@@ -16,7 +16,6 @@ const EDITABLE_FIELDS = [
   { key: "date_association_systeme", label: "Date association", required: false },
   { key: "statut", label: "Statut", required: false },
   { key: "formateur", label: "Formateur", required: false },
-  { key: "motif", label: "Motif", required: false },
   { key: "fonction", label: "Fonction SAP", required: false },
   { key: "centre_cout", label: "Centre de cout", required: false },
   { key: "groupe", label: "Groupe", required: false },

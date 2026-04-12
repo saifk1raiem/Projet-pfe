@@ -7,7 +7,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
-import { Textarea } from "../ui/textarea";
 
 const EMPTY_FORMATION_VALUE = "__none__";
 const EMPTY_FORMATEUR_VALUE = "__none__";
@@ -153,20 +152,6 @@ export function EditQualificationDialog({
               onChange={(event) => onChange("date_association_systeme", event.target.value)}
               disabled={isSubmitting}
               className="h-11 rounded-xl border-[#d5dce0]"
-            />
-          </div>
-
-          <div className="space-y-2 md:col-span-2">
-            <label htmlFor="edit-qualification-motif" className="text-sm font-medium text-[#252930]">
-              {tr("Motif", "Reason")}
-            </label>
-            <Textarea
-              id="edit-qualification-motif"
-              value={formValues.motif}
-              onChange={(event) => onChange("motif", event.target.value)}
-              disabled={isSubmitting}
-              className="min-h-[120px] rounded-xl border-[#d5dce0]"
-              placeholder={tr("Optionnel", "Optional")}
             />
           </div>
         </div>

@@ -55,13 +55,3 @@ class UserRead(UserBase):
     model_config = {"from_attributes": True}
 
 
-class LoginUserOption(BaseModel):
-    id: int
-    first_name: str
-    last_name: str
-    username: str | None = None
-    email: EmailStr
-    avatar_url: str | None = None
-    role: UserRole
-
-    model_config = {"from_attributes": True}

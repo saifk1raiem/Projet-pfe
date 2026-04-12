@@ -331,7 +331,6 @@ export function QualificationPreviewCard({
                   {isCollaboratorImport ? <TableHead>date_recrutement</TableHead> : null}
                   {isCollaboratorImport ? <TableHead>anciennete</TableHead> : null}
                   {!isCollaboratorImport ? <TableHead>date_association</TableHead> : null}
-                  {!isCollaboratorImport ? <TableHead>motif</TableHead> : null}
                   {!isCollaboratorImport ? <TableHead>statut</TableHead> : null}
                   <TableHead>etat</TableHead>
                 </TableRow>
@@ -354,7 +353,6 @@ export function QualificationPreviewCard({
                     {isCollaboratorImport ? <TableCell>{row.date_recrutement || "-"}</TableCell> : null}
                     {isCollaboratorImport ? <TableCell>{row.anciennete ?? "-"}</TableCell> : null}
                     {!isCollaboratorImport ? <TableCell>{row.date_association_systeme || "-"}</TableCell> : null}
-                    {!isCollaboratorImport ? <TableCell>{row.motif || "-"}</TableCell> : null}
                     {!isCollaboratorImport ? <TableCell>{row.statut || "-"}</TableCell> : null}
                     <TableCell>{row.etat || "-"}</TableCell>
                   </TableRow>

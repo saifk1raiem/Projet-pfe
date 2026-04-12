@@ -83,7 +83,8 @@ function MovementStatCard({ title, subtitle, value, icon: Icon, iconBg, iconColo
   );
 }
 
-function MovementTable({ title, emptyLabel, rows, showMotif = false }) {
+function MovementTable({ title, emptyLabel, rows, dateResolver }) {
+  const resolveDate = dateResolver || ((row) => row.date_association_systeme);
   return (
     <Card className="rounded-[22px] border border-[#dfe5e2] bg-white p-5 shadow-sm">
       <h3 className="text-[18px] font-semibold text-[#21314d]">{title}</h3>
@@ -95,30 +96,28 @@ function MovementTable({ title, emptyLabel, rows, showMotif = false }) {
               <TableHead className="text-[14px] font-semibold text-[#253048]">Nom</TableHead>
               <TableHead className="text-[14px] font-semibold text-[#253048]">Groupe</TableHead>
               <TableHead className="text-[14px] font-semibold text-[#253048]">Segment</TableHead>
-              {showMotif ? <TableHead className="text-[14px] font-semibold text-[#253048]">Motif</TableHead> : null}
               <TableHead className="text-[14px] font-semibold text-[#253048]">Date</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {rows.length ? (
               rows.map((row) => (
-                <TableRow key={`${row.id}-${showMotif ? "exit" : "entry"}`} className="h-14">
+                <TableRow key={`${row.id}-movement`} className="h-14">
                   <TableCell className="text-[14px] font-semibold text-[#1d2025]">{row.matricule || "-"}</TableCell>
                   <TableCell className="text-[14px] text-[#1d2025]">
                     {[row.nom, row.prenom].filter(Boolean).join(" ") || "-"}
                   </TableCell>
                   <TableCell className="text-[14px] text-[#445064]">{row.groupe || "-"}</TableCell>
                   <TableCell className="text-[14px] text-[#445064]">{row.segment || "-"}</TableCell>
-                  {showMotif ? <TableCell className="text-[14px] text-[#445064]">{row.motif || "-"}</TableCell> : null}
                   <TableCell className="text-[14px] text-[#445064]">
-                    {formatDateLabel(showMotif ? getExitDate(row) : row.date_association_systeme)}
+                    {formatDateLabel(resolveDate(row))}
                   </TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
                 <TableCell
-                  colSpan={showMotif ? 6 : 5}
+                  colSpan={5}
                   className="h-20 text-center text-[14px] text-[#8a93a3]"
                 >
                   {emptyLabel}
@@ -167,7 +166,6 @@ export function QualificationMovementTab({ tr, rows }) {
         row.matricule,
         row.groupe,
         row.segment,
-        row.motif,
       ]
         .filter((value) => typeof value === "string")
         .some((value) => value.toLowerCase().includes(query));
@@ -187,13 +185,13 @@ export function QualificationMovementTab({ tr, rows }) {
 
   const allExits = dedupeRows(
     filteredRows.filter((row) => isExitRow(row)),
-    (row) => `${row.matricule}-${row.motif}-${getExitDate(row)}`,
+    (row) => `${row.matricule}-${getExitDate(row)}`,
   );
 
   const selectedExits = effectiveAssociationDate
     ? dedupeRows(
         filteredRows.filter((row) => isExitRow(row) && getExitDate(row) === effectiveAssociationDate),
-        (row) => `${row.matricule}-${row.motif}-${getExitDate(row)}`,
+        (row) => `${row.matricule}-${getExitDate(row)}`,
       )
     : [];
 
@@ -248,8 +246,8 @@ export function QualificationMovementTab({ tr, rows }) {
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
               placeholder={tr(
-                "Rechercher par nom, matricule, groupe, segment ou motif...",
-                "Search by name, ID, group, segment, or reason...",
+                "Rechercher par nom, matricule, groupe ou segment...",
+                "Search by name, ID, group, or segment...",
               )}
               className="h-12 rounded-xl border-[#d7dde1] pl-11 text-[15px]"
             />
@@ -360,7 +358,7 @@ export function QualificationMovementTab({ tr, rows }) {
           title={tr("Liste des Sorties", "Exits List")}
           emptyLabel={tr("Aucune sortie pour cette date.", "No exits for this date.")}
           rows={selectedExits}
-          showMotif
+          dateResolver={getExitDate}
         />
       </div>
     </div>

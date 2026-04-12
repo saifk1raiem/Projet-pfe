@@ -142,7 +142,6 @@ export function CollaborateursTable({
                 <TableCell className="text-[15px]">{collab.fonction}</TableCell>
                 <TableCell className="text-[15px]">
                   <div className="font-medium text-[#1d2025]">{collab.competence || "-"}</div>
-                  {collab.motif ? <div className="text-[13px] text-[#6b7280]">{collab.motif}</div> : null}
                 </TableCell>
                 <TableCell className="text-[15px]">{collab.date_association_systeme || "-"}</TableCell>
                 <TableCell>{getStatusBadge(collab.statut)}</TableCell>
@@ -201,7 +200,6 @@ export function CollaborateursTable({
                         <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3"><p className="text-[12px] text-[#64748b]">Groupe</p><p className="text-[15px] font-medium text-[#1d2025]">{collab.groupe || "-"}</p></div>
                         <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3"><p className="text-[12px] text-[#64748b]">Qualification</p><p className="text-[15px] font-medium text-[#1d2025]">{collab.competence || "-"}</p></div>
                         <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3"><p className="text-[12px] text-[#64748b]">Formateur</p><p className="text-[15px] font-medium text-[#1d2025]">{collab.formateur || "-"}</p></div>
-                        <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3"><p className="text-[12px] text-[#64748b]">Motif</p><p className="text-[15px] font-medium text-[#1d2025]">{collab.motif || "-"}</p></div>
                         <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3"><p className="text-[12px] text-[#64748b]">Date association</p><p className="text-[15px] font-medium text-[#1d2025]">{collab.date_association_systeme || "-"}</p></div>
                         <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3"><p className="text-[12px] text-[#64748b]">Date completion</p><p className="text-[15px] font-medium text-[#1d2025]">{collab.date_completion || "-"}</p></div>
                         <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3"><p className="text-[12px] text-[#64748b]">Segment</p><p className="text-[15px] font-medium text-[#1d2025]">{collab.segment || "-"}</p></div>
