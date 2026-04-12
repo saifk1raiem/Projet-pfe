@@ -127,6 +127,14 @@ def _ensure_formateur_formation_link(db: Session, formateur_id: int | None, form
     )
 
 
+def _qualification_label(item: dict) -> str | None:
+    if item.get("nom_formation"):
+        return item["nom_formation"]
+    if item.get("formation_id") is not None:
+        return f"Formation {item['formation_id']}"
+    return None
+
+
 def _serialize_qualification_listing_item(item: dict) -> dict:
     qualification_status = resolve_qualification_status(
         item["qualification_statut"],
@@ -143,7 +151,7 @@ def _serialize_qualification_listing_item(item: dict) -> dict:
         "fonction": item["fonction"],
         "centre_cout": item["centre_cout"],
         "groupe": item["groupe"],
-        "competence": item["nom_formation"],
+        "competence": _qualification_label(item),
         "formateur": item["nom_formateur"],
         "formateur_id": item["formateur_id"],
         "motif": item["motif"],
@@ -408,7 +416,7 @@ def _fetch_qualification_listing_rows(db: Session):
     qualification_stmt = (
         select(
             qualification_table.c.id.label("qualification_row_id"),
-            collaborateurs_table.c.matricule,
+            qualification_table.c.matricule,
             collaborateurs_table.c.nom,
             collaborateurs_table.c.prenom,
             collaborateurs_table.c.fonction,
@@ -431,7 +439,7 @@ def _fetch_qualification_listing_rows(db: Session):
         )
         .select_from(
             qualification_table
-            .join(collaborateurs_table, collaborateurs_table.c.matricule == qualification_table.c.matricule)
+            .outerjoin(collaborateurs_table, collaborateurs_table.c.matricule == qualification_table.c.matricule)
             .outerjoin(formations_table, formations_table.c.id == qualification_table.c.formation_id)
             .outerjoin(formateurs_table, formateurs_table.c.id == qualification_table.c.formateur_id)
         )
@@ -649,7 +657,7 @@ def list_collaborateur_summaries(
                 "fonction": item["fonction"],
                 "centre_cout": item["centre_cout"],
                 "groupe": item["groupe"],
-                "competence": item["nom_formation"],
+                "competence": _qualification_label(item),
                 "formateur": item["nom_formateur"],
                 "motif": item["motif"],
                 "contre_maitre": item["contre_maitre"],
