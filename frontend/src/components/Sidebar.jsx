@@ -8,6 +8,7 @@ import {
   Users,
   UserRoundCheck,
   BarChart3,
+  Wrench,
   Settings,
   ChevronLeft,
   ChevronRight,
@@ -89,6 +90,14 @@ const navigationItems = [
     subtitleFr: "Bientot disponible",
     subtitleEn: "Coming soon",
     icon: BarChart3,
+  },
+  {
+    id: "tools",
+    nameFr: "Tools",
+    nameEn: "Tools",
+    subtitleFr: "Outils intelligents",
+    subtitleEn: "Smart tools",
+    icon: Wrench,
   },
   {
     id: "parametres",

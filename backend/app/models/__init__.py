@@ -4,6 +4,7 @@ from app.models.enrollment import Enrollment
 from app.models.evaluation import Evaluation
 from app.models.formation import Formation
 from app.models.history import History
+from app.models.planning_reservation import PlanningReservation, PlanningReservationAllocation
 from app.models.training_session import TrainingSession
 from app.models.user import User
 
@@ -16,4 +17,6 @@ __all__ = [
     "Enrollment",
     "Evaluation",
     "History",
+    "PlanningReservation",
+    "PlanningReservationAllocation",
 ]

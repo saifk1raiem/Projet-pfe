@@ -12,6 +12,7 @@ from app.api.v1 import (
     risk,
     qualification_preview,
     reports,
+    planning,
     settings,
     sessions,
     users,
@@ -32,4 +33,5 @@ api_router.include_router(evaluations.router)
 api_router.include_router(reports.router)
 api_router.include_router(admin_import.router)
 api_router.include_router(qualification_preview.router)
+api_router.include_router(planning.router)
 api_router.include_router(settings.router)
