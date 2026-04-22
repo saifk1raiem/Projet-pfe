@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_roles
@@ -23,7 +22,7 @@ from app.schemas.auth import (
     ResetPasswordRequest,
     TokenPair,
 )
-from app.schemas.user import LoginUserOption, UserCreate, UserRead
+from app.schemas.user import UserCreate, UserRead
 from app.services.auth_service import (
     authenticate_user,
     create_user,
@@ -65,14 +64,6 @@ def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db
 def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db)):
     reset_password_with_code(db, payload.email, payload.code, payload.new_password)
     return MessageResponse(detail="Password has been reset successfully")
-
-
-@router.get("/login-users", response_model=list[LoginUserOption])
-def list_login_users(db: Session = Depends(get_db)):
-    users = db.scalars(
-        select(User).where(User.is_active.is_(True)).order_by(User.first_name.asc(), User.last_name.asc())
-    ).all()
-    return [LoginUserOption.model_validate(user) for user in users]
 
 
 @router.post("/refresh", response_model=TokenPair)

@@ -13,7 +13,6 @@ export const appConfig = {
   apiPrefix: readEnv("VITE_API_PREFIX", "/api/v1"),
   companyName: readEnv("VITE_COMPANY_NAME", "LEONI"),
   applicationName: readEnv("VITE_APPLICATION_NAME", "LEONI Training"),
-  showcasePassword: readEnv("VITE_SHOWCASE_PASSWORD", "password"),
   adminEmail: readEnv("VITE_ADMIN_EMAIL", "admin@leoni.example"),
   defaultTimezone: readEnv("VITE_DEFAULT_TIMEZONE", "Africa/Tunis"),
 };

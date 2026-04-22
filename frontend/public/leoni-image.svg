@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700" role="img" aria-labelledby="title desc">
+  <title id="title">LEONI Brand Image</title>
+  <desc id="desc">Abstract LEONI themed background with brand text</desc>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#003d7a"/>
+      <stop offset="55%" stop-color="#005ca9"/>
+      <stop offset="100%" stop-color="#4ea9eb"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.32"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.06"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="700" fill="url(#bg)"/>
+
+  <circle cx="1060" cy="120" r="220" fill="#ffffff" fill-opacity="0.08"/>
+  <circle cx="150" cy="610" r="260" fill="#ffffff" fill-opacity="0.08"/>
+
+  <g opacity="0.8">
+    <rect x="220" y="120" width="760" height="460" rx="40" fill="url(#glass)" stroke="#ffffff" stroke-opacity="0.2"/>
+    <rect x="260" y="170" width="270" height="20" rx="10" fill="#cde7ff" fill-opacity="0.8"/>
+    <rect x="260" y="210" width="360" height="14" rx="7" fill="#d9edff" fill-opacity="0.75"/>
+    <rect x="260" y="236" width="310" height="14" rx="7" fill="#d9edff" fill-opacity="0.55"/>
+
+    <rect x="260" y="300" width="170" height="170" rx="24" fill="#ffffff" fill-opacity="0.12"/>
+    <rect x="450" y="300" width="170" height="170" rx="24" fill="#ffffff" fill-opacity="0.12"/>
+    <rect x="640" y="300" width="300" height="36" rx="18" fill="#ffffff" fill-opacity="0.22"/>
+    <rect x="640" y="356" width="240" height="22" rx="11" fill="#ffffff" fill-opacity="0.18"/>
+    <rect x="640" y="392" width="205" height="22" rx="11" fill="#ffffff" fill-opacity="0.14"/>
+  </g>
+
+  <text x="260" y="530" fill="#ffffff" font-size="98" font-family="Segoe UI, Arial, sans-serif" font-weight="700" letter-spacing="12">LEONI</text>
+</svg>

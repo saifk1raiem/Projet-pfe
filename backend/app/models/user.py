@@ -40,3 +40,6 @@ class User(Base):
     evaluations_as_collaborateur: Mapped[list["Evaluation"]] = relationship(
         back_populates="collaborateur", foreign_keys="Evaluation.collaborateur_id"
     )
+    planning_reservations: Mapped[list["PlanningReservation"]] = relationship(
+        back_populates="created_by", foreign_keys="PlanningReservation.created_by_id"
+    )

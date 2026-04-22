@@ -42,6 +42,10 @@ class Settings(BaseSettings):
     SMTP_FROM_EMAIL: str = ""
     SMTP_FROM_NAME: str = "Gestion des formations"
     SMTP_TIMEOUT_SECONDS: int = 15
+    GEMINI_API_KEY: str = ""
+    GEMINI_MODEL: str = "gemini-2.0-flash"
+    GROQ_API_KEY: str = ""
+    GROQ_MODEL: str = "llama-3.1-8b-instant"
 
     @field_validator("DATABASE_URL", mode="before")
     @classmethod

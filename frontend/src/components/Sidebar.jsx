@@ -8,6 +8,7 @@ import {
   Users,
   UserRoundCheck,
   BarChart3,
+  Wrench,
   Settings,
   ChevronLeft,
   ChevronRight,
@@ -91,6 +92,14 @@ const navigationItems = [
     icon: BarChart3,
   },
   {
+    id: "tools",
+    nameFr: "Tools",
+    nameEn: "Tools",
+    subtitleFr: "Outils intelligents",
+    subtitleEn: "Smart tools",
+    icon: Wrench,
+  },
+  {
     id: "parametres",
     nameFr: "Parametres",
     nameEn: "Settings",
@@ -158,9 +167,11 @@ export function Sidebar({
               </button>
             </div>
             <div className="flex justify-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-[22px] bg-[#7ae094] text-[#2b6d56] shadow-[0_8px_18px_rgba(122,224,148,0.35)]">
-                <GraduationCap className="h-6 w-6" />
-              </div>
+              <img
+                src="/leoni-icon.svg"
+                alt="LEONI"
+                className="h-14 w-14 rounded-[18px] object-cover shadow-[0_8px_18px_rgba(15,99,242,0.35)]"
+              />
             </div>
           </div>
         ) : (
@@ -174,9 +185,11 @@ export function Sidebar({
                 <ChevronLeft className="h-5 w-5" />
               </button>
             </div>
-            <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-[#7ae094] text-[#2b6d56] shadow-[0_8px_18px_rgba(122,224,148,0.35)]">
-              <GraduationCap className="h-7 w-7" />
-            </div>
+            <img
+              src="/leoni-icon.svg"
+              alt="LEONI"
+              className="mb-3 h-14 w-14 rounded-[18px] object-cover shadow-[0_8px_18px_rgba(15,99,242,0.35)]"
+            />
             <p className="leoni-display-lg text-[31px] font-semibold tracking-[0.01em] text-[#f2f8f4]">
               {appConfig.companyName}
             </p>

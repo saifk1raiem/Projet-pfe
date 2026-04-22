@@ -1,11 +1,9 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { useAppPreferences } from "../context/AppPreferencesContext";
 import { apiUrl } from "../lib/api";
 import { appConfig } from "../lib/config";
-
-const showcasePassword = appConfig.showcasePassword;
 
 export function LoginPage({ onLogin }) {
   const { tr } = useAppPreferences();
@@ -18,40 +16,6 @@ export function LoginPage({ onLogin }) {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [loginUsers, setLoginUsers] = useState([]);
-  const [isLoadingUsers, setIsLoadingUsers] = useState(true);
-
-  useEffect(() => {
-    let ignore = false;
-
-    const loadUsers = async () => {
-      try {
-        const response = await fetch(apiUrl("/auth/login-users"));
-        if (!response.ok) {
-          throw new Error("Failed to load users");
-        }
-
-        const data = await response.json();
-        if (!ignore) {
-          setLoginUsers(Array.isArray(data) ? data : []);
-        }
-      } catch {
-        if (!ignore) {
-          setLoginUsers([]);
-        }
-      } finally {
-        if (!ignore) {
-          setIsLoadingUsers(false);
-        }
-      }
-    };
-
-    loadUsers();
-
-    return () => {
-      ignore = true;
-    };
-  }, []);
 
   const clearMessages = () => {
     setError("");
@@ -168,9 +132,12 @@ export function LoginPage({ onLogin }) {
         <div className="grid w-full overflow-hidden rounded-3xl border border-[#d4dfeb] bg-white shadow-[0_22px_50px_rgba(13,58,103,0.16)] md:grid-cols-2">
           <div className="relative hidden overflow-hidden bg-[linear-gradient(160deg,#004681_0%,#005ca9_45%,#52a7e8_100%)] p-10 text-white md:block">
             <div className="relative z-10">
-              <p className="text-sm font-medium uppercase tracking-[0.28em] text-white/80">
-                {appConfig.applicationName}
-              </p>
+              <div className="flex items-center gap-3">
+                <img src="/leoni-icon.svg" alt="LEONI" className="h-10 w-10 rounded-xl border border-white/25 shadow-lg" />
+                <p className="text-sm font-medium uppercase tracking-[0.28em] text-white/80">
+                  {appConfig.applicationName}
+                </p>
+              </div>
               <h1 className="mt-5 text-3xl font-semibold leading-tight">
                 {isLoginView ? tr("Bon retour", "Welcome back") : tr("Recuperation du compte", "Account recovery")}
               </h1>
@@ -185,6 +152,11 @@ export function LoginPage({ onLogin }) {
                       "Request a code by email, then choose a new password to regain access to your account.",
                     )}
               </p>
+              <img
+                src="/leoni-image.svg"
+                alt="LEONI visual"
+                className="mt-7 w-full rounded-2xl border border-white/20 shadow-[0_16px_35px_rgba(2,20,46,0.32)]"
+              />
             </div>
             <div className="pointer-events-none absolute -right-12 -top-10 h-56 w-56 rounded-full bg-white/15 blur-xl" />
             <div className="pointer-events-none absolute -bottom-12 -left-8 h-60 w-60 rounded-full bg-[#6dc1ff]/30 blur-xl" />
@@ -203,67 +175,13 @@ export function LoginPage({ onLogin }) {
             </h2>
 
             {isLoginView ? (
-              <div className="mt-6 rounded-2xl border border-[#d8e4ef] bg-[#f7fbff] p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-[#163252]">
-                      {tr("Utilisateurs de la base", "Database users")}
-                    </p>
-                    <p className="mt-1 text-xs text-[#5d7088]">
-                      {tr(
-                        "Cliquez sur un utilisateur pour remplir automatiquement son email. Mot de passe de demonstration:",
-                        "Click a user to autofill the email. Showcase password:",
-                      )}{" "}
-                      {showcasePassword}.
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-3 rounded-xl border border-[#cfe0ef] bg-white px-3 py-3">
-                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-[#6a83a0]">
-                    {tr("Mot de passe showcase", "Showcase password")}
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-[#163252]">{showcasePassword}</p>
-                </div>
-                <div className="mt-3 space-y-2">
-                  {isLoadingUsers ? (
-                    <div className="rounded-xl border border-[#d8e4ef] bg-white px-3 py-3 text-sm text-[#5d7088]">
-                      {tr("Chargement des utilisateurs...", "Loading users...")}
-                    </div>
-                  ) : null}
-
-                  {!isLoadingUsers && loginUsers.length === 0 ? (
-                    <div className="rounded-xl border border-[#d8e4ef] bg-white px-3 py-3 text-sm text-[#5d7088]">
-                      {tr("Aucun utilisateur charge depuis la base.", "No users loaded from the database.")}
-                    </div>
-                  ) : null}
-
-                  {loginUsers.map((user) => (
-                    <button
-                      key={user.email}
-                      type="button"
-                      onClick={() => {
-                        setEmail(user.email);
-                        setPassword(showcasePassword);
-                        clearMessages();
-                      }}
-                      className="flex w-full items-start justify-between rounded-xl border border-[#d8e4ef] bg-white px-3 py-3 text-left transition hover:border-[#8cb7dc] hover:bg-[#f3f9ff]"
-                    >
-                      <div>
-                        <p className="text-sm font-semibold text-[#163252]">
-                          {user.first_name} {user.last_name}
-                        </p>
-                        <p className="mt-1 text-sm text-[#28496d]">{user.email}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xs font-medium uppercase tracking-[0.18em] text-[#6a83a0]">
-                          {tr("Role / mot de passe", "Role / password")}
-                        </p>
-                        <p className="mt-1 text-sm font-semibold text-[#163252]">{user.role}</p>
-                        <p className="mt-1 text-xs text-[#5d7088]">{showcasePassword}</p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
+              <div className="mt-6 rounded-2xl border border-[#d8e4ef] bg-[#f7fbff] p-4 text-sm leading-6 text-[#355170]">
+                <p>
+                  {tr(
+                    "Entrez votre email professionnel et votre mot de passe pour acceder a votre espace.",
+                    "Enter your work email and password to access your workspace.",
+                  )}
+                </p>
               </div>
             ) : (
               <div className="mt-6 rounded-2xl border border-[#d8e4ef] bg-[#f7fbff] p-4 text-sm leading-6 text-[#355170]">

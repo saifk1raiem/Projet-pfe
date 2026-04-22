@@ -11,6 +11,7 @@ import { AdvisorsPage } from "./advisors/AdvisorsPage";
 import { ParametresPage } from "./parametres/ParametresPage";
 import { RequalificationPage } from "./requalification/RequalificationPage";
 import { StatistiquesPage } from "./statistiques/StatistiquesPage";
+import { ToolsPage } from "./tools/ToolsPage";
 import { ProfileDialog } from "./profile/ProfileDialog";
 import { useAppPreferences } from "../context/AppPreferencesContext";
 
@@ -56,6 +57,8 @@ export function Layout({ onSignOut, currentUser, accessToken, onCurrentUserChang
         return <AdvisorsPage accessToken={accessToken} />;
       case "statistiques":
         return <StatistiquesPage />;
+      case "tools":
+        return <ToolsPage currentUser={currentUser} accessToken={accessToken} />;
       case "parametres":
         return <ParametresPage currentUser={currentUser} accessToken={accessToken} onCurrentUserChange={onCurrentUserChange} />;
       default:
