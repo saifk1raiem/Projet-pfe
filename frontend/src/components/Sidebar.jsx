@@ -6,20 +6,17 @@ import {
   ChevronLeft,
   ChevronRight,
   Database,
+  Globe2,
   GraduationCap,
   LayoutDashboard,
-  Linkedin,
   LogOut,
   Menu,
-  Phone,
   RefreshCcw,
-  Search,
   Settings,
   UserRoundCheck,
   Users,
   Wrench,
   X,
-  Youtube,
 } from "lucide-react";
 import { cn } from "./ui/utils";
 import { useAppPreferences } from "../context/AppPreferencesContext";
@@ -161,23 +158,20 @@ export function Sidebar({
   );
 
   return (
-    <header className={cn("leoni-header asm-header", compact ? "leoni-header--compact" : "")}>
+    <header className={cn("leoni-header", compact ? "leoni-header--compact" : "")}>
       <div className="leoni-topbar">
         <div className="leoni-header-inner">
-          <div className="leoni-top-contact">
-            <Phone className="h-4 w-4" />
-            <span>+216 92 022 808</span>
-          </div>
+          <a href="/" className="leoni-brand" aria-label="LEONI Tunisia">
+            <img src="/leoni/logo-leoni.svg" alt="LEONI" className="leoni-brand-logo" />
+          </a>
 
-          <div className="leoni-meta" aria-label="ASM social links">
+          <div className="leoni-meta">
+            <span className="leoni-location">Tunisia</span>
             <span className="leoni-meta-link">
-              <Youtube className="h-4 w-4" />
-              Youtube
+              <Globe2 className="h-4 w-4" />
+              LEONI Worldwide
             </span>
-            <span className="leoni-meta-link">
-              <Linkedin className="h-4 w-4" />
-              Linkedin
-            </span>
+            <span className="leoni-language">English</span>
           </div>
 
           <button
@@ -194,13 +188,9 @@ export function Sidebar({
 
       <div className="leoni-primarybar">
         <div className="leoni-header-inner leoni-primarybar-inner">
-          <a href="/" className="leoni-brand" aria-label="ASM Tunisie">
-            <img src="/asm/logo-asm.png" alt="ASM Tunisie" className="leoni-brand-logo" />
-          </a>
-
           <div className="leoni-app-mark">
             <span className="leoni-app-title">{appConfig.applicationName}</span>
-            <span className="leoni-app-subtitle">{tr("Espace formation", "Training workspace")}</span>
+            <span className="leoni-app-subtitle">{tr("Gestion de Formation", "Training Management")}</span>
           </div>
 
           <nav className={cn("leoni-nav", isMenuOpen ? "is-open" : "")} aria-label={tr("Navigation principale", "Main navigation")}>
@@ -224,10 +214,6 @@ export function Sidebar({
           </nav>
 
           <div className="leoni-user-actions">
-            <button type="button" className="leoni-icon-button leoni-search-button" aria-label={tr("Rechercher", "Search")}>
-              <Search className="h-4 w-4" />
-            </button>
-
             <button
               type="button"
               onClick={onToggleCompact}
@@ -252,10 +238,6 @@ export function Sidebar({
               aria-label={tr("Se deconnecter", "Sign out")}
             >
               <LogOut className="h-4 w-4" />
-            </button>
-
-            <button type="button" onClick={onProfileClick} className="leoni-contact-button">
-              Contact
             </button>
           </div>
         </div>

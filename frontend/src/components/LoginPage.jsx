@@ -128,62 +128,44 @@ export function LoginPage({ onLogin }) {
   const isResetView = view === "reset";
 
   return (
-    <div className="min-h-screen bg-[#f7f8fb] text-[#222222]">
-      <header className="bg-white shadow-[0_12px_30px_rgba(20,24,31,0.06)]">
-        <div className="bg-[#2d2d2d] text-white">
-          <div className="mx-auto flex h-[46px] max-w-[1920px] items-center justify-between px-5 text-sm font-bold md:px-12">
-            <span>+216 92 022 808</span>
-            <span className="hidden gap-6 md:flex">
-              <span>Youtube</span>
-              <span>Linkedin</span>
-            </span>
+    <div className="min-h-screen bg-[#f2f3f4] text-[#001932]">
+      <header className="border-b border-[#d8dbdf] bg-white">
+        <div className="mx-auto flex h-[72px] max-w-[1920px] items-center justify-between px-5 md:px-12">
+          <img src="/leoni/logo-leoni.svg" alt="LEONI" className="h-[37px] w-[158px]" />
+          <div className="hidden items-center gap-7 text-[15px] font-medium text-[#586879] md:flex">
+            <span className="font-bold text-[#002857]">Tunisia</span>
+            <span>LEONI Worldwide</span>
+            <span>English</span>
           </div>
-        </div>
-        <div className="mx-auto flex h-[100px] max-w-[1920px] items-center justify-between border-b border-[#eeeeee] px-5 md:px-12">
-          <img src="/asm/logo-asm.png" alt="ASM Tunisie" className="h-[58px] w-[136px] object-contain" />
-          <div className="hidden items-center gap-8 text-[14px] font-extrabold text-[#151515] lg:flex">
-            <span className="border-t-[3px] border-[#ff6f00] pt-8">Accueil</span>
-            <span>A propos</span>
-            <span>Solutions metiers</span>
-            <span>Votre espace</span>
-          </div>
-          <button className="hidden h-14 border border-[#ff6f00] px-9 text-[13px] font-black uppercase text-[#222222] transition hover:bg-[#ff6f00] hover:text-white sm:inline-flex sm:items-center">
-            Contact
-          </button>
         </div>
       </header>
 
-      <main className="grid min-h-[calc(100vh-146px)] lg:h-[calc(100vh-146px)] lg:grid-cols-[minmax(0,1fr)_480px] lg:overflow-hidden xl:grid-cols-[minmax(0,1fr)_540px]">
-        <section className="relative min-h-[360px] overflow-hidden bg-[#222222] text-white lg:h-full">
+      <main className="grid min-h-[calc(100vh-72px)] lg:h-[calc(100vh-72px)] lg:grid-cols-[minmax(0,1fr)_480px] lg:overflow-hidden xl:grid-cols-[minmax(0,1fr)_540px]">
+        <section className="relative min-h-[360px] overflow-hidden bg-[#002857] text-white lg:h-full">
           <img
-            src="/asm/hero-team.jpg"
-            alt="ASM team"
+            src="/leoni/leoni-hero.webp"
+            alt="LEONI production workspace"
             className="absolute inset-0 h-full w-full object-cover"
           />
-          <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(34,34,34,0.92)_0%,rgba(34,34,34,0.72)_45%,rgba(255,111,0,0.28)_100%)]" />
-          <img
-            src="/asm/experience-badge.png"
-            alt="15 ans d'experience"
-            className="absolute bottom-8 right-8 hidden h-48 w-48 rounded-full object-cover shadow-2xl xl:block"
-          />
-          <div className="relative z-10 flex min-h-[360px] max-w-3xl flex-col justify-end px-6 py-10 md:min-h-[calc(100vh-146px)] md:px-12 xl:px-16">
-            <p className="text-[15px] font-extrabold uppercase text-[#ff8a1f]">{appConfig.applicationName}</p>
-            <h1 className="mt-4 max-w-xl text-[42px] font-black leading-[1.05] md:text-[62px]">
-              All Soft Multimedia
+          <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,40,87,0.88)_0%,rgba(0,40,87,0.64)_42%,rgba(0,40,87,0.16)_100%)]" />
+          <div className="relative z-10 flex min-h-[360px] max-w-3xl flex-col justify-end px-6 py-10 md:min-h-[calc(100vh-72px)] md:px-12 xl:px-16">
+            <p className="text-[15px] font-semibold uppercase text-[#abe6ff]">{appConfig.applicationName}</p>
+            <h1 className="mt-4 max-w-xl text-[44px] font-bold leading-[1.05] md:text-[64px]">
+              We are LEONI
             </h1>
-            <p className="mt-4 max-w-[330px] text-[20px] font-bold leading-snug text-white md:max-w-lg md:text-[30px]">
-              Des solutions IT adaptees a tous vos besoins.
+            <p className="mt-4 max-w-lg text-[24px] font-semibold text-white md:text-[32px]">
+              Your Empowering Connection.
             </p>
-            <div className="mt-8 h-1.5 w-32 bg-[#ff6f00]" />
+            <div className="mt-8 h-2 w-32 rounded-full bg-[#ff7514]" />
           </div>
         </section>
 
         <section className="flex items-center bg-white px-5 py-10 md:px-10 lg:h-full">
           <div className="mx-auto w-full max-w-[420px]">
-            <p className="text-[14px] font-black uppercase text-[#ff6f00]">
+            <p className="text-[14px] font-bold uppercase text-[#ff7514]">
               {isLoginView ? tr("Acces compte", "Account access") : tr("Recuperation", "Recovery")}
             </p>
-            <h2 className="mt-3 text-[36px] font-black leading-tight text-[#222222]">
+            <h2 className="mt-3 text-[36px] font-bold leading-tight text-[#002857]">
               {isLoginView
                 ? tr("Connexion", "Login")
                 : isForgotView
@@ -194,11 +176,11 @@ export function LoginPage({ onLogin }) {
             {isLoginView ? (
               <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-[#222222]" htmlFor="email">
+                  <label className="text-sm font-semibold text-[#253b50]" htmlFor="email">
                     Email
                   </label>
                   <div className="relative">
-                    <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#616161]" />
+                    <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#586879]" />
                     <Input
                       id="email"
                       type="email"
@@ -206,26 +188,26 @@ export function LoginPage({ onLogin }) {
                       value={email}
                       onChange={(event) => setEmail(event.target.value)}
                       required
-                      className="h-12 rounded-none border-[#d8d8d8] bg-white pl-10"
+                      className="h-12 rounded-[4px] border-[#bec4ca] bg-white pl-10"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-                    <label className="text-sm font-bold text-[#222222]" htmlFor="password">
+                    <label className="text-sm font-semibold text-[#253b50]" htmlFor="password">
                       {tr("Mot de passe", "Password")}
                     </label>
                     <button
                       type="button"
                       onClick={openForgotPassword}
-                      className="basis-full text-left text-xs font-bold text-[#ff6f00] transition hover:text-[#222222] sm:basis-auto sm:text-right sm:text-sm"
+                      className="basis-full text-left text-xs font-semibold text-[#0064c8] transition hover:text-[#002857] sm:basis-auto sm:text-right sm:text-sm"
                     >
                       {tr("Mot de passe oublie ?", "Forgot password?")}
                     </button>
                   </div>
                   <div className="relative">
-                    <LockKeyhole className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#616161]" />
+                    <LockKeyhole className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#586879]" />
                     <Input
                       id="password"
                       type="password"
@@ -233,12 +215,12 @@ export function LoginPage({ onLogin }) {
                       value={password}
                       onChange={(event) => setPassword(event.target.value)}
                       required
-                      className="h-12 rounded-none border-[#d8d8d8] bg-white pl-10"
+                      className="h-12 rounded-[4px] border-[#bec4ca] bg-white pl-10"
                     />
                   </div>
                 </div>
 
-                <Button className="h-12 w-full gap-2 rounded-none bg-[#ff6f00] text-sm font-black text-white hover:bg-[#222222]" type="submit" disabled={isSubmitting}>
+                <Button className="h-12 w-full gap-2 rounded-[4px] bg-[#ff7514] text-sm font-bold text-white hover:bg-[#e6650f]" type="submit" disabled={isSubmitting}>
                   {isSubmitting ? tr("Connexion...", "Signing in...") : tr("Se connecter", "Sign In")}
                   <ArrowRight className="h-4 w-4" />
                 </Button>
@@ -248,11 +230,11 @@ export function LoginPage({ onLogin }) {
             {isForgotView ? (
               <form className="mt-8 space-y-5" onSubmit={handleForgotPassword}>
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-[#222222]" htmlFor="reset-email">
+                  <label className="text-sm font-semibold text-[#253b50]" htmlFor="reset-email">
                     Email
                   </label>
                   <div className="relative">
-                    <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#616161]" />
+                    <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#586879]" />
                     <Input
                       id="reset-email"
                       type="email"
@@ -260,18 +242,18 @@ export function LoginPage({ onLogin }) {
                       value={resetEmail}
                       onChange={(event) => setResetEmail(event.target.value)}
                       required
-                      className="h-12 rounded-none border-[#d8d8d8] bg-white pl-10"
+                      className="h-12 rounded-[4px] border-[#bec4ca] bg-white pl-10"
                     />
                   </div>
                 </div>
 
-                <Button className="h-12 w-full gap-2 rounded-none bg-[#ff6f00] text-sm font-black text-white hover:bg-[#222222]" type="submit" disabled={isSubmitting}>
+                <Button className="h-12 w-full gap-2 rounded-[4px] bg-[#ff7514] text-sm font-bold text-white hover:bg-[#e6650f]" type="submit" disabled={isSubmitting}>
                   {isSubmitting ? tr("Envoi du code...", "Sending code...") : tr("Envoyer le code", "Send code")}
                   <ArrowRight className="h-4 w-4" />
                 </Button>
 
                 <Button
-                  className="h-12 w-full gap-2 rounded-none border-[#222222] text-sm font-black text-[#222222]"
+                  className="h-12 w-full gap-2 rounded-[4px] border-[#002857] text-sm font-bold text-[#002857]"
                   type="button"
                   variant="outline"
                   onClick={backToLogin}
@@ -286,7 +268,7 @@ export function LoginPage({ onLogin }) {
             {isResetView ? (
               <form className="mt-8 space-y-5" onSubmit={handleResetPassword}>
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-[#222222]" htmlFor="reset-email-confirm">
+                  <label className="text-sm font-semibold text-[#253b50]" htmlFor="reset-email-confirm">
                     Email
                   </label>
                   <Input
@@ -296,12 +278,12 @@ export function LoginPage({ onLogin }) {
                     value={resetEmail}
                     onChange={(event) => setResetEmail(event.target.value)}
                     required
-                    className="h-12 rounded-none border-[#d8d8d8] bg-white"
+                    className="h-12 rounded-[4px] border-[#bec4ca] bg-white"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-[#222222]" htmlFor="reset-code">
+                  <label className="text-sm font-semibold text-[#253b50]" htmlFor="reset-code">
                     {tr("Code de reinitialisation", "Reset code")}
                   </label>
                   <Input
@@ -313,12 +295,12 @@ export function LoginPage({ onLogin }) {
                     onChange={(event) => setResetCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
                     maxLength={6}
                     required
-                    className="h-12 rounded-none border-[#d8d8d8] bg-white"
+                    className="h-12 rounded-[4px] border-[#bec4ca] bg-white"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-[#222222]" htmlFor="new-password">
+                  <label className="text-sm font-semibold text-[#253b50]" htmlFor="new-password">
                     {tr("Nouveau mot de passe", "New password")}
                   </label>
                   <Input
@@ -329,11 +311,11 @@ export function LoginPage({ onLogin }) {
                     onChange={(event) => setNewPassword(event.target.value)}
                     minLength={8}
                     required
-                    className="h-12 rounded-none border-[#d8d8d8] bg-white"
+                    className="h-12 rounded-[4px] border-[#bec4ca] bg-white"
                   />
                 </div>
 
-                <Button className="h-12 w-full gap-2 rounded-none bg-[#ff6f00] text-sm font-black text-white hover:bg-[#222222]" type="submit" disabled={isSubmitting}>
+                <Button className="h-12 w-full gap-2 rounded-[4px] bg-[#ff7514] text-sm font-bold text-white hover:bg-[#e6650f]" type="submit" disabled={isSubmitting}>
                   {isSubmitting
                     ? tr("Reinitialisation...", "Resetting password...")
                     : tr("Reinitialiser le mot de passe", "Reset password")}
