@@ -67,20 +67,16 @@ export function Layout({ onSignOut, currentUser, accessToken, onCurrentUserChang
   };
 
   return (
-    <div className="leoni-shell flex h-screen overflow-hidden">
-      <div className="px-5 py-5">
-        <Sidebar
-          currentPage={currentPage}
-          onPageChange={handlePageChange}
-          compact={isSidebarCollapsed}
-          onToggleCompact={() => setIsSidebarCollapsed((prev) => !prev)}
-          onSignOut={onSignOut}
-          onProfileClick={() => setIsProfileOpen(true)}
-          currentUser={currentUser}
-        />
-      </div>
-
-      <div className="leoni-divider" />
+    <div className="leoni-shell flex h-screen flex-col overflow-hidden">
+      <Sidebar
+        currentPage={currentPage}
+        onPageChange={handlePageChange}
+        compact={isSidebarCollapsed}
+        onToggleCompact={() => setIsSidebarCollapsed((prev) => !prev)}
+        onSignOut={onSignOut}
+        onProfileClick={() => setIsProfileOpen(true)}
+        currentUser={currentUser}
+      />
 
       <main className="leoni-main flex-1 overflow-y-auto">{renderContent()}</main>
 

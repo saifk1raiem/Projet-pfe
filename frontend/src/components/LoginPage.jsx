@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ArrowLeft, ArrowRight, LockKeyhole, Mail } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { useAppPreferences } from "../context/AppPreferencesContext";
@@ -127,125 +128,119 @@ export function LoginPage({ onLogin }) {
   const isResetView = view === "reset";
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_right,#d9e7f5_0%,#f4f7fb_45%,#eef4fb_100%)] px-4 py-8">
-      <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-5xl items-center justify-center">
-        <div className="grid w-full overflow-hidden rounded-3xl border border-[#d4dfeb] bg-white shadow-[0_22px_50px_rgba(13,58,103,0.16)] md:grid-cols-2">
-          <div className="relative hidden overflow-hidden bg-[linear-gradient(160deg,#004681_0%,#005ca9_45%,#52a7e8_100%)] p-10 text-white md:block">
-            <div className="relative z-10">
-              <div className="flex items-center gap-3">
-                <img src="/leoni-icon.svg" alt="LEONI" className="h-10 w-10 rounded-xl border border-white/25 shadow-lg" />
-                <p className="text-sm font-medium uppercase tracking-[0.28em] text-white/80">
-                  {appConfig.applicationName}
-                </p>
-              </div>
-              <h1 className="mt-5 text-3xl font-semibold leading-tight">
-                {isLoginView ? tr("Bon retour", "Welcome back") : tr("Recuperation du compte", "Account recovery")}
-              </h1>
-              <p className="mt-3 max-w-xs text-sm leading-6 text-white/85">
-                {isLoginView
-                  ? tr(
-                      "Connectez-vous pour gerer les formations, qualifications et collaborateurs depuis un seul espace.",
-                      "Sign in to manage training, qualifications, and collaborators from one place.",
-                    )
-                  : tr(
-                      "Demandez un code par email, puis choisissez un nouveau mot de passe pour retrouver l'acces a votre compte.",
-                      "Request a code by email, then choose a new password to regain access to your account.",
-                    )}
-              </p>
-              <img
-                src="/leoni-image.svg"
-                alt="LEONI visual"
-                className="mt-7 w-full rounded-2xl border border-white/20 shadow-[0_16px_35px_rgba(2,20,46,0.32)]"
-              />
-            </div>
-            <div className="pointer-events-none absolute -right-12 -top-10 h-56 w-56 rounded-full bg-white/15 blur-xl" />
-            <div className="pointer-events-none absolute -bottom-12 -left-8 h-60 w-60 rounded-full bg-[#6dc1ff]/30 blur-xl" />
+    <div className="min-h-screen bg-[#f7f8fb] text-[#222222]">
+      <header className="bg-white shadow-[0_12px_30px_rgba(20,24,31,0.06)]">
+        <div className="bg-[#2d2d2d] text-white">
+          <div className="mx-auto flex h-[46px] max-w-[1920px] items-center justify-between px-5 text-sm font-bold md:px-12">
+            <span>+216 92 022 808</span>
+            <span className="hidden gap-6 md:flex">
+              <span>Youtube</span>
+              <span>Linkedin</span>
+            </span>
           </div>
+        </div>
+        <div className="mx-auto flex h-[100px] max-w-[1920px] items-center justify-between border-b border-[#eeeeee] px-5 md:px-12">
+          <img src="/asm/logo-asm.png" alt="ASM Tunisie" className="h-[58px] w-[136px] object-contain" />
+          <div className="hidden items-center gap-8 text-[14px] font-extrabold text-[#151515] lg:flex">
+            <span className="border-t-[3px] border-[#ff6f00] pt-8">Accueil</span>
+            <span>A propos</span>
+            <span>Solutions metiers</span>
+            <span>Votre espace</span>
+          </div>
+          <button className="hidden h-14 border border-[#ff6f00] px-9 text-[13px] font-black uppercase text-[#222222] transition hover:bg-[#ff6f00] hover:text-white sm:inline-flex sm:items-center">
+            Contact
+          </button>
+        </div>
+      </header>
 
-          <div className="p-7 sm:p-10">
-            <p className="text-sm font-medium text-[#5d7088]">
-              {isLoginView ? tr("Acces compte", "Account access") : tr("Mot de passe oublie", "Forgot password")}
+      <main className="grid min-h-[calc(100vh-146px)] lg:h-[calc(100vh-146px)] lg:grid-cols-[minmax(0,1fr)_480px] lg:overflow-hidden xl:grid-cols-[minmax(0,1fr)_540px]">
+        <section className="relative min-h-[360px] overflow-hidden bg-[#222222] text-white lg:h-full">
+          <img
+            src="/asm/hero-team.jpg"
+            alt="ASM team"
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+          <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(34,34,34,0.92)_0%,rgba(34,34,34,0.72)_45%,rgba(255,111,0,0.28)_100%)]" />
+          <img
+            src="/asm/experience-badge.png"
+            alt="15 ans d'experience"
+            className="absolute bottom-8 right-8 hidden h-48 w-48 rounded-full object-cover shadow-2xl xl:block"
+          />
+          <div className="relative z-10 flex min-h-[360px] max-w-3xl flex-col justify-end px-6 py-10 md:min-h-[calc(100vh-146px)] md:px-12 xl:px-16">
+            <p className="text-[15px] font-extrabold uppercase text-[#ff8a1f]">{appConfig.applicationName}</p>
+            <h1 className="mt-4 max-w-xl text-[42px] font-black leading-[1.05] md:text-[62px]">
+              All Soft Multimedia
+            </h1>
+            <p className="mt-4 max-w-[330px] text-[20px] font-bold leading-snug text-white md:max-w-lg md:text-[30px]">
+              Des solutions IT adaptees a tous vos besoins.
             </p>
-            <h2 className="mt-2 text-3xl font-semibold text-[#13263f]">
+            <div className="mt-8 h-1.5 w-32 bg-[#ff6f00]" />
+          </div>
+        </section>
+
+        <section className="flex items-center bg-white px-5 py-10 md:px-10 lg:h-full">
+          <div className="mx-auto w-full max-w-[420px]">
+            <p className="text-[14px] font-black uppercase text-[#ff6f00]">
+              {isLoginView ? tr("Acces compte", "Account access") : tr("Recuperation", "Recovery")}
+            </p>
+            <h2 className="mt-3 text-[36px] font-black leading-tight text-[#222222]">
               {isLoginView
                 ? tr("Connexion", "Login")
                 : isForgotView
                   ? tr("Recevoir un code", "Get a code")
-                  : tr("Reinitialiser le mot de passe", "Reset password")}
+                  : tr("Nouveau mot de passe", "New password")}
             </h2>
-
-            {isLoginView ? (
-              <div className="mt-6 rounded-2xl border border-[#d8e4ef] bg-[#f7fbff] p-4 text-sm leading-6 text-[#355170]">
-                <p>
-                  {tr(
-                    "Entrez votre email professionnel et votre mot de passe pour acceder a votre espace.",
-                    "Enter your work email and password to access your workspace.",
-                  )}
-                </p>
-              </div>
-            ) : (
-              <div className="mt-6 rounded-2xl border border-[#d8e4ef] bg-[#f7fbff] p-4 text-sm leading-6 text-[#355170]">
-                {isForgotView ? (
-                  <p>
-                    {tr(
-                      "Saisissez l'email du compte et nous enverrons un code a 6 chiffres. Si l'email n'est lie a aucun compte, vous verrez le message correspondant.",
-                      "Enter the account email and we will send a 6-digit code. If the email is not linked to an account, you will see the matching message.",
-                    )}
-                  </p>
-                ) : (
-                  <p>
-                    {tr(
-                      "Consultez votre boite mail, entrez le code recu, puis choisissez un nouveau mot de passe d'au moins 8 caracteres.",
-                      "Check your inbox, enter the code you received, then choose a new password with at least 8 characters.",
-                    )}
-                  </p>
-                )}
-              </div>
-            )}
 
             {isLoginView ? (
               <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-[#1a3252]" htmlFor="email">
+                  <label className="text-sm font-bold text-[#222222]" htmlFor="email">
                     Email
                   </label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder={tr("nom@entreprise.com", "name@company.com")}
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    required
-                    className="h-11 border-[#c8d8e8] bg-white"
-                  />
+                  <div className="relative">
+                    <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#616161]" />
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder={tr("nom@entreprise.com", "name@company.com")}
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      required
+                      className="h-12 rounded-none border-[#d8d8d8] bg-white pl-10"
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between gap-3">
-                    <label className="text-sm font-medium text-[#1a3252]" htmlFor="password">
+                  <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                    <label className="text-sm font-bold text-[#222222]" htmlFor="password">
                       {tr("Mot de passe", "Password")}
                     </label>
                     <button
                       type="button"
                       onClick={openForgotPassword}
-                      className="text-sm font-medium text-[#005ca9] transition hover:text-[#004681]"
+                      className="basis-full text-left text-xs font-bold text-[#ff6f00] transition hover:text-[#222222] sm:basis-auto sm:text-right sm:text-sm"
                     >
                       {tr("Mot de passe oublie ?", "Forgot password?")}
                     </button>
                   </div>
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder={tr("Entrez votre mot de passe", "Enter your password")}
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    required
-                    className="h-11 border-[#c8d8e8] bg-white"
-                  />
+                  <div className="relative">
+                    <LockKeyhole className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#616161]" />
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder={tr("Entrez votre mot de passe", "Enter your password")}
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      required
+                      className="h-12 rounded-none border-[#d8d8d8] bg-white pl-10"
+                    />
+                  </div>
                 </div>
 
-                <Button className="h-11 w-full text-sm font-semibold" type="submit" disabled={isSubmitting}>
+                <Button className="h-12 w-full gap-2 rounded-none bg-[#ff6f00] text-sm font-black text-white hover:bg-[#222222]" type="submit" disabled={isSubmitting}>
                   {isSubmitting ? tr("Connexion...", "Signing in...") : tr("Se connecter", "Sign In")}
+                  <ArrowRight className="h-4 w-4" />
                 </Button>
               </form>
             ) : null}
@@ -253,31 +248,36 @@ export function LoginPage({ onLogin }) {
             {isForgotView ? (
               <form className="mt-8 space-y-5" onSubmit={handleForgotPassword}>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-[#1a3252]" htmlFor="reset-email">
+                  <label className="text-sm font-bold text-[#222222]" htmlFor="reset-email">
                     Email
                   </label>
-                  <Input
-                    id="reset-email"
-                    type="email"
-                    placeholder={tr("nom@entreprise.com", "name@company.com")}
-                    value={resetEmail}
-                    onChange={(event) => setResetEmail(event.target.value)}
-                    required
-                    className="h-11 border-[#c8d8e8] bg-white"
-                  />
+                  <div className="relative">
+                    <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#616161]" />
+                    <Input
+                      id="reset-email"
+                      type="email"
+                      placeholder={tr("nom@entreprise.com", "name@company.com")}
+                      value={resetEmail}
+                      onChange={(event) => setResetEmail(event.target.value)}
+                      required
+                      className="h-12 rounded-none border-[#d8d8d8] bg-white pl-10"
+                    />
+                  </div>
                 </div>
 
-                <Button className="h-11 w-full text-sm font-semibold" type="submit" disabled={isSubmitting}>
+                <Button className="h-12 w-full gap-2 rounded-none bg-[#ff6f00] text-sm font-black text-white hover:bg-[#222222]" type="submit" disabled={isSubmitting}>
                   {isSubmitting ? tr("Envoi du code...", "Sending code...") : tr("Envoyer le code", "Send code")}
+                  <ArrowRight className="h-4 w-4" />
                 </Button>
 
                 <Button
-                  className="h-11 w-full text-sm font-semibold"
+                  className="h-12 w-full gap-2 rounded-none border-[#222222] text-sm font-black text-[#222222]"
                   type="button"
                   variant="outline"
                   onClick={backToLogin}
                   disabled={isSubmitting}
                 >
+                  <ArrowLeft className="h-4 w-4" />
                   {tr("Retour a la connexion", "Back to login")}
                 </Button>
               </form>
@@ -286,7 +286,7 @@ export function LoginPage({ onLogin }) {
             {isResetView ? (
               <form className="mt-8 space-y-5" onSubmit={handleResetPassword}>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-[#1a3252]" htmlFor="reset-email-confirm">
+                  <label className="text-sm font-bold text-[#222222]" htmlFor="reset-email-confirm">
                     Email
                   </label>
                   <Input
@@ -296,12 +296,12 @@ export function LoginPage({ onLogin }) {
                     value={resetEmail}
                     onChange={(event) => setResetEmail(event.target.value)}
                     required
-                    className="h-11 border-[#c8d8e8] bg-white"
+                    className="h-12 rounded-none border-[#d8d8d8] bg-white"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-[#1a3252]" htmlFor="reset-code">
+                  <label className="text-sm font-bold text-[#222222]" htmlFor="reset-code">
                     {tr("Code de reinitialisation", "Reset code")}
                   </label>
                   <Input
@@ -313,12 +313,12 @@ export function LoginPage({ onLogin }) {
                     onChange={(event) => setResetCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
                     maxLength={6}
                     required
-                    className="h-11 border-[#c8d8e8] bg-white"
+                    className="h-12 rounded-none border-[#d8d8d8] bg-white"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-[#1a3252]" htmlFor="new-password">
+                  <label className="text-sm font-bold text-[#222222]" htmlFor="new-password">
                     {tr("Nouveau mot de passe", "New password")}
                   </label>
                   <Input
@@ -329,19 +329,20 @@ export function LoginPage({ onLogin }) {
                     onChange={(event) => setNewPassword(event.target.value)}
                     minLength={8}
                     required
-                    className="h-11 border-[#c8d8e8] bg-white"
+                    className="h-12 rounded-none border-[#d8d8d8] bg-white"
                   />
                 </div>
 
-                <Button className="h-11 w-full text-sm font-semibold" type="submit" disabled={isSubmitting}>
+                <Button className="h-12 w-full gap-2 rounded-none bg-[#ff6f00] text-sm font-black text-white hover:bg-[#222222]" type="submit" disabled={isSubmitting}>
                   {isSubmitting
                     ? tr("Reinitialisation...", "Resetting password...")
                     : tr("Reinitialiser le mot de passe", "Reset password")}
+                  <ArrowRight className="h-4 w-4" />
                 </Button>
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <Button
-                    className="h-11 w-full text-sm font-semibold"
+                    className="h-12 w-full text-sm font-bold"
                     type="button"
                     variant="outline"
                     onClick={() => {
@@ -353,32 +354,33 @@ export function LoginPage({ onLogin }) {
                     {tr("Renvoyer un code", "Resend code")}
                   </Button>
                   <Button
-                    className="h-11 w-full text-sm font-semibold"
+                    className="h-12 w-full gap-2 text-sm font-bold"
                     type="button"
                     variant="outline"
                     onClick={backToLogin}
                     disabled={isSubmitting}
                   >
-                    {tr("Retour a la connexion", "Back to login")}
+                    <ArrowLeft className="h-4 w-4" />
+                    {tr("Retour", "Back")}
                   </Button>
                 </div>
               </form>
             ) : null}
 
             {error ? (
-              <p className="mt-5 text-sm font-medium text-red-600" role="alert">
+              <p className="mt-5 border-l-4 border-red-500 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700" role="alert">
                 {error}
               </p>
             ) : null}
 
             {notice ? (
-              <p className="mt-5 text-sm font-medium text-emerald-700" role="status">
+              <p className="mt-5 border-l-4 border-emerald-600 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800" role="status">
                 {notice}
               </p>
             ) : null}
           </div>
-        </div>
-      </div>
+        </section>
+      </main>
     </div>
   );
 }

@@ -1,18 +1,25 @@
+import { useState } from "react";
 import {
-  LayoutDashboard,
-  BookOpen,
   Award,
-  Database,
-  RefreshCcw,
-  GraduationCap,
-  Users,
-  UserRoundCheck,
   BarChart3,
-  Wrench,
-  Settings,
+  BookOpen,
   ChevronLeft,
   ChevronRight,
+  Database,
+  GraduationCap,
+  LayoutDashboard,
+  Linkedin,
   LogOut,
+  Menu,
+  Phone,
+  RefreshCcw,
+  Search,
+  Settings,
+  UserRoundCheck,
+  Users,
+  Wrench,
+  X,
+  Youtube,
 } from "lucide-react";
 import { cn } from "./ui/utils";
 import { useAppPreferences } from "../context/AppPreferencesContext";
@@ -119,6 +126,7 @@ export function Sidebar({
   currentUser,
 }) {
   const { tr } = useAppPreferences();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const fullNameFromNames = currentUser
     ? `${currentUser.first_name ?? ""} ${currentUser.last_name ?? ""}`.trim()
     : "";
@@ -137,8 +145,13 @@ export function Sidebar({
         ? tr("Administrateur", "Administrator")
         : tr("Observateur", "Observer");
 
-  const renderProfileAvatar = (sizeClass, textClass) => (
-    <div className={`flex ${sizeClass} items-center justify-center overflow-hidden rounded-full border border-white/20 bg-[#7ae094] ${textClass} text-[#2b6d56]`}>
+  const handleNavigate = (page) => {
+    onPageChange(page);
+    setIsMenuOpen(false);
+  };
+
+  const renderProfileAvatar = () => (
+    <div className="leoni-user-avatar">
       {currentUser?.avatar_url ? (
         <img src={currentUser.avatar_url} alt={displayName} className="h-full w-full object-cover" />
       ) : (
@@ -148,154 +161,105 @@ export function Sidebar({
   );
 
   return (
-    <aside
-      className={cn(
-        "leoni-sidebar overflow-hidden",
-        compact ? "w-[92px] px-3 py-4" : "w-[280px] px-4 py-4",
-      )}
-    >
-      <div className="flex h-full min-h-0 flex-col">
-        {compact ? (
-          <div className="mb-4">
-            <div className="mb-2 flex justify-end">
-              <button
-                onClick={onToggleCompact}
-                aria-label={tr("Ouvrir la barre laterale", "Open sidebar")}
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white/80 transition-colors hover:bg-white/20"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="flex justify-center">
-              <img
-                src="/leoni-icon.svg"
-                alt="LEONI"
-                className="h-14 w-14 rounded-[18px] object-cover shadow-[0_8px_18px_rgba(15,99,242,0.35)]"
-              />
-            </div>
+    <header className={cn("leoni-header asm-header", compact ? "leoni-header--compact" : "")}>
+      <div className="leoni-topbar">
+        <div className="leoni-header-inner">
+          <div className="leoni-top-contact">
+            <Phone className="h-4 w-4" />
+            <span>+216 92 022 808</span>
           </div>
-        ) : (
-          <div className="mb-6 flex flex-col items-center">
-            <div className="relative mb-4 w-full">
-              <button
-                onClick={onToggleCompact}
-                aria-label={tr("Fermer la barre laterale", "Collapse sidebar")}
-                className="absolute right-0 top-0 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white/80 transition-colors hover:bg-white/20"
-              >
-                <ChevronLeft className="h-5 w-5" />
-              </button>
-            </div>
-            <img
-              src="/leoni-icon.svg"
-              alt="LEONI"
-              className="mb-3 h-14 w-14 rounded-[18px] object-cover shadow-[0_8px_18px_rgba(15,99,242,0.35)]"
-            />
-            <p className="leoni-display-lg text-[31px] font-semibold tracking-[0.01em] text-[#f2f8f4]">
-              {appConfig.companyName}
-            </p>
-            <p className="mt-1 text-[13px] text-[#cde0d6]">{tr("Gestion de Formation", "Training Management")}</p>
+
+          <div className="leoni-meta" aria-label="ASM social links">
+            <span className="leoni-meta-link">
+              <Youtube className="h-4 w-4" />
+              Youtube
+            </span>
+            <span className="leoni-meta-link">
+              <Linkedin className="h-4 w-4" />
+              Linkedin
+            </span>
           </div>
-        )}
 
-        <nav
-          className={cn(
-            "leoni-sidebar-scroll flex-1 min-h-0 overflow-x-hidden overflow-y-auto",
-            compact ? "space-y-3" : "space-y-4 pr-1",
-          )}
-        >
-          {navigationItems.map((item, index) => {
-            const isActive = currentPage === item.id;
-            const Icon = item.icon;
+          <button
+            type="button"
+            className="leoni-mobile-menu"
+            aria-label={isMenuOpen ? tr("Fermer le menu", "Close menu") : tr("Ouvrir le menu", "Open menu")}
+            aria-expanded={isMenuOpen}
+            onClick={() => setIsMenuOpen((value) => !value)}
+          >
+            {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
+      </div>
 
-            return (
-              <button
-                key={item.id}
-                onClick={() => onPageChange(item.id)}
-                style={{ "--item-index": index }}
-                className={cn(
-                  "leoni-nav-item group relative w-full",
-                  compact
-                    ? "flex h-12 items-center justify-center rounded-full"
-                    : "flex min-h-[56px] items-center rounded-[16px] px-4",
-                  isActive ? "is-active" : "",
-                )}
-              >
-                <Icon className={cn(compact ? "h-5 w-5" : "h-5 w-5 shrink-0")} />
+      <div className="leoni-primarybar">
+        <div className="leoni-header-inner leoni-primarybar-inner">
+          <a href="/" className="leoni-brand" aria-label="ASM Tunisie">
+            <img src="/asm/logo-asm.png" alt="ASM Tunisie" className="leoni-brand-logo" />
+          </a>
 
-                {!compact && (
-                  <div className="ml-4 text-left">
-                    <p
-                      className={cn(
-                        "text-[16px] font-medium",
-                        isActive ? "text-[#1f5240]" : "text-[#f2f7f3]",
-                      )}
-                    >
-                      {tr(item.nameFr, item.nameEn)}
-                    </p>
-                    <p
-                      className={cn(
-                        "text-[13px]",
-                        isActive ? "text-[#356a57]" : "text-[#cde0d6]",
-                      )}
-                    >
-                      {tr(item.subtitleFr, item.subtitleEn)}
-                    </p>
-                  </div>
-                )}
-
-                {!compact && isActive && (
-                  <span className="active-indicator ml-auto h-3 w-3 rounded-full bg-[#356a57]/80" />
-                )}
-              </button>
-            );
-          })}
-        </nav>
-
-        {compact ? (
-          <div className="space-y-3 pt-4">
-            <div className="flex justify-center">
-              <button
-                type="button"
-                onClick={onProfileClick}
-                aria-label={tr("Ouvrir le profil", "Open profile")}
-                className="rounded-full transition-transform hover:scale-[1.04]"
-              >
-                {renderProfileAvatar("h-12 w-12", "text-[22px] font-semibold")}
-              </button>
-            </div>
-            <div className="flex justify-center">
-              <button
-                onClick={onSignOut}
-                aria-label={tr("Se deconnecter", "Sign out")}
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/12 text-[#f2f8f4] transition-colors hover:bg-white/24"
-              >
-                <LogOut className="h-4 w-4" />
-              </button>
-            </div>
+          <div className="leoni-app-mark">
+            <span className="leoni-app-title">{appConfig.applicationName}</span>
+            <span className="leoni-app-subtitle">{tr("Espace formation", "Training workspace")}</span>
           </div>
-        ) : (
-          <div className="pt-4 text-center">
+
+          <nav className={cn("leoni-nav", isMenuOpen ? "is-open" : "")} aria-label={tr("Navigation principale", "Main navigation")}>
+            {navigationItems.map((item) => {
+              const isActive = currentPage === item.id;
+              const Icon = item.icon;
+
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => handleNavigate(item.id)}
+                  className={cn("leoni-nav-link", isActive ? "is-active" : "")}
+                  title={tr(item.subtitleFr, item.subtitleEn)}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span>{tr(item.nameFr, item.nameEn)}</span>
+                </button>
+              );
+            })}
+          </nav>
+
+          <div className="leoni-user-actions">
+            <button type="button" className="leoni-icon-button leoni-search-button" aria-label={tr("Rechercher", "Search")}>
+              <Search className="h-4 w-4" />
+            </button>
+
             <button
               type="button"
-              onClick={onProfileClick}
-              className="w-full rounded-[18px] px-3 py-3 transition-colors hover:bg-white/8"
+              onClick={onToggleCompact}
+              className="leoni-icon-button"
+              aria-label={compact ? tr("Afficher le menu complet", "Show full menu") : tr("Compacter le menu", "Condense menu")}
             >
-              <p className="text-[16px] font-medium text-[#f2f8f4]">{displayName}</p>
-              <p className="text-[13px] text-[#cde0d6]">{roleLabel}</p>
-              <div className="mt-3 flex justify-center">
-                {renderProfileAvatar("h-12 w-12", "text-[22px] font-semibold")}
-              </div>
+              {compact ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
             </button>
+
+            <button type="button" onClick={onProfileClick} className="leoni-profile-button">
+              {renderProfileAvatar()}
+              <span className="leoni-profile-text">
+                <span>{displayName}</span>
+                <small>{roleLabel}</small>
+              </span>
+            </button>
+
             <button
+              type="button"
               onClick={onSignOut}
-              className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-[14px] bg-white/12 px-4 text-[14px] font-medium text-[#f2f8f4] transition-colors hover:bg-white/24"
+              className="leoni-icon-button leoni-signout"
+              aria-label={tr("Se deconnecter", "Sign out")}
             >
               <LogOut className="h-4 w-4" />
-              {tr("Se deconnecter", "Sign out")}
+            </button>
+
+            <button type="button" onClick={onProfileClick} className="leoni-contact-button">
+              Contact
             </button>
           </div>
-        )}
+        </div>
       </div>
-    </aside>
+    </header>
   );
 }

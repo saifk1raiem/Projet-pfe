@@ -45,20 +45,20 @@
   --font-size: 14px;
   --font-sans: "Leoni Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   --font-display: "Leoni Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-  --background: #f4f7fb;
-  --foreground: #13263f;
+  --background: #f7f8fb;
+  --foreground: #222222;
   --card: #ffffff;
   --card-foreground: #13263f;
   --popover: #ffffff;
   --popover-foreground: #13263f;
-  --primary: #005ca9;
+  --primary: #ff6f00;
   --primary-foreground: #ffffff;
-  --secondary: #e7eef6;
-  --secondary-foreground: #1a3252;
-  --muted: #eaf0f7;
-  --muted-foreground: #5d7088;
-  --accent: #d7e8f8;
-  --accent-foreground: #004681;
+  --secondary: #eeeeee;
+  --secondary-foreground: #222222;
+  --muted: #f4f4f4;
+  --muted-foreground: #616161;
+  --accent: #fff1e4;
+  --accent-foreground: #ff6f00;
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
   --border: #d4dfeb;
@@ -67,21 +67,21 @@
   --switch-background: #d4dfeb;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
-  --ring: #005ca9;
-  --chart-1: #005ca9;
-  --chart-2: #2e8ad7;
-  --chart-3: #f6a800;
+  --ring: #ff6f00;
+  --chart-1: #ff6f00;
+  --chart-2: #222222;
+  --chart-3: #f4a01d;
   --chart-4: #ef4444;
-  --chart-5: #1d4d7d;
-  --radius: 0.625rem;
-  --sidebar: #004681;
+  --chart-5: #7a7a7a;
+  --radius: 0.375rem;
+  --sidebar: #222222;
   --sidebar-foreground: #ffffff;
-  --sidebar-primary: #52a7e8;
-  --sidebar-primary-foreground: #08335f;
-  --sidebar-accent: #005ca9;
+  --sidebar-primary: #ff6f00;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #2d2d2d;
   --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #0c4d86;
-  --sidebar-ring: #52a7e8;
+  --sidebar-border: #3a3a3a;
+  --sidebar-ring: #ff6f00;
 }
 
 .dark {
@@ -91,31 +91,31 @@
   --card-foreground: #f8fafc;
   --popover: #0f2439;
   --popover-foreground: #f8fafc;
-  --primary: #3a9be2;
+  --primary: #ff8a1f;
   --primary-foreground: #ffffff;
-  --secondary: #18324d;
+  --secondary: #253b50;
   --secondary-foreground: #f8fafc;
   --muted: #1b3754;
   --muted-foreground: #9fb5cb;
-  --accent: #173451;
-  --accent-foreground: #7fc0ef;
+  --accent: #332416;
+  --accent-foreground: #ffb46b;
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
   --border: #214464;
   --input: #214464;
-  --ring: #3a9be2;
+  --ring: #ff8a1f;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
-  --chart-1: #3a9be2;
-  --chart-2: #66b5f0;
-  --chart-3: #f6a800;
+  --chart-1: #ff8a1f;
+  --chart-2: #f8fafc;
+  --chart-3: #f4a01d;
   --chart-4: #ef4444;
-  --chart-5: #20598f;
-  --sidebar: #0a2f50;
+  --chart-5: #9ca3af;
+  --sidebar: #222222;
   --sidebar-foreground: #ffffff;
-  --sidebar-primary: #67b8f2;
-  --sidebar-primary-foreground: #082844;
-  --sidebar-accent: #124673;
+  --sidebar-primary: #ff8a1f;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #2d2d2d;
   --sidebar-accent-foreground: #ffffff;
   --sidebar-border: #1c537f;
   --sidebar-ring: #67b8f2;
@@ -239,20 +239,20 @@ html {
 .leoni-display-xl {
   font-family: var(--font-display);
   font-weight: 600;
-  letter-spacing: -0.018em;
+  letter-spacing: 0;
 }
 
 .leoni-display-lg {
   font-family: var(--font-display);
   font-weight: 600;
-  letter-spacing: -0.014em;
+  letter-spacing: 0;
 }
 
 .leoni-metric {
   font-family: var(--font-display);
   font-weight: 600;
   font-variant-numeric: tabular-nums lining-nums;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
 }
 
 .leoni-subtitle {
